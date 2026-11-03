@@ -39,6 +39,10 @@ app.get('/api/dashboard', async (_req, res) => {
     const platforms = await read('SELECT * FROM v_platform_stats ORDER BY total_count DESC');
     const tags = await read('SELECT * FROM v_tag_stats ORDER BY total_count DESC, pass_rate DESC');
     const difficulty = await read('SELECT * FROM v_difficulty_stats');
+    const nativeDifficulty = await read(`SELECT p.platform_name,pr.difficulty,pr.native_difficulty,COUNT(r.record_id) AS total_count
+      FROM record r JOIN problem pr ON pr.problem_id=r.problem_id
+      JOIN platform p ON p.platform_id=pr.platform_id
+      GROUP BY p.platform_name,pr.difficulty,pr.native_difficulty`);
     const monthly = await read('SELECT * FROM v_monthly_trend ORDER BY solve_month');
     const daily = await read(`SELECT DATE(submitted_at) AS day,COUNT(*) AS submission_count,
       SUM(passed=1) AS accepted_count,COUNT(DISTINCT problem_id) AS problem_count
@@ -49,12 +53,12 @@ app.get('/api/dashboard', async (_req, res) => {
       FROM synced_submission WHERE submitted_at>=DATE_SUB(CURDATE(),INTERVAL 6 DAY)
       AND submitted_at<DATE_ADD(CURDATE(),INTERVAL 1 DAY)`);
     const [clock] = await read('SELECT CURRENT_DATE() AS server_date');
-    const recent = await read(`SELECT pr.problem_name, p.platform_name, pr.difficulty, r.passed, r.submit_count, r.solve_date
+    const recent = await read(`SELECT pr.problem_name, p.platform_name, pr.difficulty, pr.native_difficulty, pr.difficulty_source, r.passed, r.submit_count, r.solve_date
       FROM record r JOIN problem pr ON pr.problem_id=r.problem_id
       JOIN platform p ON p.platform_id=pr.platform_id
       ORDER BY r.solve_date DESC,r.record_id LIMIT 8`);
     await connection.commit();
-    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
+    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent, nativeDifficulty, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
   } catch (error) {
     await connection.rollback();
     throw error;

@@ -34,6 +34,9 @@ try{
  const result={items:[item,{...item,id:'2',passed:1}],cursor:0,note:'fixture'};
  const first=await saveSubmissions(connection,account,result);assert.equal(first.newSubmissions,2);
  const repeat=await saveSubmissions(connection,account,result);assert.equal(repeat.newSubmissions,0);
+ await saveSubmissions(connection,account,{...result,items:[{...item,native:null}]});
+ const [[rating]]=await connection.execute('SELECT native_difficulty FROM problem WHERE problem_id=?',[problem]);
+ assert.equal(rating.native_difficulty,'800','a missing upstream value must not erase a stored rating');
  const [[state]]=await connection.execute('SELECT submit_count,passed FROM record WHERE record_id=?',[record]);
  assert.equal(state.submit_count,4);assert.equal(state.passed,1);
  const [[tags]]=await connection.execute('SELECT COUNT(*) AS n FROM problem_tag WHERE problem_id=?',[problem]);assert.equal(tags.n,2);

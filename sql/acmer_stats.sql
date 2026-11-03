@@ -602,3 +602,10 @@ WHERE NOT EXISTS(SELECT 1 FROM platform WHERE platform_name='牛客');
 -- Index for seven-day activity queries
 USE acmer_stats;
 ALTER TABLE synced_submission ADD INDEX idx_sync_submitted_at(submitted_at);
+
+-- Native rating provenance
+USE acmer_stats;
+ALTER TABLE problem ADD difficulty_source VARCHAR(40) NULL;
+UPDATE problem pr JOIN platform p ON p.platform_id=pr.platform_id
+SET pr.difficulty_source='codeforces'
+WHERE p.platform_name='Codeforces' AND pr.native_difficulty IS NOT NULL;

@@ -1,4 +1,5 @@
 import {load} from 'cheerio';
+import {getDifficultyMetadata} from './difficulty-metadata.js';
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export const capabilities={
  Codeforces:{mode:'公开提交',note:'官方 API；每次最多读取最近 5000 条提交。'},
@@ -113,5 +114,12 @@ export async function collect(account,secret='') {
    passed:1,tags:[],native:null,url:'https://leetcode.cn/problems/'+s.question.titleSlug+'/'}));
   note=rows.length?'仅同步力扣中国公开的最近 AC 列表；不代表全部历史，失败提交未包含。':'该用户标识未返回公开 AC 记录。请核对力扣个人主页 /u/ 后的标识；此结果不能证明账号不存在或从未刷题。';
  }else throw new SourceError('该平台暂未接入同步，可以先保存账号。');
- return {items:[...new Map(items.map(s=>[s.id,s])).values()],cursor,note,partial};
+ let metadata;
+ if(['Codeforces','AtCoder'].includes(platform)){
+  try{
+   metadata=await getDifficultyMetadata(platform);
+   for(const item of items){const meta=metadata.get(item.key);if(meta?.native!=null){item.native=meta.native;item.nativeSource=meta.source;}}
+  }catch{note+=' 难度数据源暂不可用，已有难度保留，稍后同步可重试。';}
+ }
+ return {items:[...new Map(items.map(s=>[s.id,s])).values()],cursor,note,partial,metadata};
 }

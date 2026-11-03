@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {applyDifficultyMetadata} from './difficulty-metadata.js';
 const short=(value,max)=>Array.from(String(value)).slice(0,max).join('');
 export function sqlDate(seconds) {
  return new Date(seconds*1000+8*3600000).toISOString().slice(0,19).replace('T',' ');
@@ -16,9 +17,9 @@ export async function saveSubmissions(connection,account,result) {
     [account.platform_id,s.key,title]);
    if(!problem){
     problem={problem_id:randomUUID()};
-    await connection.execute('INSERT INTO problem(problem_id,problem_name,difficulty,platform_id,source_key,problem_url,native_difficulty) VALUES(?,?,NULL,?,?,?,?)',
-     [problem.problem_id,title,account.platform_id,s.key,s.url,s.native]);
-   }else await connection.execute('UPDATE problem SET source_key=?,problem_url=?,native_difficulty=? WHERE problem_id=?',[s.key,s.url,s.native,problem.problem_id]);
+    await connection.execute('INSERT INTO problem(problem_id,problem_name,difficulty,platform_id,source_key,problem_url,native_difficulty,difficulty_source) VALUES(?,?,NULL,?,?,?,?,?)',
+     [problem.problem_id,title,account.platform_id,s.key,s.url,s.native,s.nativeSource||(account.platform_name==='Codeforces'&&s.native!=null?'codeforces':null)]);
+   }else await connection.execute('UPDATE problem SET source_key=?,problem_url=?,native_difficulty=COALESCE(?,native_difficulty),difficulty_source=COALESCE(?,difficulty_source) WHERE problem_id=?',[s.key,s.url,s.native,s.nativeSource||(account.platform_name==='Codeforces'&&s.native!=null?'codeforces':null),problem.problem_id]);
    for(const value of new Set(s.tags)){
     const name=short(value,30);
     if(!name) continue;
@@ -50,6 +51,7 @@ export async function saveSubmissions(connection,account,result) {
     summary.newProblems++;
    }
   }
+  if(result.metadata)await applyDifficultyMetadata(connection,account.platform_id,account.platform_name,result.metadata);
   const message='新增 '+summary.newSubmissions+' 条提交、更新 '+summary.updatedSubmissions+' 条判定、新增 '+summary.newProblems+' 道题。'+result.note;
   await connection.execute("UPDATE platform_account SET sync_status='success',sync_message=?,last_sync=NOW(),sync_cursor=? WHERE account_id=?",[message.slice(0,1000),result.cursor,account.account_id]);
   await connection.commit();
