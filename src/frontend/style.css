@@ -15,3 +15,20 @@
   transition:background-color 180ms ease-out,color 180ms ease-out,border-color 180ms ease-out;
  }
 }
+
+/* Separate pages share the same lightweight layout and theme tokens. */
+.header-hint{font-size:11px;color:var(--muted)}
+aside nav{display:flex;flex-direction:column}
+.week-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:12px 0 18px;border-bottom:1px solid var(--rowBorder);margin-bottom:18px}
+.week-summary strong{display:block;font-size:25px;font-weight:600;font-variant-numeric:tabular-nums}
+.week-summary span{display:block;margin-top:7px;font-size:11px;color:var(--muted)}
+.overview-pie{height:320px}
+.text-link{color:var(--accent);font-size:11px}
+.next-step{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px}
+.next-step p,.appearance-row p{font-size:12px;color:var(--muted);line-height:1.8;margin:10px 0 0}
+.page-button{display:inline-block;padding:11px 16px;border:1px solid var(--border);border-radius:8px;color:var(--accent);white-space:nowrap;font-size:12px}
+.platform-analysis,.tag-analysis,.appearance-panel{margin-bottom:22px}
+.platform-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 36px}
+.appearance-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 0}
+.appearance-row h3{font-size:14px;font-weight:500;margin:0}
+@media(max-width:700px){aside nav{flex-direction:row;flex-wrap:wrap;gap:4px}.week-summary{gap:8px}.week-summary strong{font-size:22px}.platform-grid{grid-template-columns:1fr}.appearance-row,.next-step{align-items:flex-start;flex-direction:column}.overview-pie{height:260px}}
