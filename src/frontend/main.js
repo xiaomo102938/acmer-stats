@@ -59,7 +59,7 @@ createApp({
     </section>
     <section class="bottom-grid">
      <article class="panel"><div class="panel-head"><h2>平台足迹</h2><span>PLATFORMS</span></div>
-      <div class="platform" v-for="p in data.platforms" :key="p.platform_id"><div><b>{{p.platform_name}}</b><span>{{p.passed_count}} / {{p.total_count}} 道通过</span></div><div class="track"><i :style="{width:p.pass_rate+'%'}"></i></div><em>{{p.pass_rate}}%</em></div>
+      <div class="platform" v-for="p in data.platforms" :key="p.platform_id"><div><b>{{p.platform_name}}</b><span>{{p.passed_count}} / {{p.total_count}} 道通过</span></div><div class="track"><i :style="{width:(p.pass_rate??0)+'%'}"></i></div><em>{{p.total_count ? p.pass_rate+"%" : "暂无记录"}}</em></div>
       <p v-if="!data.platforms.length" class="muted">暂无平台记录</p>
      </article>
      <article class="panel" id="tags"><div class="panel-head"><h2>题型掌握度</h2><span>按刷题数排序</span></div>
