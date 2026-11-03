@@ -54,3 +54,12 @@ acmer-stats/
 - [ ] 前端页面开发
 - [ ] 后端接口开发
 - [ ] 平台数据自动同步
+
+## 数据库更新校验
+
+2026-11-03：新增 trg_record_check_update 触发器，修改刷题记录时拒绝未来日期和 1 至 999 以外的提交次数。现有本机数据库已应用并通过事务回滚测试，原记录不变。
+
+已有数据库只需执行一次 sql/migrations/001_validate_record_updates.sql，不要重新执行全量初始化脚本。新建数据库使用 sql/acmer_stats.sql，已包含本次修复。
+
+回归测试位于 tests/record_update_validation.sql，要求至少一条已有记录。使用 mysql --default-character-set=utf8mb4 --force acmer_stats 执行，预期三条 ERROR 1644 (45000) 和四项通过标记，无 FAIL。测试最后回滚全部数据修改。密码通过环境配置提供，不写入仓库。
+

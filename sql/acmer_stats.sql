@@ -525,3 +525,21 @@ SELECT problem_name, submit_count, solve_date
 -- INSERT INTO `record` VALUES (UUID(), 1, 1, '2099-01-01', 'a0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001');
 -- INSERT INTO `record` VALUES (UUID(), 1, 1000, '2026-10-01', 'a0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001');
 -- INSERT INTO `record` VALUES (UUID(), 1, 1, '2026-10-01', 'a0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001');
+
+-- 更新路径校验，与新增路径规则保持一致。
+-- Existing databases: apply once. No existing records are modified.
+USE acmer_stats;
+DELIMITER //
+CREATE TRIGGER trg_record_check_update
+BEFORE UPDATE ON `record`
+FOR EACH ROW
+BEGIN
+  IF NEW.solve_date > CURDATE() THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '刷题日期不能晚于今天';
+  END IF;
+  IF NEW.submit_count < 1 OR NEW.submit_count > 999 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '提交次数必须在 1~999 之间';
+  END IF;
+END //
+DELIMITER ;
+
