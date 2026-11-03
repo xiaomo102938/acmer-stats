@@ -1,4 +1,5 @@
 import express from 'express';
+import {accountRouter} from './accounts.js';
 import mysql from 'mysql2/promise';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +16,19 @@ const pool = mysql.createPool({
 });
 const app = express();
 app.disable('x-powered-by');
+app.use(express.json({limit:'24kb'}));
+app.use('/api',(req,res,next)=>{
+ if(!['GET','HEAD','OPTIONS'].includes(req.method)){
+  if(req.get('X-Acmer-Request')!=='1') return res.status(403).json({message:'请求来源校验失败，请从本站操作。'});
+  const origin=req.get('Origin');
+  if(origin){
+   try { const host=new URL(origin).hostname; if(!['127.0.0.1','localhost','[::1]'].includes(host)) throw new Error(); }
+   catch { return res.status(403).json({message:'不允许跨站写入。'}); }
+  }
+ }
+ next();
+});
+app.use('/api/accounts',accountRouter(pool));
 app.get('/api/dashboard', async (_req, res) => {
   const connection = await pool.getConnection();
   try {
@@ -40,10 +54,12 @@ app.get('/api/dashboard', async (_req, res) => {
 app.use('/api', (_req,res) => res.status(404).json({message:'接口不存在'}));
 app.use(express.static(path.join(root, 'dist')));
 app.use((error,_req,res,_next) => {
+  if(error.status) return res.status(error.status).json({message:error.message});
   console.error('Request failed:', error.code || error.message);
   res.status(503).json({message:'暂时无法读取数据，请检查数据库连接后重试。'});
 });
 const port=Number(process.env.PORT || 3000);
+await pool.query("UPDATE platform_account SET sync_status='error',sync_message='上次同步被服务重启中断，请重新同步。' WHERE sync_status='running'");
 const server=app.listen(port,'127.0.0.1',()=>console.log('Local: http://127.0.0.1:'+port));
 async function close() { server.close(async()=>{await pool.end();process.exit(0);}); }
 process.on('SIGINT',close);
