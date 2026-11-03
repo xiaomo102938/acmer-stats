@@ -17,20 +17,19 @@ createApp({
   const lightColors=['#376c58','#86a895','#c4d5b8','#dfbf82','#b0b9aa'];
   const darkColors=['#83bc9c','#9faedb','#c4ce93','#d9b77f','#7d9289'];
   function draw(){
-   charts.forEach(c=>c.dispose()); charts=[];
    if(!data.value||!monthlyEl.value||!difficultyEl.value) return;
    const dark=isDark.value,colors=dark?darkColors:lightColors;
    const text=dark?'#b5c6b9':'#788571',line=dark?'#34483c':'#d9e0d7',gridLine=dark?'#293a30':'#eef0eb';
    const tooltip={backgroundColor:dark?'#24352b':'#ffffff',borderColor:line,textStyle:{color:dark?'#e0eadd':'#25372e'}};
-   const monthly=echarts.init(monthlyEl.value), difficulty=echarts.init(difficultyEl.value);
+   const monthly=charts[0]||echarts.init(monthlyEl.value), difficulty=charts[1]||echarts.init(difficultyEl.value);
    charts=[monthly,difficulty];
-   monthly.setOption({color:colors,tooltip:{...tooltip,trigger:'axis'},legend:{bottom:0,textStyle:{color:text}},grid:{left:38,right:20,top:18,bottom:55},
+   monthly.setOption({animation:false,color:colors,tooltip:{...tooltip,trigger:'axis'},legend:{bottom:0,textStyle:{color:text}},grid:{left:38,right:20,top:18,bottom:55},
     xAxis:{type:'category',data:data.value.monthly.map(x=>x.solve_month),axisLabel:{color:text},axisLine:{lineStyle:{color:line}}},
     yAxis:{type:'value',minInterval:1,axisLabel:{color:text},splitLine:{lineStyle:{color:gridLine}}},
     series:[{name:'刷题数',type:'bar',barMaxWidth:38,itemStyle:{borderRadius:[5,5,0,0]},data:data.value.monthly.map(x=>x.total_count)},
     {name:'通过数',type:'line',symbolSize:8,data:data.value.monthly.map(x=>x.passed_count)}]});
    const levels=['入门','普及','提高','省选','未评级'];
-   difficulty.setOption({color:colors,tooltip:{...tooltip,trigger:'item'},legend:{bottom:0,textStyle:{color:text}},series:[{type:'pie',radius:['48%','72%'],center:['50%','43%'],label:{show:false},data:levels.map(name=>({name,value:data.value.difficulty.find(x=>(x.difficulty||'未评级')===name)?.total_count||0}))}]});
+   difficulty.setOption({animation:false,color:colors,tooltip:{...tooltip,trigger:'item'},legend:{bottom:0,textStyle:{color:text}},series:[{type:'pie',radius:['48%','72%'],center:['50%','43%'],label:{show:false},data:levels.map(name=>({name,value:data.value.difficulty.find(x=>(x.difficulty||'未评级')===name)?.total_count||0}))}]});
   }
   async function load(){
    loading.value=true;error.value='';
