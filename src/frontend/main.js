@@ -6,25 +6,31 @@ import {CanvasRenderer} from 'echarts/renderers';
 echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendComponent,CanvasRenderer]);
 import './style.css';
 import Accounts from './accounts.js';
+import {useTheme} from './theme.js';
 
 createApp({
  components:{Accounts},
  setup() {
   const data=ref(null), loading=ref(false), error=ref(''), monthlyEl=ref(null), difficultyEl=ref(null);
   let charts=[];
-  const colors=['#376c58','#86a895','#c4d5b8','#dfbf82'];
+  const {theme,isDark}=useTheme(()=>draw());
+  const lightColors=['#376c58','#86a895','#c4d5b8','#dfbf82','#b0b9aa'];
+  const darkColors=['#83bc9c','#9faedb','#c4ce93','#d9b77f','#7d9289'];
   function draw(){
    charts.forEach(c=>c.dispose()); charts=[];
-   if(!data.value) return;
+   if(!data.value||!monthlyEl.value||!difficultyEl.value) return;
+   const dark=isDark.value,colors=dark?darkColors:lightColors;
+   const text=dark?'#b5c6b9':'#788571',line=dark?'#34483c':'#d9e0d7',gridLine=dark?'#293a30':'#eef0eb';
+   const tooltip={backgroundColor:dark?'#24352b':'#ffffff',borderColor:line,textStyle:{color:dark?'#e0eadd':'#25372e'}};
    const monthly=echarts.init(monthlyEl.value), difficulty=echarts.init(difficultyEl.value);
    charts=[monthly,difficulty];
-   monthly.setOption({color:colors,tooltip:{trigger:'axis'},legend:{bottom:0},grid:{left:38,right:20,top:18,bottom:55},
-    xAxis:{type:'category',data:data.value.monthly.map(x=>x.solve_month),axisLine:{lineStyle:{color:'#d9e0d7'}}},
-    yAxis:{type:'value',minInterval:1,splitLine:{lineStyle:{color:'#eef0eb'}}},
+   monthly.setOption({color:colors,tooltip:{...tooltip,trigger:'axis'},legend:{bottom:0,textStyle:{color:text}},grid:{left:38,right:20,top:18,bottom:55},
+    xAxis:{type:'category',data:data.value.monthly.map(x=>x.solve_month),axisLabel:{color:text},axisLine:{lineStyle:{color:line}}},
+    yAxis:{type:'value',minInterval:1,axisLabel:{color:text},splitLine:{lineStyle:{color:gridLine}}},
     series:[{name:'刷题数',type:'bar',barMaxWidth:38,itemStyle:{borderRadius:[5,5,0,0]},data:data.value.monthly.map(x=>x.total_count)},
     {name:'通过数',type:'line',symbolSize:8,data:data.value.monthly.map(x=>x.passed_count)}]});
    const levels=['入门','普及','提高','省选','未评级'];
-   difficulty.setOption({color:colors,tooltip:{trigger:'item'},legend:{bottom:0},series:[{type:'pie',radius:['48%','72%'],center:['50%','43%'],label:{show:false},data:levels.map(name=>({name,value:data.value.difficulty.find(x=>(x.difficulty||'未评级')===name)?.total_count||0}))}]});
+   difficulty.setOption({color:colors,tooltip:{...tooltip,trigger:'item'},legend:{bottom:0,textStyle:{color:text}},series:[{type:'pie',radius:['48%','72%'],center:['50%','43%'],label:{show:false},data:levels.map(name=>({name,value:data.value.difficulty.find(x=>(x.difficulty||'未评级')===name)?.total_count||0}))}]});
   }
   async function load(){
    loading.value=true;error.value='';
@@ -34,7 +40,7 @@ createApp({
   const resize=()=>charts.forEach(c=>c.resize());
   onMounted(()=>{load();window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{charts.forEach(c=>c.dispose());window.removeEventListener('resize',resize);});
-  return {data,loading,error,monthlyEl,difficultyEl,load};
+  return {data,loading,error,monthlyEl,difficultyEl,load,theme,isDark};
  },
  template:`
  <div class="layout">
@@ -44,7 +50,7 @@ createApp({
    <div class="aside-note"><span class="dot"></span> 本机数据库<p>每一道题，都留下进步的痕迹。</p></div>
   </aside>
   <main id="overview">
-   <header><span class="breadcrumb">个人工作台 / 数据总览</span><button @click="load" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
+   <header><span class="breadcrumb">个人工作台 / 数据总览</span><div class="header-actions"><label class="theme-switch"><span>外观</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白天模式</option><option value="dark">☾ 黑夜模式</option><option value="system">◐ 跟随系统</option></select></label><button @click="load" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></div></header>
    <section class="intro"><p class="eyebrow">YOUR PRACTICE, IN PERSPECTIVE</p><h1>把每一次练习，连成进步。</h1><p>跨平台查看你的刷题积累，找到下一步值得投入的方向。</p></section>
    <div v-if="error" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
    <p v-if="loading && !data" role="status">正在读取数据库…</p>
