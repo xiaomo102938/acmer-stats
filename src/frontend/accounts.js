@@ -54,9 +54,9 @@ export default {
   <p v-if="message" class="account-message" role="status">{{message}}</p>
   <form @submit.prevent="save" class="account-form">
    <label>平台<select v-model="form.platform_id" :disabled="!!editing" required><option v-for="p in platforms" :key="p.platform_id" :value="p.platform_id">{{p.platform_name}} · {{p.mode}}</option></select></label>
-   <label>用户名 / 用户标识<input v-model.trim="form.login_name" :readonly="!!editing" maxlength="100" required placeholder="例如 xiaomo102938" autocomplete="off"></label>
+   <label>{{selected()?.platform_name==='洛谷'?'数字 UID':'用户名 / 用户标识'}}<input v-model.trim="form.login_name" :readonly="!!editing" maxlength="100" required placeholder="例如 xiaomo102938" autocomplete="off"></label>
    <label v-if="selected()?.platform_name==='牛客'">牛客数字 UID<input v-model.trim="form.remote_uid" inputmode="numeric" placeholder="个人主页地址中的数字"></label>
-   <label v-if="['QOJ','牛客','LeetCode'].includes(selected()?.platform_name)" class="cookie-field">登录 Cookie（留空保留原设置）<input v-model="form.cookie" type="password" autocomplete="new-password" maxlength="12000" placeholder="name=value; name2=value2"></label>
+   <label v-if="['QOJ','牛客','LeetCode','洛谷'].includes(selected()?.platform_name)" class="cookie-field">登录 Cookie（留空保留原设置）<input v-model="form.cookie" type="password" autocomplete="new-password" maxlength="12000" placeholder="name=value; name2=value2"></label>
    <label v-if="editing" class="check-label"><input type="checkbox" v-model="form.remove_cookie">清除已保存的 Cookie</label>
    <div class="form-actions"><button class="primary" :disabled="saving">{{saving?'保存中…':editing?'保存设置':'添加账号'}}</button><button v-if="editing" type="button" @click="cancel">取消编辑</button></div>
   </form>
@@ -71,6 +71,6 @@ export default {
     <div v-if="confirming===a.account_id" class="unbind-confirm" role="alert">解绑后保留已同步的刷题记录。<button @click="remove(a)">确认解绑</button><button @click="confirming=null">取消</button></div>
    </article>
   </div>
-  <p class="footnote">QOJ、牛客和力扣的 AC 数据不包含完整失败提交，不能视作真实的全历史通过率。未知难度保留为“未评级”；同步记录的次数以实际获取到的提交为准，当前字段上限为 999。</p>
+  <p class="footnote">QOJ、牛客和力扣的 AC 数据不包含完整失败提交，不能视作真实的全历史通过率。洛谷只提供可见练习清单与站点活动，不含逐次提交；同步记录的次数以实际获取到的提交为准，当前字段上限为 999。</p>
  </section>`
 };

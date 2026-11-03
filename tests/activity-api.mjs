@@ -5,15 +5,22 @@ const connection=await mysql.createConnection({host:process.env.DB_HOST||'127.0.
 try{
  const current=await(await fetch(base+'/api/activity')).json();
  const [rows]=await connection.query('SELECT s.submitted_at,s.passed,s.problem_id,p.platform_name FROM synced_submission s JOIN platform p ON p.platform_id=s.platform_id JOIN user u ON u.user_id=s.user_id WHERE u.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)');
+ const [activityRows]=await connection.query('SELECT a.activity_day,a.activity_count,p.platform_name FROM platform_daily_activity a JOIN platform p ON p.platform_id=a.platform_id WHERE a.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)');
  for(const year of current.years){
   const response=await fetch(base+'/api/activity?year='+year);assert.equal(response.status,200);const body=await response.json();
   const expected=new Map();
   for(const r of rows){
    const day=r.submitted_at.slice(0,10);if(!day.startsWith(year+'-')||day>body.serverDate)continue;
    const key=day+'|'+r.platform_name;
-   if(!expected.has(key))expected.set(key,{day,platform_name:r.platform_name,submission_count:0,accepted_count:0,problems:new Set(),ac:new Set()});
+   if(!expected.has(key))expected.set(key,{day,platform_name:r.platform_name,submission_count:0,accepted_count:0,activity_count:0,has_submission_data:true,has_activity_data:false,problems:new Set(),ac:new Set()});
    const row=expected.get(key);row.submission_count++;row.problems.add(r.problem_id);
    if(r.passed===1){row.accepted_count++;row.ac.add(r.problem_id);}
+  }
+  for(const r of activityRows){
+   const day=r.activity_day;if(!day.startsWith(year+'-')||day>body.serverDate)continue;
+   const key=day+'|'+r.platform_name;
+   if(!expected.has(key))expected.set(key,{day,platform_name:r.platform_name,submission_count:0,accepted_count:0,activity_count:0,has_submission_data:false,has_activity_data:true,problems:new Set(),ac:new Set()});
+   const row=expected.get(key);row.activity_count+=r.activity_count;row.has_activity_data=true;
   }
   assert.equal(body.days.length,expected.size);
   for(const actual of body.days){const {problems,ac,...r}=expected.get(actual.day+'|'+actual.platform_name);assert.deepEqual(actual,{...r,problem_count:problems.size,accepted_problem_count:ac.size});}

@@ -754,3 +754,38 @@ UPDATE tag t JOIN tag_merge_map m ON m.old_id=t.tag_id AND m.keep_id=t.tag_id
 SET t.tag_name=m.canonical_key,t.display_name=m.display_name;
 DROP TEMPORARY TABLE tag_merge_map;
 COMMIT;
+
+-- Undated Luogu practice inventory and separate daily activity
+USE acmer_stats;
+CREATE TABLE platform_problem_inventory(
+ user_id CHAR(36) NOT NULL,platform_id CHAR(36) NOT NULL,problem_id CHAR(36) NOT NULL,
+ account_uid VARCHAR(30) NOT NULL,passed TINYINT NOT NULL,observed_at DATETIME NOT NULL,
+ PRIMARY KEY(user_id,problem_id),
+ FOREIGN KEY(user_id) REFERENCES user(user_id),FOREIGN KEY(platform_id) REFERENCES platform(platform_id),FOREIGN KEY(problem_id) REFERENCES problem(problem_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE platform_daily_activity(
+ user_id CHAR(36) NOT NULL,platform_id CHAR(36) NOT NULL,account_uid VARCHAR(30) NOT NULL,
+ activity_day DATE NOT NULL,activity_count INT UNSIGNED NOT NULL,
+ PRIMARY KEY(user_id,platform_id,account_uid,activity_day),KEY idx_activity_day(activity_day),
+ FOREIGN KEY(user_id) REFERENCES user(user_id),FOREIGN KEY(platform_id) REFERENCES platform(platform_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE platform_snapshot(
+ account_id CHAR(36) PRIMARY KEY,passed_count INT NOT NULL,attempted_count INT NOT NULL,activity_days INT NOT NULL,
+ profile_passed_count INT NULL,profile_attempted_count INT NULL,
+ observed_at DATETIME NOT NULL,FOREIGN KEY(account_id) REFERENCES platform_account(account_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE OR REPLACE VIEW v_problem_progress AS
+SELECT user_id,problem_id,CONCAT(user_id,':',problem_id) AS record_id,MAX(passed) AS passed,MAX(solve_date) AS solve_date
+FROM (SELECT user_id,problem_id,passed,solve_date FROM record
+ UNION ALL SELECT user_id,problem_id,passed,NULL AS solve_date FROM platform_problem_inventory) progress
+GROUP BY user_id,problem_id;
+
+CREATE OR REPLACE VIEW v_platform_stats AS select `p`.`platform_id` AS `platform_id`,`p`.`platform_name` AS `platform_name`,count(`r`.`record_id`) AS `total_count`,coalesce(sum(`r`.`passed`),0) AS `passed_count`,round(((coalesce(sum(`r`.`passed`),0) / nullif(count(`r`.`record_id`),0)) * 100),1) AS `pass_rate` from ((`platform` `p` left join `problem` `pr` on((`pr`.`platform_id` = `p`.`platform_id`))) left join `v_problem_progress` `r` on((`r`.`problem_id` = `pr`.`problem_id`))) group by `p`.`platform_id`,`p`.`platform_name`;
+
+CREATE OR REPLACE VIEW v_tag_stats AS select `t`.`tag_id` AS `tag_id`,`t`.`tag_name` AS `tag_name`,coalesce(`t`.`display_name`,`t`.`tag_name`) AS `display_name`,count(`r`.`record_id`) AS `total_count`,coalesce(sum(`r`.`passed`),0) AS `passed_count`,round(((coalesce(sum(`r`.`passed`),0) / nullif(count(`r`.`record_id`),0)) * 100),1) AS `pass_rate` from (((`tag` `t` join `problem_tag` `pt` on((`pt`.`tag_id` = `t`.`tag_id`))) join `problem` `pr` on((`pr`.`problem_id` = `pt`.`problem_id`))) join `v_problem_progress` `r` on((`r`.`problem_id` = `pr`.`problem_id`))) group by `t`.`tag_id`,`t`.`tag_name`,`t`.`display_name`;
+
+CREATE OR REPLACE VIEW v_difficulty_stats AS select `pr`.`difficulty` AS `difficulty`,count(`r`.`record_id`) AS `total_count`,coalesce(sum(`r`.`passed`),0) AS `passed_count`,round(((coalesce(sum(`r`.`passed`),0) / count(`r`.`record_id`)) * 100),1) AS `pass_rate` from (`problem` `pr` join `v_problem_progress` `r` on((`r`.`problem_id` = `pr`.`problem_id`))) group by `pr`.`difficulty`;
+
+CREATE OR REPLACE VIEW v_user_overview AS select `u`.`user_id` AS `user_id`,`u`.`user_name` AS `user_name`,count(distinct `r`.`record_id`) AS `total_problems`,count(distinct if((`r`.`passed` = 1),`r`.`record_id`,NULL)) AS `passed_problems`,round(((count(distinct if((`r`.`passed` = 1),`r`.`record_id`,NULL)) / count(distinct `r`.`record_id`)) * 100),1) AS `pass_rate`,count(distinct `pr`.`platform_id`) AS `platform_count`,count(distinct `pt`.`tag_id`) AS `tag_count`,min(`r`.`solve_date`) AS `first_solve_date`,max(`r`.`solve_date`) AS `last_solve_date` from (((`user` `u` left join `v_problem_progress` `r` on((`r`.`user_id` = `u`.`user_id`))) left join `problem` `pr` on((`pr`.`problem_id` = `r`.`problem_id`))) left join `problem_tag` `pt` on((`pt`.`problem_id` = `pr`.`problem_id`))) group by `u`.`user_id`,`u`.`user_name`;
+
+CREATE OR REPLACE VIEW v_tag_ability AS with `totals` as (select `r`.`user_id` AS `user_id`,`pt`.`tag_id` AS `tag_id`,`pr`.`platform_id` AS `platform_id`,count(0) AS `total_count`,sum((`r`.`passed` = 1)) AS `passed_count` from ((`v_problem_progress` `r` join `problem` `pr` on((`pr`.`problem_id` = `r`.`problem_id`))) join `problem_tag` `pt` on((`pt`.`problem_id` = `pr`.`problem_id`))) group by `r`.`user_id`,`pt`.`tag_id`,`pr`.`platform_id`), `ranked` as (select `r`.`user_id` AS `user_id`,`pt`.`tag_id` AS `tag_id`,`pr`.`platform_id` AS `platform_id`,`pr`.`problem_id` AS `problem_id`,cast(`pr`.`native_difficulty` as decimal(10,2)) AS `rating`,row_number() OVER (PARTITION BY `r`.`user_id`,`pt`.`tag_id`,`pr`.`platform_id` ORDER BY cast(`pr`.`native_difficulty` as decimal(10,2)) desc,`pr`.`problem_id` )  AS `position` from (((`v_problem_progress` `r` join `problem` `pr` on((`pr`.`problem_id` = `r`.`problem_id`))) join `platform` `p` on((`p`.`platform_id` = `pr`.`platform_id`))) join `problem_tag` `pt` on((`pt`.`problem_id` = `pr`.`problem_id`))) where ((`r`.`passed` = 1) and (`p`.`platform_name` in ('Codeforces','AtCoder')) and regexp_like(`pr`.`native_difficulty`,'^[0-9]+([.][0-9]+)?$') and (((`p`.`platform_name` = 'Codeforces') and (`pr`.`difficulty_source` = 'codeforces')) or ((`p`.`platform_name` = 'AtCoder') and (`pr`.`difficulty_source` in ('atcoder_problems','atcoder_problems_experimental')))))), `ability` as (select `ranked`.`user_id` AS `user_id`,`ranked`.`tag_id` AS `tag_id`,`ranked`.`platform_id` AS `platform_id`,count(0) AS `rated_count`,sum((`ranked`.`position` <= 25)) AS `sample_count`,round(avg((case when (`ranked`.`position` <= 25) then `ranked`.`rating` end)),1) AS `ability_value`,min((case when (`ranked`.`position` <= 25) then `ranked`.`rating` end)) AS `min_difficulty`,max(`ranked`.`rating`) AS `max_difficulty` from `ranked` group by `ranked`.`user_id`,`ranked`.`tag_id`,`ranked`.`platform_id`) select `x`.`user_id` AS `user_id`,`x`.`tag_id` AS `tag_id`,`t`.`tag_name` AS `tag_name`,coalesce(`t`.`display_name`,`t`.`tag_name`) AS `display_name`,`x`.`platform_id` AS `platform_id`,`p`.`platform_name` AS `platform_name`,`x`.`total_count` AS `total_count`,`x`.`passed_count` AS `passed_count`,coalesce(`a`.`rated_count`,0) AS `rated_count`,coalesce(`a`.`sample_count`,0) AS `sample_count`,`a`.`ability_value` AS `ability_value`,`a`.`min_difficulty` AS `min_difficulty`,`a`.`max_difficulty` AS `max_difficulty`,(case when (`a`.`sample_count` = 25) then '满25题' when (`a`.`sample_count` > 0) then '样本不足' else '暂无有效评分' end) AS `sample_status` from (((`totals` `x` join `tag` `t` on((`t`.`tag_id` = `x`.`tag_id`))) join `platform` `p` on((`p`.`platform_id` = `x`.`platform_id`))) left join `ability` `a` on(((`a`.`user_id` = `x`.`user_id`) and (`a`.`tag_id` = `x`.`tag_id`) and (`a`.`platform_id` = `x`.`platform_id`))));

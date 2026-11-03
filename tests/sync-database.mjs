@@ -4,6 +4,7 @@ import mysql from 'mysql2/promise';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {mergeTagAliases} from '../src/backend/tags.js';
+import {saveLuoguSnapshot} from '../src/backend/luogu-store.js';
 import {randomUUID,randomBytes} from 'node:crypto';
 import {saveSubmissions} from '../src/backend/sync-store.js';
 const connection=await mysql.createConnection({
@@ -15,7 +16,7 @@ assert.match(name,/^acmer_stats_test_[0-9a-f]{12}$/);
 let created=false;
 try{
  const ddls=[];
- for(const table of ['user','platform','problem','tag','problem_tag','record','platform_account','synced_submission']){
+ for(const table of ['user','platform','problem','tag','problem_tag','record','platform_account','synced_submission','platform_problem_inventory','platform_daily_activity','platform_snapshot']){
   const [[row]]=await connection.query('SHOW CREATE TABLE '+connection.escapeId(table));ddls.push(row['Create Table']);
  }
  await connection.query('CREATE DATABASE '+connection.escapeId(name)+' CHARACTER SET utf8mb4');created=true;
@@ -93,6 +94,28 @@ try{
  assert.equal(greedy.display_name,'贪心 / Greedy');
  const [[greedyLinks]]=await connection.execute('SELECT COUNT(*) AS n FROM problem_tag WHERE tag_id=?',[greedy.tag_id]);assert.equal(greedyLinks.n,1);
  const [[remainingChinese]]=await connection.query("SELECT COUNT(*) AS n FROM tag WHERE tag_name='贪心'");assert.equal(remainingChinese.n,0);
+
+
+ const luoguPlatform=randomUUID(),luoguAccount={account_id:randomUUID(),user_id:account.user_id,platform_id:randomUUID(),login_name:'123'};
+ luoguAccount.platform_id=luoguPlatform;
+ await connection.execute("INSERT INTO platform(platform_id,platform_name) VALUES(?,'洛谷')",[luoguPlatform]);
+ await connection.execute('INSERT INTO platform_account(account_id,user_id,platform_id,login_name) VALUES(?,?,?,?)',[luoguAccount.account_id,account.user_id,luoguPlatform,'123']);
+ const snapshot={uid:'123',name:'fixture',passedCount:1,attemptedCount:2,reportedPassed:1,reportedAttempted:2,hasActivity:true,
+  inventory:[{key:'P1',title:'洛谷 P1 One',passed:1,native:'3',url:'https://www.luogu.com.cn/problem/P1'},{key:'P2',title:'洛谷 P2 Two',passed:0,native:null,url:'https://www.luogu.com.cn/problem/P2'}],
+  activity:[{day:'2026-01-01',count:3}]};
+ await saveLuoguSnapshot(connection,luoguAccount,snapshot);await saveLuoguSnapshot(connection,luoguAccount,snapshot);
+ const [[inventory]]=await connection.execute('SELECT COUNT(*) AS n,SUM(passed) AS ac FROM platform_problem_inventory WHERE platform_id=?',[luoguPlatform]);
+ assert.equal(inventory.n,2);assert.equal(inventory.ac,1);
+ const [[fakeSubmissions]]=await connection.execute('SELECT COUNT(*) AS n FROM synced_submission WHERE platform_id=?',[luoguPlatform]);assert.equal(fakeSubmissions.n,0);
+ const [[fakeRecords]]=await connection.execute('SELECT COUNT(*) AS n FROM record r JOIN problem p ON p.problem_id=r.problem_id WHERE p.platform_id=?',[luoguPlatform]);assert.equal(fakeRecords.n,0);
+ const luoguMigration=fs.readFileSync(new URL('../sql/migrations/007_luogu_inventory.sql',import.meta.url),'utf8');
+ const viewStart=luoguMigration.indexOf('CREATE OR REPLACE VIEW v_problem_progress AS');
+ await connection.query(luoguMigration.slice(viewStart,luoguMigration.indexOf(';',viewStart)+1));
+ const [progress]=await connection.execute('SELECT g.* FROM v_problem_progress g JOIN problem p ON p.problem_id=g.problem_id WHERE p.platform_id=?',[luoguPlatform]);
+ assert.equal(progress.length,2);assert.ok(progress.every(p=>p.solve_date===null));
+ await assert.rejects(saveLuoguSnapshot(connection,luoguAccount,{...snapshot,inventory:[{...snapshot.inventory[0],key:'P3',title:'new-before-error'},{...snapshot.inventory[1],key:'P4',passed:null}]}));
+ const [[afterFailure]]=await connection.execute('SELECT COUNT(*) AS n FROM platform_problem_inventory WHERE platform_id=?',[luoguPlatform]);assert.equal(afterFailure.n,2);
+ console.log('PASS: Luogu snapshot idempotency, undated progress, no fabricated submissions/records and transactional rollback');
 
  console.log('PASS: alias union, relation deduplication, top-25 average, failed/unrated exclusion, new hard/easy problems and platform isolation');
 

@@ -1,4 +1,6 @@
 import express from 'express';
+import {collectLuogu,LuoguError} from './luogu.js';
+import {saveLuoguSnapshot} from './luogu-store.js';
 import {randomUUID,createHash} from 'node:crypto';
 import {capabilities,collect,SourceError} from './adapters.js';
 import {encrypt,decrypt} from './secrets.js';
@@ -32,6 +34,7 @@ export function accountRouter(pool) {
   const {login,cookie,uid}=input(req.body), user=await owner();
   const [[platform]]=await pool.execute('SELECT platform_name FROM platform WHERE platform_id=?',[String(req.body.platform_id||'')]);
   if(!platform) throw invalid('请选择有效的平台。');
+  if(platform.platform_name==='洛谷'&&!/^\d{1,12}$/.test(login))throw invalid('洛谷请填写个人主页中的数字 UID。');
   const id=randomUUID();
   try {await pool.execute('INSERT INTO platform_account(account_id,user_id,platform_id,login_name,login_pwd,remote_uid) VALUES(?,?,?,?,?,?)',[id,user,req.body.platform_id,login,encrypt(cookie),uid||null]);}
   catch(e){if(e.code==='ER_DUP_ENTRY') throw Object.assign(new Error('该账号已经绑定。'),{status:409});throw e;}
@@ -70,10 +73,15 @@ export function accountRouter(pool) {
     const [[lock]]=await connection.execute('SELECT GET_LOCK(?,0) AS acquired',[lockName]);
     if(lock.acquired!==1) throw new SourceError('同平台的另一个账号正在同步，请稍后重试。');
     locked=true;
-    const result=await collect(account,decrypt(account.login_pwd));
-    await saveSubmissions(connection,account,result);
+    if(account.platform_name==='洛谷'){
+     const snapshot=await collectLuogu(account.login_name,decrypt(account.login_pwd));
+     await saveLuoguSnapshot(connection,account,snapshot);
+    }else{
+     const result=await collect(account,decrypt(account.login_pwd));
+     await saveSubmissions(connection,account,result);
+    }
    }catch(error){
-    const message=error instanceof SourceError?error.message:'同步未完成，已有数据未被清空。请检查网络或稍后重试。';
+    const message=(error instanceof SourceError||error instanceof LuoguError)?error.message:'同步未完成，已有数据未被清空。请检查网络或稍后重试。';
     await pool.execute("UPDATE platform_account SET sync_status='error',sync_message=? WHERE account_id=?",[message,account.account_id]).catch(()=>{});
     console.error('Sync failed:',account.platform_name,error.code||error.name);
    }finally{

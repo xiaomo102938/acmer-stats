@@ -31,7 +31,7 @@ createApp({
   const charts=new Map();
   const difficultyPlatform=ref('Codeforces');
   const difficultyPlatforms=computed(()=>data.value?.platforms.filter(p=>p.total_count>0)||[]);
-  const difficultyNote=computed(()=>difficultyPlatform.value==='Codeforces'?'Codeforces 官方题目 rating，按 400 分分段；没有 rating 的题目单列。':difficultyPlatform.value==='AtCoder'?'AtCoder Problems 社区估计难度，按 400 分分段；不是比赛题目的得分，也不与 CF 分数混算。':'当前平台按原有难度分类统计。');
+  const difficultyNote=computed(()=>difficultyPlatform.value==='Codeforces'?'Codeforces 官方题目 rating，按 400 分分段；没有 rating 的题目单列。':difficultyPlatform.value==='AtCoder'?'AtCoder Problems 社区估计难度，按 400 分分段；不是比赛题目的得分，也不与 CF 分数混算。':difficultyPlatform.value==='洛谷'?'洛谷官方难度档位；练习清单没有逐题日期，未伪造为提交记录。':'当前平台按原有难度分类统计。');
   const {theme,isDark}=useTheme(draw);
   let requestNumber=0;
   const days=computed(()=>{
@@ -123,7 +123,7 @@ createApp({
      <article><span>题目通过率</span><strong>{{data.overview?.pass_rate??0}}<small> %</small></strong><p>针对已记录的题目样本</p></article>
      <article><span>覆盖平台</span><strong>{{data.overview?.platform_count??0}}<small> 个</small></strong><p>{{data.overview?.tag_count??0}} 个题型标签</p></article>
     </div>
-    <Activity :refresh-key="dataVersion" />
+    <Activity :refresh-key="dataVersion" /><p v-if="data.platformSnapshots?.length" class="footnote inventory-note">洛谷公开练习清单已计入题目总量；因没有逐题日期，不计入提交趋势。洛谷每日活动请在热力图选择“站点活动”。原有示例记录仍保留。</p>
     <div class="chart-grid">
      <article class="panel">
       <div class="panel-head"><h2>最近 7 天的表现</h2><span>{{days[0]?.day}} — {{days[6]?.day}}</span></div>
@@ -143,7 +143,7 @@ createApp({
     </div>
     <article class="panel platform-analysis"><div class="panel-head"><h2>各平台练习情况</h2><span>已记录题目与通过情况</span></div><div class="platform-grid">
      <div class="platform" v-for="p in data.platforms" :key="p.platform_id"><div><b>{{p.platform_name}}</b><span>{{p.passed_count}} / {{p.total_count}} 道通过</span></div><div class="track"><i :style="{width:(p.pass_rate??0)+'%'}"></i></div><em>{{p.total_count?p.pass_rate+'%':'暂无记录'}}</em></div>
-    </div></article>
+    </div><p v-for="s in data.platformSnapshots||[]" :key="s.platform_name+s.login_name" class="footnote">{{s.platform_name}} 公开清单：{{s.passed_count}} 道通过 / {{s.attempted_count}} 道尝试；主页报告：{{s.profile_passed_count??'—'}} / {{s.profile_attempted_count??'—'}}。汇总保留原有示例，可能多于公开清单。</p></article>
     <TagAnalysis :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
 

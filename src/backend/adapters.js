@@ -7,7 +7,7 @@ export const capabilities={
  QOJ:{mode:'需要 Cookie',note:'同步可访问的 AC 提交；最多 20 页。通过记录不代表完整提交历史。'},
  LeetCode:{mode:'最近 AC',note:'力扣中国公开的最近 AC 列表，不能还原全部历史或失败提交。'},
  '牛客':{mode:'需要数字 UID',note:'同步个人练习页的 AC 记录，最多 20 页；不包含全部比赛和失败提交。'},
- '洛谷':{mode:'暂未接入',note:'可以保存账号，当前不执行自动抓取。'}
+ '洛谷':{mode:'公开练习与活动',note:'填写数字 UID；同步通过/尝试题目清单及站点活动，不虚构提交次数和解题日期。'}
 };
 export class SourceError extends Error {}
 async function request(url,options={}) {
