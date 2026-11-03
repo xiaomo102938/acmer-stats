@@ -88,7 +88,7 @@ acmer-stats/
 
 侧栏“设置”进入账号录入与同步面板。支持同平台多账号、编辑 Cookie、手动同步和解绑。Codeforces 与 AtCoder 已用本人账号完成真实同步及重复同步验证；QOJ 需要登录 Cookie，牛客需要数字 UID，力扣只读取公开最近 AC。不同平台的数据范围、密钥配置、迁移方法和测试命令详见 docs/平台账号与同步说明.md。
 
-已同步题目原生难度无法直接换算时显示“未评级”。当前保留初始示例数据，不清空原记录。本机模式没有公开部署用的用户登录功能。
+已同步题目显示各平台原生难度，CF 使用官方 rating，AtCoder 使用 AtCoder Problems 社区估计值；缺失时显示“暂无公开难度”。当前保留初始示例数据，不清空原记录。本机模式没有公开部署用的用户登录功能。
 
 ## 页面主题
 
@@ -110,3 +110,13 @@ acmer-stats/
 近 7 天按数据库当天及之前 6 个自然日统计同步明细，缺失日期补零。提交次数和 AC 次数按提交计数，尝试题目跨天去重；不包含原有示例和手工记录。只提供 AC 数据的平台不具有完整失败提交。时间范围查询已新增索引，已有数据库执行一次 sql/migrations/004_daily_activity_index.sql，本机已应用。
 
 验证：生产构建、Vue 模板编译、浏览器四页导航高亮/前进后退/刷新、旧链接兼容、设置中的主题切换均通过。node --env-file=.env tests/daily-activity.mjs 可将近 7 天统计与原始提交明细做只读比对。
+
+## 原生难度修复
+
+Codeforces 提交中的 problem.rating 已有保存，现已在题目记录中正确显示为 CF 分数。AtCoder 补充读取 AtCoder Problems 的 problem-models.json，并按维护者的 clipDifficulty 公式处理低于 400 的估计值，显示 AT 分数及估计标记。AtCoder 的比赛题目得分与估计难度是不同指标，不相互替代。
+
+难度饼图可按平台切换，数字难度按 400 分分段，不混合各平台尺度。新字段 difficulty_source 记录来源。难度元数据每个进程缓存 6 小时，数据源失败时保留原有值；每次同步同时补全已有题目的元数据，避免增量同步遗漏旧题难度。
+
+现有数据库执行一次 sql/migrations/005_native_difficulty_source.sql；本机已应用并完成历史回填。也可执行 node --env-file=.env scripts/refresh-difficulties.mjs，仅更新难度与题目名称，不新增提交或改变刷题计数。部分题目没有官方 rating 或社区估计值，会如实显示缺失。
+
+数据源：[CF 官方对象定义](https://codeforces.com/apiHelp/objects#Problem)、[AtCoder Problems API](https://github.com/kenkoooo/AtCoderProblems/blob/master/doc/api.md)、[低难度显示公式](https://github.com/kenkoooo/AtCoderProblems/blob/master/atcoder-problems-frontend/src/utils/index.ts)。

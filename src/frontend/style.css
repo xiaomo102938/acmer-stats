@@ -32,3 +32,5 @@ aside nav{display:flex;flex-direction:column}
 .appearance-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 0}
 .appearance-row h3{font-size:14px;font-weight:500;margin:0}
 @media(max-width:700px){aside nav{flex-direction:row;flex-wrap:wrap;gap:4px}.week-summary{gap:8px}.week-summary strong{font-size:22px}.platform-grid{grid-template-columns:1fr}.appearance-row,.next-step{align-items:flex-start;flex-direction:column}.overview-pie{height:260px}}
+
+.difficulty-filter{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:12px;margin:12px 0}.difficulty-filter select{font:inherit;border:1px solid var(--border);border-radius:6px;background:var(--input);color:var(--text);padding:7px 10px}.difficulty-filter select:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
