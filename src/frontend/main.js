@@ -4,6 +4,7 @@ import {BarChart,LineChart,PieChart} from 'echarts/charts';
 import {GridComponent,TooltipComponent,LegendComponent} from 'echarts/components';
 import {CanvasRenderer} from 'echarts/renderers';
 import Accounts from './accounts.js';
+import Activity from './activity.js';
 import {useTheme} from './theme.js';
 import {formatDifficulty,difficultyBuckets} from './difficulty.js';
 import './style.css';
@@ -21,10 +22,10 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{Accounts},
+ components:{Accounts,Activity},
  setup(){
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
-  const data=ref(null),loading=ref(false),error=ref('');
+  const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
   const monthlyEl=ref(null),difficultyEl=ref(null),weekEl=ref(null);
   const charts=new Map();
   const difficultyPlatform=ref('Codeforces');
@@ -81,7 +82,7 @@ createApp({
     const response=await fetch('/api/dashboard');const body=await response.json();
     if(!response.ok)throw new Error(body.message);
     if(request!==requestNumber)return;
-    data.value=body;await nextTick();draw();
+    data.value=body;dataVersion.value++;await nextTick();draw();
    }catch(e){if(request===requestNumber)error.value=e.message||'加载失败';}
    finally{if(request===requestNumber)loading.value=false;}
   }
@@ -98,7 +99,7 @@ createApp({
   const resize=()=>charts.forEach(c=>c.resize());
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
-  return {pages,page,current,data,loading,error,monthlyEl,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
+  return {pages,page,current,data,dataVersion,loading,error,monthlyEl,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
  },
  template:`
  <div class="layout">
@@ -121,6 +122,7 @@ createApp({
      <article><span>题目通过率</span><strong>{{data.overview?.pass_rate??0}}<small> %</small></strong><p>针对已记录的题目样本</p></article>
      <article><span>覆盖平台</span><strong>{{data.overview?.platform_count??0}}<small> 个</small></strong><p>{{data.overview?.tag_count??0}} 个题型标签</p></article>
     </div>
+    <Activity :refresh-key="dataVersion" />
     <div class="chart-grid">
      <article class="panel">
       <div class="panel-head"><h2>最近 7 天的表现</h2><span>{{days[0]?.day}} — {{days[6]?.day}}</span></div>

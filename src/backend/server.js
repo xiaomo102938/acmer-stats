@@ -64,6 +64,37 @@ app.get('/api/dashboard', async (_req, res) => {
     throw error;
   } finally { connection.release(); }
 });
+app.get('/api/activity',async(req,res)=>{
+ const connection=await pool.getConnection();
+ try{
+  await connection.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+  await connection.query('START TRANSACTION READ ONLY');
+  const [[clock]]=await connection.query('SELECT CURRENT_DATE() AS day,YEAR(CURDATE()) AS year');
+  const year=req.query.year===undefined?Number(clock.year):Number(req.query.year);
+  if((req.query.year!==undefined&&!/^\d{4}$/.test(String(req.query.year)))||!Number.isInteger(year)||year<1970||year>Number(clock.year)){
+   await connection.rollback();return res.status(400).json({message:'请选择有效的历史年份或当年。'});
+  }
+  const [[user]]=await connection.query('SELECT user_id FROM user ORDER BY user_id LIMIT 1');
+  const [platformRows]=await connection.query('SELECT platform_name FROM platform ORDER BY platform_name');
+  let days=[],yearRows=[];
+  if(user){
+   [days]=await connection.execute(`SELECT DATE(s.submitted_at) AS day,p.platform_name,COUNT(*) AS submission_count,
+    SUM(s.passed=1) AS accepted_count,COUNT(DISTINCT s.problem_id) AS problem_count,
+    COUNT(DISTINCT IF(s.passed=1,s.problem_id,NULL)) AS accepted_problem_count
+    FROM synced_submission s JOIN platform p ON p.platform_id=s.platform_id
+    WHERE s.user_id=? AND s.submitted_at>=? AND s.submitted_at<?
+    AND s.submitted_at<DATE_ADD(CURDATE(),INTERVAL 1 DAY)
+    GROUP BY DATE(s.submitted_at),p.platform_name ORDER BY day,p.platform_name`,
+    [user.user_id,year+'-01-01',(year+1)+'-01-01']);
+   [yearRows]=await connection.execute('SELECT DISTINCT YEAR(submitted_at) AS year FROM synced_submission WHERE user_id=? AND submitted_at<DATE_ADD(CURDATE(),INTERVAL 1 DAY)',[user.user_id]);
+  }
+  const years=[...new Set([Number(clock.year),year,...yearRows.map(r=>Number(r.year))])].sort((a,b)=>b-a);
+  await connection.commit();
+  res.set('Cache-Control','no-store').json({year,years,serverDate:clock.day,platforms:platformRows.map(p=>p.platform_name),days});
+ }catch(error){await connection.rollback();throw error;}
+ finally{connection.release();}
+});
+
 app.use('/api', (_req,res) => res.status(404).json({message:'接口不存在'}));
 app.use(express.static(path.join(root, 'dist')));
 app.use((error,_req,res,_next) => {

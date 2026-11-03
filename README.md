@@ -120,3 +120,13 @@ Codeforces 提交中的 problem.rating 已有保存，现已在题目记录中�
 现有数据库执行一次 sql/migrations/005_native_difficulty_source.sql；本机已应用并完成历史回填。也可执行 node --env-file=.env scripts/refresh-difficulties.mjs，仅更新难度与题目名称，不新增提交或改变刷题计数。部分题目没有官方 rating 或社区估计值，会如实显示缺失。
 
 数据源：[CF 官方对象定义](https://codeforces.com/apiHelp/objects#Problem)、[AtCoder Problems API](https://github.com/kenkoooo/AtCoderProblems/blob/master/doc/api.md)、[低难度显示公式](https://github.com/kenkoooo/AtCoderProblems/blob/master/atcoder-problems-frontend/src/utils/index.ts)。
+
+## 年度刷题热力图
+
+数据简览增加 GitHub 风格的年度日历方格，可切换年份、平台及指标（默认每日去重 AC 题数，也支持提交次数和尝试题目）。鼠标悬停显示日期详情，点击或键盘聚焦后在图下保留详情；键盘方向键可在日期间移动。窄屏在图内横向滚动，不撑宽页面。未来日期留空，闰年保留 2 月 29 日。
+
+每个方格按当前指标使用固定颜色档位：0、1–2、3–5、6–9、10 及以上。AC 题数当日去重，同题跨天分别计数；年度合计按天相加，不代表全年唯一题数。仅使用已同步的提交明细，不把示例或手工汇总日期当成真实每日提交活动。缺失平台历史不代表当天未练习。
+
+GET /api/activity?year=2026 提供按日期和平台分组的数据，使用现有 submitted_at 索引查询年份范围。前端以 CSS Grid 渲染至多约 54 周的静态方格，不新增图表依赖，不使用持续动画或轮询。
+
+验证：node --test tests/heatmap.test.js 检查闰年、周对齐、跨平台汇总、未来日期和色阶；node --env-file=.env tests/activity-api.mjs 将所有历史年份数据与原始提交逐条比对。生产构建及浏览器年份/平台筛选、点击日期与键盘导航通过。
