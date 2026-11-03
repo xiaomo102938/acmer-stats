@@ -598,3 +598,7 @@ CREATE TABLE synced_submission (
 INSERT INTO platform(platform_id,platform_name,platform_url)
 SELECT UUID(),'牛客','https://ac.nowcoder.com'
 WHERE NOT EXISTS(SELECT 1 FROM platform WHERE platform_name='牛客');
+
+-- Index for seven-day activity queries
+USE acmer_stats;
+ALTER TABLE synced_submission ADD INDEX idx_sync_submitted_at(submitted_at);
