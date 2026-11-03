@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {tagDefinition} from './tags.js';
 import {applyDifficultyMetadata} from './difficulty-metadata.js';
 const short=(value,max)=>Array.from(String(value)).slice(0,max).join('');
 export function sqlDate(seconds) {
@@ -21,9 +22,9 @@ export async function saveSubmissions(connection,account,result) {
      [problem.problem_id,title,account.platform_id,s.key,s.url,s.native,s.nativeSource||(account.platform_name==='Codeforces'&&s.native!=null?'codeforces':null)]);
    }else await connection.execute('UPDATE problem SET source_key=?,problem_url=?,native_difficulty=COALESCE(?,native_difficulty),difficulty_source=COALESCE(?,difficulty_source) WHERE problem_id=?',[s.key,s.url,s.native,s.nativeSource||(account.platform_name==='Codeforces'&&s.native!=null?'codeforces':null),problem.problem_id]);
    for(const value of new Set(s.tags)){
-    const name=short(value,30);
+    const definition=tagDefinition(value),name=short(definition.key,120);
     if(!name) continue;
-    await connection.execute('INSERT INTO tag(tag_id,tag_name) VALUES(?,?) ON DUPLICATE KEY UPDATE tag_name=VALUES(tag_name)',[randomUUID(),name]);
+    await connection.execute('INSERT INTO tag(tag_id,tag_name,display_name) VALUES(?,?,?) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name)',[randomUUID(),name,short(definition.display,180)]);
     const [[tag]]=await connection.execute('SELECT tag_id FROM tag WHERE tag_name=?',[name]);
     await connection.execute('INSERT IGNORE INTO problem_tag(problem_id,tag_id) VALUES(?,?)',[problem.problem_id,tag.tag_id]);
    }

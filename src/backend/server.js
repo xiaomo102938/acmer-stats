@@ -38,6 +38,8 @@ app.get('/api/dashboard', async (_req, res) => {
     const overview = await read('SELECT * FROM v_user_overview');
     const platforms = await read('SELECT * FROM v_platform_stats ORDER BY total_count DESC');
     const tags = await read('SELECT * FROM v_tag_stats ORDER BY total_count DESC, pass_rate DESC');
+    const tagAbility = await read(`SELECT * FROM v_tag_ability WHERE user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)
+ ORDER BY (sample_count=25) DESC,ability_value DESC,sample_count DESC,display_name`);
     const difficulty = await read('SELECT * FROM v_difficulty_stats');
     const nativeDifficulty = await read(`SELECT p.platform_name,pr.difficulty,pr.native_difficulty,COUNT(r.record_id) AS total_count
       FROM record r JOIN problem pr ON pr.problem_id=r.problem_id
@@ -58,12 +60,32 @@ app.get('/api/dashboard', async (_req, res) => {
       JOIN platform p ON p.platform_id=pr.platform_id
       ORDER BY r.solve_date DESC,r.record_id LIMIT 8`);
     await connection.commit();
-    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent, nativeDifficulty, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
+    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent, nativeDifficulty, tagAbility, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
   } catch (error) {
     await connection.rollback();
     throw error;
   } finally { connection.release(); }
 });
+app.get('/api/tags/:id/ability',async(req,res)=>{
+ const platform=String(req.query.platform||'');
+ if(!['Codeforces','AtCoder'].includes(platform))return res.status(400).json({message:'当前仅支持 CF 官方难度和 AtCoder Problems 估计难度。'});
+ const connection=await pool.getConnection();
+ try{
+  const [[tag]]=await connection.execute('SELECT tag_id,COALESCE(display_name,tag_name) AS display_name FROM tag WHERE tag_id=?',[req.params.id]);
+  if(!tag)return res.status(404).json({message:'题型不存在。'});
+  const [problems]=await connection.execute(`SELECT pr.problem_id,pr.problem_name,pr.problem_url,
+   CAST(pr.native_difficulty AS DECIMAL(10,2)) AS rating,pr.difficulty_source,r.solve_date
+   FROM record r JOIN problem pr ON pr.problem_id=r.problem_id
+   JOIN platform p ON p.platform_id=pr.platform_id JOIN problem_tag pt ON pt.problem_id=pr.problem_id
+   WHERE r.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1) AND pt.tag_id=? AND p.platform_name=? AND r.passed=1
+   AND pr.native_difficulty REGEXP '^[0-9]+([.][0-9]+)?$'
+   AND ((p.platform_name='Codeforces' AND pr.difficulty_source='codeforces')
+    OR (p.platform_name='AtCoder' AND pr.difficulty_source IN ('atcoder_problems','atcoder_problems_experimental')))
+   ORDER BY CAST(pr.native_difficulty AS DECIMAL(10,2)) DESC,pr.problem_id LIMIT 25`,[tag.tag_id,platform]);
+  res.set('Cache-Control','no-store').json({tag,platform,problems});
+ }finally{connection.release();}
+});
+
 app.get('/api/activity',async(req,res)=>{
  const connection=await pool.getConnection();
  try{
