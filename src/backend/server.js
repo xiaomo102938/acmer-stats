@@ -1,0 +1,50 @@
+import express from 'express';
+import mysql from 'mysql2/promise';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = fileURLToPath(new URL('../../', import.meta.url));
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || '127.0.0.1',
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || 'acmer_stats',
+  waitForConnections: true, connectionLimit: 5, timezone: '+08:00',
+  decimalNumbers: true, dateStrings: true
+});
+const app = express();
+app.disable('x-powered-by');
+app.get('/api/dashboard', async (_req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+    await connection.query('START TRANSACTION READ ONLY');
+    const read = async sql => (await connection.query(sql))[0];
+    const overview = await read('SELECT * FROM v_user_overview');
+    const platforms = await read('SELECT * FROM v_platform_stats ORDER BY total_count DESC');
+    const tags = await read('SELECT * FROM v_tag_stats ORDER BY total_count DESC, pass_rate DESC');
+    const difficulty = await read('SELECT * FROM v_difficulty_stats');
+    const monthly = await read('SELECT * FROM v_monthly_trend ORDER BY solve_month');
+    const recent = await read(`SELECT pr.problem_name, p.platform_name, pr.difficulty, r.passed, r.submit_count, r.solve_date
+      FROM record r JOIN problem pr ON pr.problem_id=r.problem_id
+      JOIN platform p ON p.platform_id=pr.platform_id
+      ORDER BY r.solve_date DESC,r.record_id LIMIT 8`);
+    await connection.commit();
+    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent });
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally { connection.release(); }
+});
+app.use('/api', (_req,res) => res.status(404).json({message:'接口不存在'}));
+app.use(express.static(path.join(root, 'dist')));
+app.use((error,_req,res,_next) => {
+  console.error('Request failed:', error.code || error.message);
+  res.status(503).json({message:'暂时无法读取数据，请检查数据库连接后重试。'});
+});
+const port=Number(process.env.PORT || 3000);
+const server=app.listen(port,'127.0.0.1',()=>console.log('Local: http://127.0.0.1:'+port));
+async function close() { server.close(async()=>{await pool.end();process.exit(0);}); }
+process.on('SIGINT',close);
+process.on('SIGTERM',close);
