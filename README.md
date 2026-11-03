@@ -63,3 +63,19 @@ acmer-stats/
 
 回归测试位于 tests/record_update_validation.sql，要求至少一条已有记录。使用 mysql --default-character-set=utf8mb4 --force acmer_stats 执行，预期三条 ERROR 1644 (45000) 和四项通过标记，无 FAIL。测试最后回滚全部数据修改。密码通过环境配置提供，不写入仓库。
 
+
+## 本地运行网站
+
+要求 Node.js 20.19+ 或 22.12+（推荐当前 LTS）、npm、正在运行的 MySQL 8.0。
+
+1. 在项目根目录执行 npm install。
+2. 复制 .env.example 为 .env，填写数据库密码；本机已配置，.env 不提交 Git。
+3. 执行 npm run build。
+4. 执行 npm start，访问 http://127.0.0.1:3000。
+
+开发前端时保持后端运行，另开终端执行 npm run dev，Vite 会将 /api 代理到本机 3000 端口。
+
+当前实现：Vue 3 + ECharts 只读统计看板，Express + mysql2 连接池接口 GET /api/dashboard，展示总览、平台统计、题型掌握度、月度趋势、难度分布和最近 8 条记录。仅监听本机地址。记录编辑、账号管理、自动同步尚未实现。
+
+验证：前端生产构建通过；HTTP 首页返回 200；接口返回 14 道题、11 道通过、78.6% 通过率、4 个平台、7 个标签，与当前数据库一致；已在浏览器检查页面和图表。
+
