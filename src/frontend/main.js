@@ -5,8 +5,10 @@ import {GridComponent, TooltipComponent, LegendComponent} from 'echarts/componen
 import {CanvasRenderer} from 'echarts/renderers';
 echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendComponent,CanvasRenderer]);
 import './style.css';
+import Accounts from './accounts.js';
 
 createApp({
+ components:{Accounts},
  setup() {
   const data=ref(null), loading=ref(false), error=ref(''), monthlyEl=ref(null), difficultyEl=ref(null);
   let charts=[];
@@ -21,8 +23,8 @@ createApp({
     yAxis:{type:'value',minInterval:1,splitLine:{lineStyle:{color:'#eef0eb'}}},
     series:[{name:'刷题数',type:'bar',barMaxWidth:38,itemStyle:{borderRadius:[5,5,0,0]},data:data.value.monthly.map(x=>x.total_count)},
     {name:'通过数',type:'line',symbolSize:8,data:data.value.monthly.map(x=>x.passed_count)}]});
-   const levels=['入门','普及','提高','省选'];
-   difficulty.setOption({color:colors,tooltip:{trigger:'item'},legend:{bottom:0},series:[{type:'pie',radius:['48%','72%'],center:['50%','43%'],label:{show:false},data:levels.map(name=>({name,value:data.value.difficulty.find(x=>x.difficulty===name)?.total_count||0}))}]});
+   const levels=['入门','普及','提高','省选','未评级'];
+   difficulty.setOption({color:colors,tooltip:{trigger:'item'},legend:{bottom:0},series:[{type:'pie',radius:['48%','72%'],center:['50%','43%'],label:{show:false},data:levels.map(name=>({name,value:data.value.difficulty.find(x=>(x.difficulty||'未评级')===name)?.total_count||0}))}]});
   }
   async function load(){
    loading.value=true;error.value='';
@@ -38,7 +40,7 @@ createApp({
  <div class="layout">
   <aside><a class="brand" href="#">◈ <span>刷题手记<small>ACMER / INSIGHT</small></span></a>
    <p class="nav-label">我的练习空间</p>
-   <a href="#overview" class="nav active">◫　数据总览</a><a href="#trends" class="nav">↗　练习趋势</a><a href="#tags" class="nav">◇　题型分析</a><a href="#recent" class="nav">≡　最近记录</a>
+   <a href="#overview" class="nav active">◫　数据总览</a><a href="#trends" class="nav">↗　练习趋势</a><a href="#tags" class="nav">◇　题型分析</a><a href="#recent" class="nav">≡　最近记录</a><a href="#accounts" class="nav">◎　账号同步</a>
    <div class="aside-note"><span class="dot"></span> 本机数据库<p>每一道题，都留下进步的痕迹。</p></div>
   </aside>
   <main id="overview">
@@ -55,7 +57,7 @@ createApp({
     </section>
     <section class="chart-grid" id="trends">
      <article class="panel"><div class="panel-head"><h2>练习的节奏</h2><span>月度题目统计</span></div><div ref="monthlyEl" class="chart" role="img" aria-label="月度刷题数与通过数趋势"></div><p v-if="!data.monthly.length" class="muted">暂无练习记录</p></article>
-     <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>四档难度</span></div><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div></article>
+     <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>原有难度 / 未评级</span></div><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div></article>
     </section>
     <section class="bottom-grid">
      <article class="panel"><div class="panel-head"><h2>平台足迹</h2><span>PLATFORMS</span></div>
@@ -67,8 +69,8 @@ createApp({
       <p class="footnote">少于 20 道时样本不足，暂不判定掌握度。</p>
      </article>
     </section>
-    <article class="panel recent" id="recent"><div class="panel-head"><h2>最近的练习</h2><span>最近 8 条记录</span></div><div class="table-wrap"><table><thead><tr><th>题目</th><th>平台</th><th>难度</th><th>状态</th><th>提交次数</th><th>日期</th></tr></thead><tbody><tr v-for="(r,i) in data.recent" :key="i"><td class="problem">{{r.problem_name}}</td><td>{{r.platform_name}}</td><td>{{r.difficulty}}</td><td><span class="badge" :class="{good:r.passed===1}">{{r.passed===1?'已通过':'待攻克'}}</span></td><td>{{r.submit_count}}</td><td>{{r.solve_date}}</td></tr></tbody></table></div><p v-if="!data.recent.length" class="muted">还没有刷题记录</p></article>
-    <footer>刷题手记 · 数据来自本机 MySQL <span>按题目汇总，月度数据使用记录中保存的刷题日期</span></footer>
+    <article class="panel recent" id="recent"><div class="panel-head"><h2>最近的练习</h2><span>最近 8 条记录</span></div><div class="table-wrap"><table><thead><tr><th>题目</th><th>平台</th><th>难度</th><th>状态</th><th>提交次数</th><th>日期</th></tr></thead><tbody><tr v-for="(r,i) in data.recent" :key="i"><td class="problem">{{r.problem_name}}</td><td>{{r.platform_name}}</td><td>{{r.difficulty||'未评级'}}</td><td><span class="badge" :class="{good:r.passed===1}">{{r.passed===1?'已通过':'待攻克'}}</span></td><td>{{r.submit_count}}</td><td>{{r.solve_date}}</td></tr></tbody></table></div><p v-if="!data.recent.length" class="muted">还没有刷题记录</p></article>
+    <Accounts @synced="load" /><footer>刷题手记 · 数据来自本机 MySQL <span>按题目汇总，月度数据使用记录中保存的刷题日期</span></footer>
    </template>
   </main>
  </div>`
