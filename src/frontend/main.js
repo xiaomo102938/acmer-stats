@@ -4,6 +4,7 @@ import {BarChart,LineChart,PieChart} from 'echarts/charts';
 import {GridComponent,TooltipComponent,LegendComponent} from 'echarts/components';
 import {CanvasRenderer} from 'echarts/renderers';
 import Accounts from './accounts.js';
+import TagAnalysis from './tag-analysis.js';
 import Activity from './activity.js';
 import {useTheme} from './theme.js';
 import {formatDifficulty,difficultyBuckets} from './difficulty.js';
@@ -12,7 +13,7 @@ echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendCo
 
 const pages=[
  {id:'overview',icon:'◫',name:'数据简览',eyebrow:'YOUR PRACTICE, AT A GLANCE',title:'看看最近，又进步了多少。',description:'用几个关键数字，快速回顾你的积累和最近 7 天的练习。'},
- {id:'analysis',icon:'↗',name:'详细分析',eyebrow:'EXPLORE YOUR PRACTICE',title:'从数据里，找到下一步。',description:'结合练习趋势、平台分布和题型掌握度，了解你的训练方向。'},
+ {id:'analysis',icon:'↗',name:'详细分析',eyebrow:'EXPLORE YOUR PRACTICE',title:'从数据里，找到下一步。',description:'结合练习趋势、平台分布和题型能力参考，了解你的训练方向。'},
  {id:'records',icon:'≡',name:'最近记录',eyebrow:'YOUR RECENT PRACTICE',title:'每一次尝试，都有迹可循。',description:'查看最近更新的题目、通过状态和累计提交次数。'},
  {id:'settings',icon:'⚙',name:'设置',eyebrow:'MAKE IT YOURS',title:'把练习空间，调成你的样子。',description:'在这里管理平台账号、同步数据，以及调整页面外观。'}
 ];
@@ -22,7 +23,7 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{Accounts,Activity},
+ components:{Accounts,Activity,TagAnalysis},
  setup(){
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
   const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
@@ -143,11 +144,7 @@ createApp({
     <article class="panel platform-analysis"><div class="panel-head"><h2>各平台练习情况</h2><span>已记录题目与通过情况</span></div><div class="platform-grid">
      <div class="platform" v-for="p in data.platforms" :key="p.platform_id"><div><b>{{p.platform_name}}</b><span>{{p.passed_count}} / {{p.total_count}} 道通过</span></div><div class="track"><i :style="{width:(p.pass_rate??0)+'%'}"></i></div><em>{{p.total_count?p.pass_rate+'%':'暂无记录'}}</em></div>
     </div></article>
-    <article class="panel tag-analysis"><div class="panel-head"><h2>题型与掌握度</h2><span>{{data.tags.length}} 个标签 · 按刷题数排序</span></div>
-     <div class="table-wrap"><table><thead><tr><th>题型</th><th>刷题数</th><th>通过数</th><th>通过率</th><th>掌握度</th></tr></thead><tbody><tr v-for="t in data.tags" :key="t.tag_id"><td>{{t.tag_name}}</td><td>{{t.total_count}}</td><td>{{t.passed_count}}</td><td>{{t.pass_rate}}%</td><td><span class="badge" :class="{good:t.mastery==='擅长',weak:t.mastery==='薄弱'}">{{t.mastery}}</span></td></tr></tbody></table></div>
-     <p v-if="!data.tags.length" class="muted">暂无题型数据</p>
-     <p class="footnote">擅长：至少 30 道且通过率 ≥ 80%；薄弱：至少 20 道且通过率 &lt; 60%；少于 20 道为样本不足。一道题可有多个标签。</p>
-    </article>
+    <TagAnalysis :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
 
    <section v-else-if="page==='records'&&data" key="records" aria-label="最近记录">

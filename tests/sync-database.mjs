@@ -2,6 +2,8 @@
 // Run: node --env-file=.env tests/sync-database.mjs
 import mysql from 'mysql2/promise';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {mergeTagAliases} from '../src/backend/tags.js';
 import {randomUUID,randomBytes} from 'node:crypto';
 import {saveSubmissions} from '../src/backend/sync-store.js';
 const connection=await mysql.createConnection({
@@ -45,6 +47,55 @@ try{
  await assert.rejects(saveSubmissions(connection,account,{...result,items:[{...item,id:'3',time:4102444800}]}));
  const [[after]]=await connection.query('SELECT COUNT(*) AS n FROM synced_submission');assert.equal(after.n,2,'failed writes should roll back ledger inserts');
  const [[unchanged]]=await connection.execute('SELECT submit_count FROM record WHERE record_id=?',[record]);assert.equal(unchanged.submit_count,4);
+
+ // Seed two aliases attached to the same problem, then normalize their union.
+ const dpEnglish=randomUUID(),dpChinese=randomUUID();
+ await connection.execute('INSERT INTO tag(tag_id,tag_name) VALUES(?,?),(?,?)',[dpEnglish,'dp',dpChinese,'动态规划']);
+ for(let i=0;i<30;i++){
+  const pid=randomUUID();
+  await connection.execute("INSERT INTO problem(problem_id,problem_name,platform_id,native_difficulty,difficulty_source) VALUES(?,?,?,?,?)",[pid,'ability-'+i,account.platform_id,String(800+i*50),'codeforces']);
+  await connection.execute("INSERT INTO record(record_id,passed,submit_count,solve_date,user_id,problem_id) VALUES(?,1,1,'2026-01-01',?,?)",[randomUUID(),account.user_id,pid]);
+  await connection.execute('INSERT INTO problem_tag(problem_id,tag_id) VALUES(?,?)',[pid,dpEnglish]);
+  if(i===0)await connection.execute('INSERT INTO problem_tag(problem_id,tag_id) VALUES(?,?)',[pid,dpChinese]);
+ }
+ const merged=await mergeTagAliases(connection);assert.equal(merged.merged,1);
+ const [[canonical]]=await connection.query("SELECT tag_id,display_name FROM tag WHERE tag_name='dp'");
+ assert.equal(canonical.display_name,'动态规划 / Dynamic Programming');
+ const [[links]]=await connection.execute('SELECT COUNT(*) AS n FROM problem_tag WHERE tag_id=?',[canonical.tag_id]);assert.equal(links.n,30);
+ const migration=fs.readFileSync(new URL('../sql/migrations/006_tag_ability.sql',import.meta.url),'utf8');
+ await connection.query(migration.slice(migration.indexOf('CREATE OR REPLACE VIEW v_tag_ability'),migration.indexOf('-- Normalize legacy aliases')));
+ const getAbility=async()=>{
+  const [[a]]=await connection.execute("SELECT * FROM v_tag_ability WHERE user_id=? AND tag_id=? AND platform_id=?",[account.user_id,canonical.tag_id,account.platform_id]);return a;
+ };
+ let ability=await getAbility();assert.equal(ability.sample_count,25);assert.equal(ability.rated_count,30);assert.equal(ability.ability_value,1650);assert.equal(ability.min_difficulty,1050);
+ async function addAbilityProblem(rating,passed=1,platform=account.platform_id){
+  const pid=randomUUID();await connection.execute('INSERT INTO problem(problem_id,problem_name,platform_id,native_difficulty,difficulty_source) VALUES(?,?,?,?,?)',[pid,'extra-'+pid,platform,rating,platform===account.platform_id?'codeforces':'atcoder_problems']);
+  await connection.execute("INSERT INTO record(record_id,passed,submit_count,solve_date,user_id,problem_id) VALUES(?,?,1,'2026-01-01',?,?)",[randomUUID(),passed,account.user_id,pid]);
+  await connection.execute('INSERT INTO problem_tag(problem_id,tag_id) VALUES(?,?)',[pid,canonical.tag_id]);
+ }
+ await addAbilityProblem('5000',0);await addAbilityProblem(null);
+ assert.equal((await getAbility()).ability_value,1650,'failed and unrated problems do not contribute');
+ await addAbilityProblem('3000');assert.equal((await getAbility()).ability_value,1728);
+ await addAbilityProblem('0');assert.equal((await getAbility()).ability_value,1728,'easy additions do not lower a full top-25 sample');
+ const atcoder=randomUUID();await connection.execute("INSERT INTO platform(platform_id,platform_name) VALUES(?,'AtCoder')",[atcoder]);
+ await addAbilityProblem('4000',1,atcoder);
+ const [[at]]=await connection.execute("SELECT * FROM v_tag_ability WHERE platform_id=? AND tag_id=?",[atcoder,canonical.tag_id]);
+ assert.equal(at.ability_value,4000);assert.equal(at.sample_count,1);assert.equal(at.sample_status,'样本不足');
+ assert.equal((await getAbility()).ability_value,1728,'AtCoder ratings must not affect the CF score');
+ const again=await mergeTagAliases(connection);assert.equal(again.merged,0,'normalization is idempotent');
+
+ const greedyEnglish=randomUUID(),greedyChinese=randomUUID();
+ await connection.execute('INSERT INTO tag(tag_id,tag_name) VALUES(?,?),(?,?)',[greedyEnglish,'greedy',greedyChinese,'贪心']);
+ await connection.execute('INSERT INTO problem_tag(problem_id,tag_id) VALUES(?,?),(?,?)',[problem,greedyEnglish,problem,greedyChinese]);
+ const sqlMerge=migration.slice(migration.indexOf('-- Normalize legacy aliases'));
+ for(const statement of sqlMerge.split(';').map(s=>s.trim()).filter(Boolean))await connection.query(statement);
+ const [[greedy]]=await connection.query("SELECT tag_id,display_name FROM tag WHERE tag_name='greedy'");
+ assert.equal(greedy.display_name,'贪心 / Greedy');
+ const [[greedyLinks]]=await connection.execute('SELECT COUNT(*) AS n FROM problem_tag WHERE tag_id=?',[greedy.tag_id]);assert.equal(greedyLinks.n,1);
+ const [[remainingChinese]]=await connection.query("SELECT COUNT(*) AS n FROM tag WHERE tag_name='贪心'");assert.equal(remainingChinese.n,0);
+
+ console.log('PASS: alias union, relation deduplication, top-25 average, failed/unrated exclusion, new hard/easy problems and platform isolation');
+
  console.log('PASS: initial sync, idempotent resync, manual record preservation, tag association, rejudging and transaction rollback');
 }finally{
  if(created)await connection.query('DROP DATABASE '+connection.escapeId(name));
