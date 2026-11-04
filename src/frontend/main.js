@@ -137,7 +137,6 @@ createApp({
      </article>
      <article class="panel"><div class="panel-head"><h2>难度一览</h2><a class="text-link" href="#analysis">查看分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><p class="footnote">{{difficultyNote}}</p></article>
     </div>
-    <article class="panel next-step"><div><h2>想再多了解一点？</h2><p>查看月度节奏、平台分布和题型能力参考，规划下一次练习。</p></div><a class="page-button" href="#analysis">进入详细分析 →</a></article>
    </section>
 
    <section v-else-if="page==='analysis'&&data" key="analysis" aria-label="详细分析">
