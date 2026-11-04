@@ -38,3 +38,21 @@ test('Cloudflare browser challenges are distinct from expired login cookies',asy
  await assert.rejects(readNowcoderPage(url,'session=fixture'),error=>error.code==='browser_challenge'&&/不能据此判断 Cookie/.test(error.message));
  assert.equal(calls,1);
 });
+
+test('Windows proxy mode respects enabled state and per-protocol servers',async()=>{
+ const {windowsProxy}=await import('../src/backend/qoj-network.js');
+ assert.equal(windowsProxy('ProxyEnable REG_DWORD 0x0\nProxyServer REG_SZ 127.0.0.1:7890'),'');
+ assert.equal(windowsProxy('ProxyEnable REG_DWORD 0x1\nProxyServer REG_SZ 127.0.0.1:7890'),'http://127.0.0.1:7890');
+ assert.equal(windowsProxy('ProxyEnable REG_DWORD 0x1\nProxyServer REG_SZ http=host:80;https=secure:81'),'http://secure:81');
+});
+
+test('Native QOJ transport preserves headers and status without following redirects', {skip:process.platform!=='win32'},async()=>{
+ const {createServer}=await import('node:http');const {qojFetch}=await import('../src/backend/qoj-network.js');
+ const received=[];const server=createServer((req,res)=>{received.push(req.headers.cookie);if(req.url==='/redirect'){res.writeHead(302,{Location:'/private'});res.end();}else{res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end('<p>AC ✓</p>');}});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ try{
+  const base='http://127.0.0.1:'+server.address().port;
+  const r=await qojFetch(base,{qojProxy:'',headers:{Cookie:'session=fixture'}});assert.equal(r.status,200);assert.equal(await r.text(),'<p>AC ✓</p>');
+  const redirect=await qojFetch(base+'/redirect',{qojProxy:'',headers:{Cookie:'session=fixture'}});assert.equal(redirect.status,302);assert.equal(received.length,2);assert.deepEqual(received,['session=fixture','session=fixture']);
+ }finally{await new Promise(r=>server.close(r));}
+});

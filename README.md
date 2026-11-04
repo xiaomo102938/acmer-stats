@@ -154,3 +154,5 @@ GET /api/activity?year=2026 提供按日期和平台分组的数据，使用现�
 ## QOJ 与牛客配置
 
 牛客先填写主页链接或数字 UID，默认读取公开数据，只有要求登录时才使用已保存的 Cookie。QOJ 在设置页点击“配置 Cookie”，按展开说明配置会话。详细步骤与实测记录见 [Cookie 配置与公开同步](docs/Cookie配置与公开同步.md)。2026-11-04 已无 Cookie 验证牛客 294 道通过题、304 条 AC 提交，重复同步无新增。
+
+QOJ 网络可在 `.env` 配置 `QOJ_PROXY_URL=system` 跟随 Windows 手动系统代理，或填写明确的 HTTP(S) 代理地址；留空直连。system 模式每次同步开始重新读取设置，暂不支持 PAC 自动脚本。

@@ -1,17 +1,18 @@
 import {load} from 'cheerio';
+import {qojTransport,qojFetch} from './qoj-network.js';
 import {getDifficultyMetadata} from './difficulty-metadata.js';
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export const capabilities={
  Codeforces:{mode:'公开提交',note:'官方 API；每次最多读取最近 5000 条提交。'},
  AtCoder:{mode:'公开提交',note:'AtCoder Problems 第三方数据；每次最多 5000 条，后续同步从已保存进度继续。'},
- QOJ:{mode:'需要 Cookie',note:'同步可访问的 AC 提交；最多 20 页。通过记录不代表完整提交历史。'},
+ QOJ:{mode:'需要 Cookie',note:'同步可访问的 AC 提交；最多 100 页。通过记录不代表完整提交历史。'},
  LeetCode:{mode:'最近 AC',note:'力扣中国公开的最近 AC 列表，不能还原全部历史或失败提交。'},
  '牛客':{mode:'公开数据优先',note:'填写主页链接或数字 UID；先读取公开练习 AC，要求登录时才使用已保存 Cookie。最多 20 页，不包含全部比赛和失败提交。'},
  '洛谷':{mode:'公开练习与活动',note:'填写数字 UID；同步通过/尝试题目清单及站点活动，不虚构提交次数和解题日期。'}
 };
 export class SourceError extends Error {constructor(message,code='source_error'){super(message);this.code=code;}}
 async function request(url,options={}) {
- const response=await fetch(url,{...options,redirect:'manual',signal:AbortSignal.timeout(20000),
+ const response=await (Object.hasOwn(options,'qojProxy')?qojFetch:fetch)(url,{...options,redirect:'manual',signal:AbortSignal.timeout(20000),
  headers:{'User-Agent':'acmer-stats/1.0 (personal coursework)','Accept':'application/json,text/html',...options.headers}});
  if(response.headers.get('cf-mitigated')==='challenge')throw new SourceError('平台的 Cloudflare 浏览器验证拦截了同步请求，尚未读取提交记录，不能据此判断 Cookie 是否有效。请先在浏览器正常完成验证；若后台仍被拦截，仅更新 Cookie 未必能解决。','browser_challenge');
  if(response.status>=300&&response.status<400) throw new SourceError('平台要求重新登录，请更新 Cookie。','auth_required');
@@ -114,22 +115,25 @@ export async function collect(account,secret='') {
   if(platform==='QOJ'&&!secret) throw new SourceError('QOJ 需要登录 Cookie，请先编辑账号填写 Cookie。');
   if(platform==='牛客'&&!/^\d+$/.test(account.remote_uid||'')) throw new SourceError('牛客需要个人主页地址中的数字 UID，请先编辑账号填写。');
   let usedCookie=platform==='QOJ';
-  for(let page=1;page<=20;page++){
+  const maxPages=platform==='QOJ'?100:20;
+  let transport={};
+  if(platform==='QOJ'){try{transport=await qojTransport();}catch{throw new SourceError('无法读取 QOJ 代理配置，请检查 QOJ_PROXY_URL 与 Windows 系统代理设置。');}}
+  for(let page=1;page<=maxPages;page++){
    const url=platform==='QOJ'?new URL('https://qoj.ac/submissions'):new URL('https://ac.nowcoder.com/acm/contest/profile/'+account.remote_uid+'/practice-coding');
    url.search=new URLSearchParams(platform==='QOJ'?{submitter:login,min_score:'100',max_score:'100',page:String(page)}:{page:String(page),pageSize:'200',statusTypeFilter:'5',orderType:'DESC',languageCategoryFilter:'-1'});
    let html,rows;
    if(platform==='牛客'){
     const result=await readNowcoderPage(url,secret,usedCookie);({html,rows}=result);usedCookie=result.usedCookie;
    }else{
-    html=await(await request(url,{headers:{Referer:'https://qoj.ac/',Cookie:secret}})).text();
+    html=await(await request(url,{...transport,headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36',Accept:'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',Cookie:secret}})).text();
     rows=parseAcceptedPage(html,platform,login);
    }
    items.push(...rows);
    const next=new RegExp('(?:page|pageNo)='+String(page+1)+'(?:[^0-9]|$)').test(html);
    if(!next) break;
-   if(page===20) partial=true; else await pause(1200);
+   if(page===maxPages) partial=true; else await pause(1200);
   }
-  note=(platform==='牛客'?(usedCookie?'本次使用已保存的 Cookie 读取。':'本次读取公开数据，未使用 Cookie。'):'本次使用已保存的 QOJ Cookie。')+'仅导入可见的 AC 提交，失败提交、完整提交次数和缺失历史无法推算。'+(partial?'本次达到 20 页上限，更早记录暂未覆盖。':'');
+  note=(platform==='牛客'?(usedCookie?'本次使用已保存的 Cookie 读取。':'本次读取公开数据，未使用 Cookie。'):'本次使用已保存的 QOJ Cookie。')+'仅导入可见的 AC 提交，失败提交、完整提交次数和缺失历史无法推算。'+(partial?'本次达到 '+maxPages+' 页上限，更早记录暂未覆盖。':'');
  }else if(platform==='LeetCode'){
   const body=await (await request('https://leetcode.cn/graphql/noj-go/',{
    method:'POST',headers:{'Content-Type':'application/json',Referer:'https://leetcode.cn/',...(secret?{Cookie:secret}:{})},
