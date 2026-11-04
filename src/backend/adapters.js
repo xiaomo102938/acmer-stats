@@ -1,3 +1,4 @@
+import {collectLeetcodeProgress} from './leetcode.js';
 import {load} from 'cheerio';
 import {qojTransport,qojFetch} from './qoj-network.js';
 import {getDifficultyMetadata} from './difficulty-metadata.js';
@@ -6,7 +7,7 @@ export const capabilities={
  Codeforces:{mode:'公开提交',note:'官方 API；每次最多读取最近 5000 条提交。'},
  AtCoder:{mode:'公开提交',note:'AtCoder Problems 第三方数据；每次最多 5000 条，后续同步从已保存进度继续。'},
  QOJ:{mode:'需要 Cookie',note:'同步可访问的已判定提交（含非 AC）；最多 100 页，受可见范围限制。'},
- LeetCode:{mode:'最近 AC',note:'力扣中国公开的最近 AC 列表，不能还原全部历史或失败提交。'},
+ LeetCode:{mode:'主页汇总与最近 AC',note:'填写个人主页 /u/ 后的标识（不是显示昵称）；累计题数取公开主页，逐次记录只提供最近 AC，不能还原全部历史。'},
  '牛客':{mode:'公开数据优先',note:'填写主页链接或数字 UID；先读取公开练习 AC，要求登录时才使用已保存 Cookie。最多 20 页，不包含全部比赛和失败提交。'},
  '洛谷':{mode:'公开练习与活动',note:'填写数字 UID；同步通过/尝试题目清单及站点活动，不虚构提交次数和解题日期。'}
 };
@@ -149,12 +150,16 @@ export async function collect(account,secret='') {
    passed:1,tags:[],native:null,url:'https://leetcode.cn/problems/'+s.question.titleSlug+'/'}));
   note=rows.length?'仅同步力扣中国公开的最近 AC 列表；不代表全部历史，失败提交未包含。':'该用户标识未返回公开 AC 记录。请核对力扣个人主页 /u/ 后的标识；此结果不能证明账号不存在或从未刷题。';
  }else throw new SourceError('该平台暂未接入同步，可以先保存账号。');
- let metadata;
+ let metadata,profileTotals;
+ if(platform==='LeetCode'){
+  try{profileTotals=await collectLeetcodeProgress(login);note+=' 已获取个人主页累计通过 '+profileTotals.passed+' 题、累计尝试 '+profileTotals.attempted+' 题；历史日期及题单缺失部分不推算。';}
+  catch{note+=' 主页累计题数暂不可用，已有汇总保留。';}
+ }
  if(['Codeforces','AtCoder'].includes(platform)){
   try{
    metadata=await getDifficultyMetadata(platform);
    for(const item of items){const meta=metadata.get(item.key);if(meta?.native!=null){item.native=meta.native;item.nativeSource=meta.source;}}
   }catch{note+=' 难度数据源暂不可用，已有难度保留，稍后同步可重试。';}
  }
- return {items:[...new Map(items.map(s=>[s.id,s])).values()],cursor,note,partial,metadata};
+ return {items:[...new Map(items.map(s=>[s.id,s])).values()],cursor,note,partial,metadata,profileTotals};
 }

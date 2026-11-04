@@ -52,6 +52,10 @@ export async function saveSubmissions(connection,account,result) {
     summary.newProblems++;
    }
   }
+  if(result.profileTotals){
+   const t=result.profileTotals;
+   await connection.execute('INSERT INTO platform_snapshot(account_id,passed_count,attempted_count,activity_days,profile_passed_count,profile_attempted_count,observed_at) VALUES(?,?,?,0,?,?,NOW()) ON DUPLICATE KEY UPDATE passed_count=VALUES(passed_count),attempted_count=VALUES(attempted_count),profile_passed_count=VALUES(profile_passed_count),profile_attempted_count=VALUES(profile_attempted_count),observed_at=NOW()',[account.account_id,t.passed,t.attempted,t.passed,t.attempted]);
+  }
   if(result.metadata)await applyDifficultyMetadata(connection,account.platform_id,account.platform_name,result.metadata);
   const message='新增 '+summary.newSubmissions+' 条提交、更新 '+summary.updatedSubmissions+' 条判定、新增 '+summary.newProblems+' 道题。'+result.note;
   await connection.execute("UPDATE platform_account SET sync_status='success',sync_message=?,last_sync=NOW(),sync_cursor=? WHERE account_id=?",[message.slice(0,1000),result.cursor,account.account_id]);

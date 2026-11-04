@@ -1,3 +1,4 @@
+import {applyLeetcodeTotals} from './leetcode.js';
 import {ratingRouter} from './ratings.js';
 import {trendRouter} from './trends.js';
 import {submissionRouter} from './submissions.js';
@@ -44,9 +45,10 @@ app.get('/api/dashboard', async (_req, res) => {
     const read = async sql => (await connection.query(sql))[0];
     const overview = await read('SELECT * FROM v_user_overview');
     const platforms = await read('SELECT * FROM v_platform_stats ORDER BY total_count DESC');
-    const platformSnapshots=await read(`SELECT p.platform_name,a.login_name,s.passed_count,s.attempted_count,s.activity_days,s.profile_passed_count,s.profile_attempted_count,s.observed_at
+    const platformSnapshots=await read(`SELECT a.user_id,p.platform_name,a.login_name,s.passed_count,s.attempted_count,s.activity_days,s.profile_passed_count,s.profile_attempted_count,s.observed_at
  FROM platform_snapshot s JOIN platform_account a ON a.account_id=s.account_id JOIN platform p ON p.platform_id=a.platform_id
  WHERE a.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)`);
+    applyLeetcodeTotals(overview,platforms,platformSnapshots);
     const tags = await read('SELECT * FROM v_tag_stats ORDER BY total_count DESC, pass_rate DESC');
     const abilityRows=await readAbilityRows(connection);
     const abilityPlatforms=['全部平台',...new Set(abilityRows.map(r=>r.platform_name))];
