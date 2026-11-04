@@ -1,3 +1,4 @@
+import {refreshAccountRating} from './ratings.js';
 import express from 'express';
 import {collectLuogu,LuoguError} from './luogu.js';
 import {saveLuoguSnapshot} from './luogu-store.js';
@@ -88,6 +89,7 @@ export function accountRouter(pool) {
      const result=await collect(account,decrypt(account.login_pwd));
      await saveSubmissions(connection,account,result);
     }
+    await refreshAccountRating(connection,account,decrypt(account.login_pwd));
    }catch(error){
     const message=(error instanceof SourceError||error instanceof LuoguError)?error.message:'同步未完成，已有数据未被清空。请检查网络或稍后重试。';
     await pool.execute("UPDATE platform_account SET sync_status='error',sync_message=? WHERE account_id=?",[message,account.account_id]).catch(()=>{});

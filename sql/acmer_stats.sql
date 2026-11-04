@@ -796,3 +796,15 @@ ALTER TABLE problem ADD metadata_checked_at DATETIME NULL COMMENT 'Last successf
 -- Submission-level history and ordered pagination
 ALTER TABLE synced_submission ADD verdict VARCHAR(40) NULL, ADD INDEX idx_submission_page(user_id,submitted_at DESC,submission_id DESC);
 UPDATE synced_submission SET verdict='AC' WHERE passed=1;
+
+CREATE TABLE account_rating (
+ account_id CHAR(36) PRIMARY KEY,
+ rating DECIMAL(10,2) NULL,
+ scale VARCHAR(60) NOT NULL,
+ status VARCHAR(24) NOT NULL,
+ message VARCHAR(240) NULL,
+ source_url VARCHAR(255) NULL,
+ fetched_at DATETIME NULL,
+ last_attempt DATETIME NOT NULL,
+ FOREIGN KEY(account_id) REFERENCES platform_account(account_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
