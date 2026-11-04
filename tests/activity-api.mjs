@@ -6,6 +6,13 @@ try{
  const current=await(await fetch(base+'/api/activity')).json();
  const [rows]=await connection.query('SELECT s.submitted_at,s.passed,s.problem_id,p.platform_name FROM synced_submission s JOIN platform p ON p.platform_id=s.platform_id JOIN user u ON u.user_id=s.user_id WHERE u.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)');
  const [activityRows]=await connection.query('SELECT a.activity_day,a.activity_count,p.platform_name FROM platform_daily_activity a JOIN platform p ON p.platform_id=a.platform_id WHERE a.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)');
+ assert.equal(current.mode,'rolling');assert.equal(current.rangeEnd,current.serverDate);
+ const span=(Date.parse(current.rangeEnd)-Date.parse(current.rangeStart))/86400000+1;assert.equal(span,365);
+ assert.ok(current.days.every(d=>d.day>=current.rangeStart&&d.day<=current.rangeEnd));
+ const inRange=r=>r.submitted_at.slice(0,10)>=current.rangeStart&&r.submitted_at.slice(0,10)<=current.rangeEnd;
+ assert.equal(current.days.reduce((n,d)=>n+d.submission_count,0),rows.filter(inRange).length);
+ assert.equal(current.days.reduce((n,d)=>n+d.accepted_count,0),rows.filter(r=>inRange(r)&&r.passed===1).length);
+ assert.equal(current.days.reduce((n,d)=>n+d.activity_count,0),activityRows.filter(r=>r.activity_day>=current.rangeStart&&r.activity_day<=current.rangeEnd).reduce((n,r)=>n+r.activity_count,0));
  for(const year of current.years){
   const response=await fetch(base+'/api/activity?year='+year);assert.equal(response.status,200);const body=await response.json();
   const expected=new Map();
