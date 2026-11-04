@@ -61,6 +61,7 @@ export default {
    <label>平台<select v-model="form.platform_id" :disabled="!!editing" required><option v-for="p in platforms" :key="p.platform_id" :value="p.platform_id">{{p.platform_name}} · {{p.mode}}</option></select></label>
    <label>{{selected()?.platform_name==='洛谷'?'数字 UID':'用户名 / 用户标识'}}<input v-model.trim="form.login_name" :readonly="!!editing" maxlength="100" required placeholder="例如 xiaomo102938" autocomplete="off"></label>
    <label v-if="selected()?.platform_name==='牛客'">牛客主页链接 / 数字 UID<input name="remote_uid" v-model.trim="form.remote_uid" placeholder="https://ac.nowcoder.com/acm/contest/profile/数字UID"></label>
+   <p v-if="selected()?.platform_name==='LeetCode'" class="footnote">请填写力扣个人主页 /u/ 后的标识，例如 happy-6reidercmp；显示昵称可能与该标识不同。</p>
    <label v-if="['QOJ','牛客','LeetCode','洛谷'].includes(selected()?.platform_name)" class="cookie-field">{{selected()?.platform_name==='QOJ'?'QOJ 登录 Cookie':'登录 Cookie（可选）'}}<input name="cookie" v-model="form.cookie" type="password" autocomplete="new-password" maxlength="12000" placeholder="name=value; name2=value2"></label>
    <label v-if="editing" class="check-label"><input type="checkbox" v-model="form.remove_cookie">清除已保存的 Cookie</label>
    <div class="form-actions"><button class="primary" :disabled="saving">{{saving?'保存中…':editing?'保存设置':'添加账号'}}</button><button v-if="editing" type="button" @click="cancel">取消编辑</button></div>
