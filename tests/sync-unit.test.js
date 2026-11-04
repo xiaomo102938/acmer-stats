@@ -52,3 +52,13 @@ test('QOJ current AC checkmark and saved absolute contest links preserve real su
  const rows=parseAcceptedPage('<table>'+row(123,'AC ✓')+row(124,'WA')+row(125,'ML')+row(126,'Not AC ✓')+'</table>','QOJ','example');
  assert.equal(rows.length,1);assert.equal(rows[0].id,'123');assert.equal(rows[0].key,'7');
 });
+
+test('QOJ submission history retains judged failures and excludes pending or unknown results',()=>{
+ const row=(id,v)=>`<tr><td><a href="/submission/${id}">${id}</a></td><td><a href="/problem/7">Example</a></td><td>example</td><td>${v}</td><td>2026-10-01 12:30:00</td></tr>`;
+ const html='<table>'+row(1,'AC ✓')+row(2,'WA')+row(3,'ML')+row(4,'Judging')+row(5,'unknown')+'</table>';
+ const rows=parseAcceptedPage(html,'QOJ','example',true);
+ assert.deepEqual(rows.map(r=>[r.id,r.passed,r.verdict]),[['1',1,'AC'],['2',0,'WA'],['3',0,'ML']]);
+ assert.equal(parseAcceptedPage(html,'QOJ','example').length,1);
+ assert.equal(normalizeCF({id:10,creationTimeSeconds:1700000000,problem:{contestId:1,index:'A',name:'X'},verdict:'TIME_LIMIT_EXCEEDED'}).verdict,'TIME_LIMIT_EXCEEDED');
+ assert.equal(normalizeAtCoder({id:10,epoch_second:1700000000,problem_id:'abc001_a',contest_id:'abc001',result:'WA'}).verdict,'WA');
+});

@@ -28,14 +28,14 @@ export async function saveSubmissions(connection,account,result) {
     const [[tag]]=await connection.execute('SELECT tag_id FROM tag WHERE tag_name=?',[name]);
     await connection.execute('INSERT IGNORE INTO problem_tag(problem_id,tag_id) VALUES(?,?)',[problem.problem_id,tag.tag_id]);
    }
-   const [[old]]=await connection.execute('SELECT passed FROM synced_submission WHERE user_id=? AND platform_id=? AND source_id=?',[account.user_id,account.platform_id,s.id]);
-   const time=sqlDate(s.time);
+   const [[old]]=await connection.execute('SELECT passed,verdict FROM synced_submission WHERE user_id=? AND platform_id=? AND source_id=?',[account.user_id,account.platform_id,s.id]);
+   const time=sqlDate(s.time),verdict=s.verdict?short(s.verdict,40):(s.passed===1?'AC':null);
    if(!old){
-    await connection.execute('INSERT INTO synced_submission(submission_id,user_id,platform_id,source_id,account_login,problem_id,passed,submitted_at) VALUES(?,?,?,?,?,?,?,?)',
-     [randomUUID(),account.user_id,account.platform_id,s.id,account.login_name,problem.problem_id,s.passed,time]);
+    await connection.execute('INSERT INTO synced_submission(submission_id,user_id,platform_id,source_id,account_login,problem_id,passed,submitted_at,verdict) VALUES(?,?,?,?,?,?,?,?,?)',
+     [randomUUID(),account.user_id,account.platform_id,s.id,account.login_name,problem.problem_id,s.passed,time,verdict]);
     summary.newSubmissions++;
-   }else if(old.passed!==s.passed){
-    await connection.execute('UPDATE synced_submission SET passed=?,submitted_at=? WHERE user_id=? AND platform_id=? AND source_id=?',[s.passed,time,account.user_id,account.platform_id,s.id]);
+   }else if(old.passed!==s.passed||(verdict&&old.verdict!==verdict)){
+    await connection.execute('UPDATE synced_submission SET passed=?,submitted_at=?,verdict=COALESCE(?,verdict) WHERE user_id=? AND platform_id=? AND source_id=?',[s.passed,time,verdict,account.user_id,account.platform_id,s.id]);
     summary.updatedSubmissions++;
    }
    affected.add(problem.problem_id);

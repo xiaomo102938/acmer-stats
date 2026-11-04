@@ -49,6 +49,13 @@ try{
  const [[after]]=await connection.query('SELECT COUNT(*) AS n FROM synced_submission');assert.equal(after.n,2,'failed writes should roll back ledger inserts');
  const [[unchanged]]=await connection.execute('SELECT submit_count FROM record WHERE record_id=?',[record]);assert.equal(unchanged.submit_count,4);
 
+ const failVerdict=await saveSubmissions(connection,account,{...result,items:[{...item,passed:0,verdict:'WA'}]});
+ assert.equal(failVerdict.updatedSubmissions,1);
+ const rejudgedFailure=await saveSubmissions(connection,account,{...result,items:[{...item,passed:0,verdict:'TIME_LIMIT_EXCEEDED'}]});
+ assert.equal(rejudgedFailure.updatedSubmissions,1,'a changed failure reason must be saved even when passed stays zero');
+ const [[specific]]=await connection.execute('SELECT passed,verdict FROM synced_submission WHERE source_id=?',['1']);
+ assert.equal(specific.verdict,'TIME_LIMIT_EXCEEDED');assert.equal(specific.passed,0);
+
  // Seed two aliases attached to the same problem, then normalize their union.
  const dpEnglish=randomUUID(),dpChinese=randomUUID();
  await connection.execute('INSERT INTO tag(tag_id,tag_name) VALUES(?,?),(?,?)',[dpEnglish,'dp',dpChinese,'动态规划']);

@@ -1,3 +1,4 @@
+import {submissionRouter} from './submissions.js';
 import {abilityProfiles,readAbilityRows,ratedProblems,ratingVersion,overallAbility,readProblemRows} from './ability.js';
 import express from 'express';
 import {accountRouter} from './accounts.js';
@@ -30,6 +31,7 @@ app.use('/api',(req,res,next)=>{
  next();
 });
 app.use('/api/accounts',accountRouter(pool));
+app.use('/api/submissions',submissionRouter(pool));
 app.get('/api/dashboard', async (_req, res) => {
   const connection = await pool.getConnection();
   try {

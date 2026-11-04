@@ -792,3 +792,7 @@ CREATE OR REPLACE VIEW v_tag_ability AS with `totals` as (select `r`.`user_id` A
 
 USE acmer_stats;
 ALTER TABLE problem ADD metadata_checked_at DATETIME NULL COMMENT 'Last successful Luogu metadata refresh';
+
+-- Submission-level history and ordered pagination
+ALTER TABLE synced_submission ADD verdict VARCHAR(40) NULL, ADD INDEX idx_submission_page(user_id,submitted_at DESC,submission_id DESC);
+UPDATE synced_submission SET verdict='AC' WHERE passed=1;

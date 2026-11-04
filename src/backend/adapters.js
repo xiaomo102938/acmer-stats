@@ -5,7 +5,7 @@ const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export const capabilities={
  Codeforces:{mode:'公开提交',note:'官方 API；每次最多读取最近 5000 条提交。'},
  AtCoder:{mode:'公开提交',note:'AtCoder Problems 第三方数据；每次最多 5000 条，后续同步从已保存进度继续。'},
- QOJ:{mode:'需要 Cookie',note:'同步可访问的 AC 提交；最多 100 页。通过记录不代表完整提交历史。'},
+ QOJ:{mode:'需要 Cookie',note:'同步可访问的已判定提交（含非 AC）；最多 100 页，受可见范围限制。'},
  LeetCode:{mode:'最近 AC',note:'力扣中国公开的最近 AC 列表，不能还原全部历史或失败提交。'},
  '牛客':{mode:'公开数据优先',note:'填写主页链接或数字 UID；先读取公开练习 AC，要求登录时才使用已保存 Cookie。最多 20 页，不包含全部比赛和失败提交。'},
  '洛谷':{mode:'公开练习与活动',note:'填写数字 UID；同步通过/尝试题目清单及站点活动，不虚构提交次数和解题日期。'}
@@ -29,15 +29,15 @@ export function normalizeCF(s) {
  if(!s.problem?.index||s.problem.contestId==null||s.verdict==null||s.verdict==='TESTING') return null;
  const p=s.problem, key=p.contestId+p.index;
  return validItem({id:String(s.id),key,title:'Codeforces '+key+' '+p.name,time:s.creationTimeSeconds,
- passed:s.verdict==='OK'?1:0,tags:p.tags||[],native:p.rating==null?null:String(p.rating),
+ passed:s.verdict==='OK'?1:0,verdict:s.verdict==='OK'?'AC':s.verdict,tags:p.tags||[],native:p.rating==null?null:String(p.rating),
  url:'https://codeforces.com/problemset/problem/'+p.contestId+'/'+p.index});
 }
 export function normalizeAtCoder(s) {
  if(!s.problem_id||['WJ','WR','Judging'].includes(s.result)) return null;
  return validItem({id:String(s.id),key:s.problem_id,title:'AtCoder '+s.problem_id,time:s.epoch_second,
- passed:s.result==='AC'?1:0,tags:[],native:null,url:'https://atcoder.jp/contests/'+s.contest_id+'/tasks/'+s.problem_id});
+ passed:s.result==='AC'?1:0,verdict:s.result,tags:[],native:null,url:'https://atcoder.jp/contests/'+s.contest_id+'/tasks/'+s.problem_id});
 }
-export function parseAcceptedPage(html,platform,login) {
+export function parseAcceptedPage(html,platform,login,includeFailures=false) {
  const $=load(html);
  const body=$('body').clone();body.find('script,style,noscript').remove();
  if(/Just a moment|Checking your browser/i.test($('title').text())||$('#challenge-form,#challenge-running,#cf-challenge-running').length||
@@ -51,7 +51,10 @@ export function parseAcceptedPage(html,platform,login) {
   const problemLink=links.find(a=>platform==='QOJ'?/\/problem\/\d+/.test($(a).attr('href')):/\/(?:acm\/(?:problem\/\d+|contest\/\d+\/[^/?#]+)|practice\/[^/?#]+)/.test($(a).attr('href')));
   if(!problemLink) return;
   const accepted=cells.toArray().some(cell=>(platform==='QOJ'?/^(?:100(?:\.0+)?|Accepted|AC(?:\s*[✓✔])?)$/i:/^(?:100(?:\.0+)?|Accepted|AC|答案正确|通过)$/i).test($(cell).text().trim()));
-  if(!accepted) return;
+  const scoreLink=$(row).find('a.uoj-score').first(),rawVerdict=(scoreLink.length?scoreLink.text():cells.eq(3).text()).trim();
+  const failed=platform==='QOJ'&&/^(?:WA|TL|TLE|ML|MLE|RE|RTE|CE|OLE|OL|IL|PE|SE)(?:\s*[✗✘×])?$/.test(rawVerdict);
+  const partial=platform==='QOJ'&&scoreLink.length&&scoreLink.attr('data-score')!=null&&Number.isFinite(Number(scoreLink.attr('data-score')))&&Number(scoreLink.attr('data-score'))<100;
+  if(!accepted&&!(includeFailures&&(failed||partial))) return;
   const date=text.match(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/);
   let submission=links.map(a=>$(a).attr('href')).find(h=>/\/(?:submission|status)\/\d+/.test(h)||/^#\d+$/.test(h));
   if(!submission&&platform==='牛客'&&/^\d+$/.test(cells.first().text().trim()))submission='/status/'+cells.first().text().trim();
@@ -60,7 +63,7 @@ export function parseAcceptedPage(html,platform,login) {
   const key=platform==='QOJ'?href.match(/\/problem\/(\d+)/)?.[1]:(href.match(/\/acm\/problem\/(\d+)/)?.[1]||href.match(/\/practice\/([^/?#]+)/)?.[1]||href.match(/\/acm\/contest\/(\d+\/[^/?#]+)/)?.[1]);
   output.push(validItem({id:submission.match(/(?:\/|#)(\d+)(?:\?|$|\/)/)[1],key,
    title:platform+' '+key+' '+$(problemLink).text().trim(),time:Date.parse(date[1]+'T'+date[2]+'+08:00')/1000,
-   passed:1,tags:[],native:null,url:new URL(href,platform==='QOJ'?'https://qoj.ac':'https://ac.nowcoder.com').href}));
+   passed:accepted?1:0,verdict:accepted?'AC':failed?rawVerdict.replace(/[✗✘×]/g,'').trim():'PARTIAL',tags:[],native:null,url:new URL(href,platform==='QOJ'?'https://qoj.ac':'https://ac.nowcoder.com').href}));
  });
  if(!output.length&&!/no submissions|no records|没有提交|暂无记录|暂无数据/i.test(html)&&!(/<table/i.test(html)&&/submit time|submission|提交时间/i.test(html))) throw new SourceError('无法识别平台提交页面，本次没有导入。');
  return output;
@@ -120,20 +123,20 @@ export async function collect(account,secret='') {
   if(platform==='QOJ'){try{transport=await qojTransport();}catch{throw new SourceError('无法读取 QOJ 代理配置，请检查 QOJ_PROXY_URL 与 Windows 系统代理设置。');}}
   for(let page=1;page<=maxPages;page++){
    const url=platform==='QOJ'?new URL('https://qoj.ac/submissions'):new URL('https://ac.nowcoder.com/acm/contest/profile/'+account.remote_uid+'/practice-coding');
-   url.search=new URLSearchParams(platform==='QOJ'?{submitter:login,min_score:'100',max_score:'100',page:String(page)}:{page:String(page),pageSize:'200',statusTypeFilter:'5',orderType:'DESC',languageCategoryFilter:'-1'});
+   url.search=new URLSearchParams(platform==='QOJ'?{submitter:login,page:String(page)}:{page:String(page),pageSize:'200',statusTypeFilter:'5',orderType:'DESC',languageCategoryFilter:'-1'});
    let html,rows;
    if(platform==='牛客'){
     const result=await readNowcoderPage(url,secret,usedCookie);({html,rows}=result);usedCookie=result.usedCookie;
    }else{
     html=await(await request(url,{...transport,headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36',Accept:'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',Cookie:secret}})).text();
-    rows=parseAcceptedPage(html,platform,login);
+    rows=parseAcceptedPage(html,platform,login,true);
    }
    items.push(...rows);
    const next=new RegExp('(?:page|pageNo)='+String(page+1)+'(?:[^0-9]|$)').test(html);
    if(!next) break;
    if(page===maxPages) partial=true; else await pause(1200);
   }
-  note=(platform==='牛客'?(usedCookie?'本次使用已保存的 Cookie 读取。':'本次读取公开数据，未使用 Cookie。'):'本次使用已保存的 QOJ Cookie。')+'仅导入可见的 AC 提交，失败提交、完整提交次数和缺失历史无法推算。'+(partial?'本次达到 '+maxPages+' 页上限，更早记录暂未覆盖。':'');
+  note=(platform==='牛客'?(usedCookie?'本次使用已保存的 Cookie 读取。':'本次读取公开数据，未使用 Cookie。'):'本次使用已保存的 QOJ Cookie。')+(platform==='QOJ'?'已导入可见的已判定提交（含非 AC）；未获取或仍在评测的记录不推算。':'仅导入可见的 AC 提交，失败提交、完整提交次数和缺失历史无法推算。')+(partial?'本次达到 '+maxPages+' 页上限，更早记录暂未覆盖。':'');
  }else if(platform==='LeetCode'){
   const body=await (await request('https://leetcode.cn/graphql/noj-go/',{
    method:'POST',headers:{'Content-Type':'application/json',Referer:'https://leetcode.cn/',...(secret?{Cookie:secret}:{})},
