@@ -1,3 +1,4 @@
+import PlatformAnalysis from './platform-analysis.js';
 import PracticeTrends from './practice-trends.js';
 import Submissions from './submissions.js';
 import {createApp,onMounted,onBeforeUnmount,ref,computed,watch,nextTick} from 'vue';
@@ -26,7 +27,7 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{PracticeTrends,Submissions,Accounts,Activity,TagAnalysis,OverallAbility},
+ components:{PlatformAnalysis,PracticeTrends,Submissions,Accounts,Activity,TagAnalysis,OverallAbility},
  setup(){
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
   const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
@@ -141,9 +142,7 @@ createApp({
     <div class="analysis-difficulty">
      <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>CF 统一尺度</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><p class="footnote">{{difficultyNote}}</p></article>
     </div>
-    <article class="panel platform-analysis"><div class="panel-head"><h2>各平台练习情况</h2><span>已记录题目与通过情况</span></div><div class="platform-grid">
-     <div class="platform" v-for="p in data.platforms" :key="p.platform_id"><div><b>{{p.platform_name}}</b><span>{{p.passed_count}} / {{p.total_count}} 道通过</span></div><div class="track"><i :style="{width:(p.pass_rate??0)+'%'}"></i></div><em>{{p.total_count?p.pass_rate+'%':'暂无记录'}}</em></div>
-    </div><p v-for="s in data.platformSnapshots||[]" :key="s.platform_name+s.login_name" class="footnote">{{s.platform_name}} 公开清单：{{s.passed_count}} 道通过 / {{s.attempted_count}} 道尝试；主页报告：{{s.profile_passed_count??'—'}} / {{s.profile_attempted_count??'—'}}。汇总保留原有示例，可能多于公开清单。</p></article>
+    <PlatformAnalysis :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
     <TagAnalysis :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
     <TagAnalysis graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
