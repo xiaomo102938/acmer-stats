@@ -28,3 +28,10 @@ test('forest layout separates primary trees, respects hierarchy and preserves ma
  const manual={dp:{x:9500,y:9500}},filled=completePositions(c.nodes,manual);assert.deepEqual(filled.dp,manual.dp);assert.ok(Object.entries(filled).every(([id,pos])=>canPlace(id,pos,filled)));
  const many=Array.from({length:400},(_,i)=>({id:'n'+i,parent:null,secondary:[]})),bounded=forestPositions(many);assert.ok(Object.entries(bounded).every(([id,pos])=>canPlace(id,pos,bounded)));
 });
+import {topologyContentSignature} from '../src/shared/topology-geometry.js';
+test('layout-only movement and reordering do not mark topology content as changed',()=>{
+ const c=config(),moved=structuredClone(c);moved.positions=completePositions(moved.nodes);moved.positions.one.x+=10;assert.equal(topologyContentSignature(c),topologyContentSignature(moved));
+ moved.nodes.reverse();assert.equal(topologyContentSignature(c),topologyContentSignature(moved));
+ moved.names.one='renamed';assert.notEqual(topologyContentSignature(c),topologyContentSignature(moved));delete moved.names.one;
+ moved.nodes.find(n=>n.id==='four').parent='one';assert.notEqual(topologyContentSignature(c),topologyContentSignature(moved));
+});

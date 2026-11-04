@@ -37,3 +37,9 @@ export function validatePositions(nodes,positions){
  for(const [id,p]of Object.entries(positions))if(!ids.has(id)||!p||typeof p!=='object'||!Number.isFinite(p.x)||!Number.isFinite(p.y))fail();
  for(const [id,p]of Object.entries(positions))if(!canPlace(id,p,positions))fail();
 }
+// Layout is a view preference, not a change to skill types or prerequisite relationships.
+export function topologyContentSignature(config){
+ const nodes=(config.nodes||[]).map(n=>({id:n.id,parent:n.parent,secondary:[...n.secondary].sort()})).sort((a,b)=>a.id.localeCompare(b.id));
+ const names=Object.entries(config.names||{}).sort(([a],[b])=>a.localeCompare(b));
+ return JSON.stringify({nodes,names});
+}
