@@ -1,3 +1,4 @@
+import PracticeTrends from './practice-trends.js';
 import Submissions from './submissions.js';
 import {createApp,onMounted,onBeforeUnmount,ref,computed,watch,nextTick} from 'vue';
 import * as echarts from 'echarts/core';
@@ -25,11 +26,11 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{Submissions,Accounts,Activity,TagAnalysis,OverallAbility},
+ components:{PracticeTrends,Submissions,Accounts,Activity,TagAnalysis,OverallAbility},
  setup(){
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
   const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
-  const monthlyEl=ref(null),difficultyEl=ref(null),weekEl=ref(null);
+  const difficultyEl=ref(null),weekEl=ref(null);
   const charts=new Map();
   const difficultyPlatform=ref('全部平台');
   const difficultyPlatforms=computed(()=>[{platform_name:'全部平台'},...(data.value?.platforms.filter(p=>p.total_count>0)||[])]);
@@ -69,9 +70,6 @@ createApp({
     grid:{left:42,right:20,top:18,bottom:55},
     yAxis:{type:'value',minInterval:1,axisLabel:{color:text},splitLine:{lineStyle:{color:gridLine}}}};
    const axis=labels=>({type:'category',data:labels,axisLabel:{color:text},axisLine:{lineStyle:{color:line}}});
-   render(monthlyEl.value,{...base,xAxis:axis(data.value.monthly.map(x=>x.solve_month)),
-    series:[{name:'刷题数',type:'bar',barMaxWidth:38,itemStyle:{borderRadius:[5,5,0,0]},data:data.value.monthly.map(x=>x.total_count)},
-     {name:'通过数',type:'line',symbolSize:6,data:data.value.monthly.map(x=>x.passed_count)}]});
    render(weekEl.value,{...base,xAxis:axis(days.value.map(x=>x.day.slice(5))),
     series:[{name:'提交次数',type:'bar',barMaxWidth:30,itemStyle:{borderRadius:[5,5,0,0]},data:days.value.map(x=>x.submission_count)},
      {name:'AC 次数',type:'line',symbolSize:6,data:days.value.map(x=>x.accepted_count)}]});
@@ -104,7 +102,7 @@ createApp({
   const resize=()=>charts.forEach(c=>c.resize());
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
-  return {pages,page,current,data,dataVersion,loading,error,monthlyEl,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
+  return {pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
  },
  template:`
  <div class="layout">
@@ -139,8 +137,8 @@ createApp({
 
    <section v-else-if="page==='analysis'&&data" key="analysis" aria-label="详细分析">
     <OverallAbility :profile="data.overallAbility" :refresh-key="dataVersion" />
-    <div class="chart-grid">
-     <article class="panel"><div class="panel-head"><h2>月度练习趋势</h2><span>按题目汇总</span></div><div ref="monthlyEl" class="chart" role="img" aria-label="月度刷题数与通过数趋势"></div><p class="footnote">使用每道题记录中保存的刷题日期，并非逐次提交活动。</p></article>
+    <PracticeTrends :refresh-key="dataVersion" />
+    <div class="analysis-difficulty">
      <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>CF 统一尺度</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><p class="footnote">{{difficultyNote}}</p></article>
     </div>
     <article class="panel platform-analysis"><div class="panel-head"><h2>各平台练习情况</h2><span>已记录题目与通过情况</span></div><div class="platform-grid">
