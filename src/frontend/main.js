@@ -61,8 +61,9 @@ createApp({
    if(!data.value)return;
    const dark=isDark.value;
    const colors=dark?['#83bc9c','#9faedb','#c4ce93','#d9b77f','#7d9289']:['#376c58','#86a895','#c4d5b8','#dfbf82','#b0b9aa'];
-   const text=dark?'#b5c6b9':'#788571',line=dark?'#34483c':'#d9e0d7',gridLine=dark?'#293a30':'#eef0eb';
-   const tooltip={backgroundColor:dark?'#24352b':'#ffffff',borderColor:line,textStyle:{color:dark?'#e0eadd':'#25372e'}};
+   const css=getComputedStyle(document.documentElement),token=name=>css.getPropertyValue(name).trim();
+   const text=token('--muted'),line=token('--border'),gridLine=token('--rowBorder');
+   const tooltip={backgroundColor:token('--panel'),borderColor:line,textStyle:{color:token('--text')}};
    const base={animation:false,color:colors,tooltip:{...tooltip,trigger:'axis'},legend:{bottom:0,textStyle:{color:text}},
     grid:{left:42,right:20,top:18,bottom:55},
     yAxis:{type:'value',minInterval:1,axisLabel:{color:text},splitLine:{lineStyle:{color:gridLine}}}};
@@ -154,7 +155,7 @@ createApp({
    </section>
 
    <section v-else-if="page==='settings'" key="settings" aria-label="设置">
-    <article class="panel appearance-panel"><div class="panel-head"><h2>外观主题</h2><span>偏好自动保存</span></div><div class="appearance-row"><div><h3>选择你舒服的阅读方式</h3><p>支持明暗模式与跟随系统，切换时使用轻量渐变。</p></div><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白天模式</option><option value="dark">☾ 黑夜模式</option><option value="system">◐ 跟随系统</option></select></label></div></article>
+    <article class="panel appearance-panel"><div class="panel-head"><h2>外观主题</h2><span>偏好自动保存</span></div><div class="appearance-row"><div><h3>选择你舒服的阅读方式</h3><p>白色、深绿、纯黑与灰色可选，支持跟随系统和轻量渐变。</p></div><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div></article>
     <Accounts @synced="load" />
    </section>
    <footer>刷题手记 · 数据来自本机 MySQL <span>每一次练习，都在积累。</span></footer>
