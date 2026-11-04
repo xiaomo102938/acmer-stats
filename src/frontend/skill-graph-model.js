@@ -9,6 +9,10 @@ export const families=[
 ];
 export const extraRelations=[['trees','tree dp'],['dfs and similar','tree dp'],['data structures','lca'],['trees','lca'],['number theory','fft']];
 export const nodeSize=count=>Math.min(150,20+9*Math.sqrt(Math.max(0,Number(count)||0)));
+export function nodeFontSize(count,size=nodeSize(count)){
+ const digits=String(Math.max(0,Number(count)||0)).length;
+ return Math.max(11,Math.min(34,size*.3,size*.74/(digits*.62)));
+}
 export function nodeTone(row){
  if(!row||!row.sample_count||row.ability_value==null)return 'unrated';
  if(row.sample_count<25)return 'provisional';

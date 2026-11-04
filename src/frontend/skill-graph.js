@@ -1,6 +1,6 @@
 import {ref,computed,watch,onBeforeUnmount} from 'vue';
 import {createSkillLayout} from './skill-layout.js';
-import {families,extraRelations,skillGraph} from './skill-graph-model.js';
+import {families,extraRelations,skillGraph,nodeFontSize} from './skill-graph-model.js';
 export default{
  props:{profiles:{type:Array,default:()=>[]}},emits:['inspect'],
  setup(props){
@@ -43,7 +43,7 @@ export default{
    return 'M '+(a.x+dx/d*start)+' '+(a.y+dy/d*start)+' L '+(b.x-dx/d*end)+' '+(b.y-dy/d*end);
   }
   function connected(e){return e.from===selected.value||e.to===selected.value;}
-  return {arranging,layoutState,iterations,families,expanded,selected,zoom,graph,index,chosen,allNodes,related,missing,toggle,choose,click,reset,connected,edgePath};
+  return {nodeFontSize,arranging,layoutState,iterations,families,expanded,selected,zoom,graph,index,chosen,allNodes,related,missing,toggle,choose,click,reset,connected,edgePath};
  },
  template:`<section class="skill-graph" aria-label="题型技能图谱">
   <p class="footnote">节点越大，去重通过题数越多；实线为基础与分支，虚线为跨方向关联。它们是人工整理的知识关系，不代表严格学习前置。</p>
@@ -56,7 +56,7 @@ export default{
     <g v-for="e in graph.edges" :key="e.from+'>'+e.to" class="skill-edge" :class="{related:e.kind==='related',highlight:connected(e)}"><path :d="edgePath(e)" marker-end="url(#skill-arrow)" /></g>
     <g v-for="n in graph.nodes" :key="n.id" role="button" tabindex="0" :aria-label="n.name+'，已同步通过 '+n.count+' 题'+(n.root?'，点击展开或收起分支':'，点击查看统计')" :aria-pressed="selected===n.id" @click="click(n)" @keydown.enter.prevent="click(n)" @keydown.space.prevent="click(n)" class="skill-node" :class="['skill-'+n.tone,{selected:selected===n.id}]">
      <title>{{n.row?.display_name||n.name}}：{{n.count}} 道通过题；能力参考 {{n.row?.ability_value??'暂无'}}；样本 {{n.row?.sample_count||0}} / 25</title>
-     <circle :cx="n.x" :cy="n.y" :r="n.size/2"/><text :x="n.x" :y="n.y+4" text-anchor="middle" class="skill-count">{{n.count}}</text><text :x="n.x" :y="n.y+n.size/2+20" text-anchor="middle" class="skill-label">{{n.name}}{{n.root?(expanded.includes(n.id)?' −':' +'):''}}</text>
+     <circle :cx="n.x" :cy="n.y" :r="n.size/2"/><text :x="n.x" :y="n.y" text-anchor="middle" dominant-baseline="central" :style="{fontSize:nodeFontSize(n.count,n.size)+'px'}" class="skill-count">{{n.count}}</text><text :x="n.x" :y="n.y+n.size/2+20" text-anchor="middle" class="skill-label">{{n.name}}{{n.root?(expanded.includes(n.id)?' −':' +'):''}}</text>
     </g>
    </svg>
   </div>

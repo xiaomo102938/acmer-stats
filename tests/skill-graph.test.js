@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {families,skillGraph,nodeSize,nodeTone} from '../src/frontend/skill-graph-model.js';
+import {families,skillGraph,nodeSize,nodeTone,nodeFontSize} from '../src/frontend/skill-graph-model.js';
 test('curated graph has unique nodes, valid links and multiple tree-DP foundations',()=>{
  const g=skillGraph([],families.map(f=>f.id)),ids=new Set(g.nodes.map(n=>n.id));assert.equal(ids.size,g.nodes.length);
  assert.ok(g.edges.every(e=>ids.has(e.from)&&ids.has(e.to)));assert.equal(new Set(g.edges.map(e=>e.from+'>'+e.to)).size,g.edges.length);
@@ -15,4 +15,9 @@ test('node counts use source deduplicated totals, never sum children or guess un
 });
 test('sizes are monotonic and capped; incomplete and absent scores remain distinct',()=>{
  assert.ok(nodeSize(100)>nodeSize(10));assert.ok(nodeSize(107)/nodeSize(3)>3);assert.ok(nodeSize(1000)<=150);assert.equal(nodeSize(-1),20);assert.equal(nodeTone(null),'unrated');assert.equal(nodeTone({sample_count:0,ability_value:null}),'unrated');assert.equal(nodeTone({sample_count:1,ability_value:3200}),'provisional');
+});
+
+test('count text grows with nodes and is bounded to fit multiple digits',()=>{
+ assert.ok(nodeFontSize(107)>30);assert.ok(nodeFontSize(3)<15);assert.ok(nodeFontSize(107)>nodeFontSize(3)*2);
+ for(const n of [0,3,107,999,12345,999999]){const font=nodeFontSize(n);assert.ok(font>=11&&font<=34);assert.ok(String(n).length*font*.62<=nodeSize(n)*.8);}
 });
