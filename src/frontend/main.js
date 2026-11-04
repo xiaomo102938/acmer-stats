@@ -122,10 +122,8 @@ createApp({
 
    <section v-if="page==='overview'&&data" key="overview" aria-label="数据简览">
     <div class="metrics">
-     <article><span>累计刷题</span><strong>{{data.overview?.total_problems??0}}<small> 道</small></strong><p>按用户与题目去重</p></article>
-     <article><span>已通过题目</span><strong>{{data.overview?.passed_problems??0}}<small> 道</small></strong><p>每一步积累都算数</p></article>
-     <article><span>题目通过率</span><strong>{{data.overview?.pass_rate??0}}<small> %</small></strong><p>针对已记录的题目样本</p></article>
-     <article><span>覆盖平台</span><strong>{{data.overview?.platform_count??0}}<small> 个</small></strong><p>{{data.overview?.tag_count??0}} 个题型标签</p></article>
+     <article><span>累计题数</span><strong>{{data.overview?.total_problems??0}}<small> 道</small></strong><p>按用户与题目去重</p></article>
+     <article><span>AC 题数</span><strong>{{data.overview?.passed_problems??0}}<small> 道</small></strong><p>每一步积累都算数</p></article>
     </div>
     <Activity :refresh-key="dataVersion" /><p v-if="data.platformSnapshots?.length" class="footnote inventory-note">洛谷公开练习清单已计入题目总量；因没有逐题日期，不计入提交趋势。洛谷每日活动请在热力图选择“站点活动”。原有示例记录仍保留。</p>
     <div class="chart-grid">
