@@ -1,10 +1,26 @@
-import {ref,computed} from 'vue';
+import {ref,computed,watch,onBeforeUnmount} from 'vue';
+import {createSkillLayout} from './skill-layout.js';
 import {families,extraRelations,skillGraph} from './skill-graph-model.js';
 export default{
  props:{profiles:{type:Array,default:()=>[]}},emits:['inspect'],
  setup(props){
   const expanded=ref(['dp']),selected=ref('dp'),zoom=ref(100);
-  const graph=computed(()=>skillGraph(props.profiles,expanded.value));
+  const raw=computed(()=>skillGraph(props.profiles,expanded.value)),positions=ref(new Map()),arranging=ref(false),layoutState=ref('idle'),iterations=ref(0);
+  let timer,serial=0;
+  function arrange(){
+   clearTimeout(timer);const id=++serial,simulation=createSkillLayout(raw.value,positions.value);arranging.value=true;layoutState.value='running';
+   function batch(){
+    if(id!==serial)return;
+    const start=performance.now();let state;
+    do{state=simulation.step(8);}while(!state.done&&performance.now()-start<4);
+    if(state.done){positions.value=simulation.positions();iterations.value=state.steps;layoutState.value=state.reason;arranging.value=false;timer=undefined;}
+    else timer=setTimeout(batch,0);
+   }
+   timer=setTimeout(batch,0);
+  }
+  watch(()=>raw.value.nodes.map(n=>n.id).join('|')+';'+raw.value.edges.map(e=>e.from+'>'+e.to).join('|'),arrange,{immediate:true});
+  onBeforeUnmount(()=>{serial++;clearTimeout(timer);});
+  const graph=computed(()=>({...raw.value,height:720,nodes:raw.value.nodes.map(n=>({...n,...positions.value.get(n.id)}))}));
   const index=computed(()=>new Map(graph.value.nodes.map(n=>[n.id,n])));
   const chosen=computed(()=>index.value.get(selected.value)||null);
   const allNodes=families.flatMap(f=>[{id:f.id,name:f.name,family:f.id},...f.children.map(([id,name])=>({id,name,family:f.id}))]);
@@ -16,21 +32,22 @@ export default{
   function toggle(id){expanded.value=expanded.value.includes(id)?expanded.value.filter(x=>x!==id):[...expanded.value,id];selected.value=id;}
   function choose(id){const n=allNodes.find(n=>n.id===id);if(!n)return;if(!expanded.value.includes(n.family))expanded.value=[...expanded.value,n.family];selected.value=id;}
   function click(n){if(n.root)toggle(n.id);else selected.value=n.id;}
-  function reset(){expanded.value=['dp'];selected.value='dp';zoom.value=100;}
+  function reset(){positions.value=new Map();arrange();expanded.value=['dp'];selected.value='dp';zoom.value=100;}
   function edgePath(e){
-   const a=index.value.get(e.from),b=index.value.get(e.to);
-   if(e.kind==='branch')return 'M '+(a.x+a.size/2)+' '+a.y+' H '+(a.x+100)+' V '+(b.y-b.size/2-25)+' H '+b.x+' V '+(b.y-b.size/2-7);
-   return 'M '+(a.x+a.size/2)+' '+a.y+' C '+(a.x+130)+' '+a.y+', '+(b.x-100)+' '+b.y+', '+(b.x-b.size/2-7)+' '+b.y;
+   const a=index.value.get(e.from),b=index.value.get(e.to),dx=b.x-a.x,dy=b.y-a.y,d=Math.max(1,Math.hypot(dx,dy));
+   const start=a.size/2+2,end=b.size/2+8;
+   return 'M '+(a.x+dx/d*start)+' '+(a.y+dy/d*start)+' L '+(b.x-dx/d*end)+' '+(b.y-dy/d*end);
   }
   function connected(e){return e.from===selected.value||e.to===selected.value;}
-  return {families,expanded,selected,zoom,graph,index,chosen,allNodes,related,missing,toggle,choose,click,reset,connected,edgePath};
+  return {arranging,layoutState,iterations,families,expanded,selected,zoom,graph,index,chosen,allNodes,related,missing,toggle,choose,click,reset,connected,edgePath};
  },
  template:`<section class="skill-graph" aria-label="题型技能图谱">
   <p class="footnote">节点越大，去重通过题数越多；实线为基础与分支，虚线为跨方向关联。它们是人工整理的知识关系，不代表严格学习前置。</p>
   <div class="skill-controls"><label>定位题型<select :value="selected" @change="choose($event.target.value)" aria-label="定位技能图谱题型"><option v-for="n in allNodes" :key="n.id" :value="n.id">{{n.name}}</option></select></label><label>缩放 <input v-model.number="zoom" type="range" min="70" max="150" step="10" aria-label="技能图谱缩放">{{zoom}}%</label><button @click="expanded=families.map(f=>f.id)">展开全部</button><button @click="reset">重置视图</button></div>
   <div class="skill-legend"><span class="skill-unrated">● 暂无评分</span><span class="skill-provisional">● 不足 25 题，暂定</span><span class="skill-rated">● 参考值 &lt; 1800</span><span class="skill-strong">● 1800–2399</span><span class="skill-advanced">● ≥ 2400</span></div>
-  <div class="skill-canvas" tabindex="0" aria-label="可横向与纵向滚动的技能图谱">
-   <svg :viewBox="'0 0 1000 '+graph.height" :style="{width:zoom+'%',minWidth:(900*zoom/100)+'px'}" role="group" aria-label="题型知识关系节点与连线">
+  <p class="footnote" role="status">{{arranging?'正在自动排布，完成后将静止显示…':'布局已定格；展开分支时会重新排布，节点不支持拖拽。'}}</p>
+  <div class="skill-canvas" :aria-busy="arranging" :data-layout-state="layoutState" :data-layout-steps="iterations" tabindex="0" aria-label="可横向与纵向滚动的技能图谱">
+   <svg v-show="!arranging" :viewBox="'0 0 1000 '+graph.height" :style="{width:zoom+'%',minWidth:(900*zoom/100)+'px'}" role="group" aria-label="题型知识关系节点与连线">
     <defs><marker id="skill-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="context-stroke" /></marker></defs>
     <g v-for="e in graph.edges" :key="e.from+'>'+e.to" class="skill-edge" :class="{related:e.kind==='related',highlight:connected(e)}"><path :d="edgePath(e)" marker-end="url(#skill-arrow)" /></g>
     <g v-for="n in graph.nodes" :key="n.id" role="button" tabindex="0" :aria-label="n.name+'，已同步通过 '+n.count+' 题'+(n.root?'，点击展开或收起分支':'，点击查看统计')" :aria-pressed="selected===n.id" @click="click(n)" @keydown.enter.prevent="click(n)" @keydown.space.prevent="click(n)" class="skill-node" :class="['skill-'+n.tone,{selected:selected===n.id}]">
