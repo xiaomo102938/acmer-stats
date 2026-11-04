@@ -1,13 +1,5 @@
-// Curated knowledge relationships, not a strict curriculum or inferred prerequisites.
-export const families=[
- {id:'dp',name:'动态规划',children:[['digit dp','数位 DP'],['tree dp','树形 DP'],['knapsack dp','背包 DP'],['interval dp','区间 DP'],['memoization','记忆化搜索'],['dp optimization','DP 优化']]},
- {id:'graphs',name:'图论',children:[['trees','树'],['shortest paths','最短路'],['minimum spanning tree','最小生成树'],['topological sorting','拓扑排序'],['flows','网络流'],['dsu','并查集']]},
- {id:'data structures',name:'数据结构',children:[['segment tree','线段树'],['fenwick tree','树状数组'],['heap','堆'],['prefix sums','前缀和'],['difference array','差分'],['lca','最近公共祖先']]},
- {id:'math',name:'数学',children:[['number theory','数论'],['combinatorics','组合数学'],['probabilities','概率'],['matrices','矩阵'],['geometry','计算几何'],['fft','FFT']]},
- {id:'strings',name:'字符串',children:[['hashing','哈希'],['string suffix structures','后缀结构']]},
- {id:'search',name:'搜索',children:[['dfs and similar','DFS'],['bfs','BFS'],['binary search','二分查找'],['divide and conquer','分治'],['brute force','暴力枚举']]}
-];
-export const extraRelations=[['trees','tree dp'],['dfs and similar','tree dp'],['data structures','lca'],['trees','lca'],['number theory','fft']];
+import {families,extraRelations} from '../shared/skill-defaults.js';
+export {families,extraRelations};
 export const nodeSize=count=>Math.min(150,20+9*Math.sqrt(Math.max(0,Number(count)||0)));
 export function nodeFontSize(count,size=nodeSize(count)){
  const digits=String(Math.max(0,Number(count)||0)).length;
@@ -30,4 +22,13 @@ export function skillGraph(profiles,expanded){
  const visible=new Set(nodes.map(n=>n.id));
  for(const [from,to]of extraRelations)if(visible.has(from)&&visible.has(to)&&!edges.some(e=>e.from===from&&e.to===to))edges.push({from,to,kind:'related'});
  return {nodes,edges,height:y-5,known:new Set(families.flatMap(f=>[f.id,...f.children.map(c=>c[0])]))};
+}
+
+export function customSkillGraph(profiles,expanded,config){
+ const byKey=new Map(profiles.map(p=>[p.tag_name,p])),byId=new Map(config.nodes.map(n=>[n.id,n])),visible=new Set();
+ function show(n){if(visible.has(n.id))return;visible.add(n.id);if(expanded.includes(n.id))for(const child of config.nodes.filter(c=>c.parent===n.id))show(child);}
+ for(const n of config.nodes)if(n.parent===null)show(n);
+ const nodes=config.nodes.filter(n=>visible.has(n.id)).map(n=>{const row=byKey.get(n.id);let root=n;while(root.parent)root=byId.get(root.parent);return {id:n.id,name:String(config.names[n.id]||row?.display_name||n.id).split(' / ')[0],root:config.nodes.some(c=>c.parent===n.id),family:root.id,row,count:row?.passed_count||0,size:nodeSize(row?.passed_count),tone:nodeTone(row)};});
+ const edges=config.nodes.flatMap(n=>[...(n.parent?[{from:n.parent,to:n.id,kind:'branch'}]:[]),...n.secondary.map(from=>({from,to:n.id,kind:'related'}))]).filter(e=>visible.has(e.from)&&visible.has(e.to));
+ return {nodes,edges,height:720,known:new Set(config.nodes.map(n=>n.id))};
 }
