@@ -6,15 +6,17 @@ export const capabilities={
  AtCoder:{mode:'公开提交',note:'AtCoder Problems 第三方数据；每次最多 5000 条，后续同步从已保存进度继续。'},
  QOJ:{mode:'需要 Cookie',note:'同步可访问的 AC 提交；最多 20 页。通过记录不代表完整提交历史。'},
  LeetCode:{mode:'最近 AC',note:'力扣中国公开的最近 AC 列表，不能还原全部历史或失败提交。'},
- '牛客':{mode:'需要数字 UID',note:'同步个人练习页的 AC 记录，最多 20 页；不包含全部比赛和失败提交。'},
+ '牛客':{mode:'公开数据优先',note:'填写主页链接或数字 UID；先读取公开练习 AC，要求登录时才使用已保存 Cookie。最多 20 页，不包含全部比赛和失败提交。'},
  '洛谷':{mode:'公开练习与活动',note:'填写数字 UID；同步通过/尝试题目清单及站点活动，不虚构提交次数和解题日期。'}
 };
-export class SourceError extends Error {}
+export class SourceError extends Error {constructor(message,code='source_error'){super(message);this.code=code;}}
 async function request(url,options={}) {
  const response=await fetch(url,{...options,redirect:'manual',signal:AbortSignal.timeout(20000),
  headers:{'User-Agent':'acmer-stats/1.0 (personal coursework)','Accept':'application/json,text/html',...options.headers}});
- if(response.status>=300&&response.status<400) throw new SourceError('平台要求重新登录，请更新 Cookie。');
- if(response.status===403||response.status===429) throw new SourceError('平台访问受限或请求过于频繁，请稍后重试；需要会话的平台请更新 Cookie。');
+ if(response.headers.get('cf-mitigated')==='challenge')throw new SourceError('平台的 Cloudflare 浏览器验证拦截了同步请求，尚未读取提交记录，不能据此判断 Cookie 是否有效。请先在浏览器正常完成验证；若后台仍被拦截，仅更新 Cookie 未必能解决。','browser_challenge');
+ if(response.status>=300&&response.status<400) throw new SourceError('平台要求重新登录，请更新 Cookie。','auth_required');
+ if(response.status===401||response.status===403)throw new SourceError('平台拒绝访问，可能需要登录；请检查会话或平台访问限制。','auth_required');
+ if(response.status===429) throw new SourceError('平台请求过于频繁，请稍后重试。','rate_limited');
  if(!response.ok) throw new SourceError('平台返回 HTTP '+response.status+'，本次未写入记录。');
  return response;
 }
@@ -35,9 +37,11 @@ export function normalizeAtCoder(s) {
  passed:s.result==='AC'?1:0,tags:[],native:null,url:'https://atcoder.jp/contests/'+s.contest_id+'/tasks/'+s.problem_id});
 }
 export function parseAcceptedPage(html,platform,login) {
- if(/Just a moment|cf-chl-|captcha|安全验证|访问频繁/i.test(html)) throw new SourceError('平台防护拦截了请求，请在平台完成正常登录后重试。');
  const $=load(html);
- if($('input[type=password]').length||/must now be logged in/i.test(html)) throw new SourceError('登录会话失效，请重新填写 Cookie。');
+ const body=$('body').clone();body.find('script,style,noscript').remove();
+ if(/Just a moment|Checking your browser/i.test($('title').text())||$('#challenge-form,#challenge-running,#cf-challenge-running').length||
+  (!$('table').length&&/captcha|安全验证|访问频繁|cf-chl-/i.test(body.text())))throw new SourceError('平台防护拦截了请求，请在平台完成正常登录后重试。');
+ if($('input[type=password]').length||/must now be logged in/i.test(html)) throw new SourceError('平台要求登录或会话已失效，请更新 Cookie 后重试。','auth_required');
  const output=[];
  $('table tr').each((_i,row)=>{
   const cells=$(row).find('td'); if(!cells.length) return;
@@ -59,6 +63,23 @@ export function parseAcceptedPage(html,platform,login) {
  });
  if(!output.length&&!/no submissions|no records|没有提交|暂无记录|暂无数据/i.test(html)&&!(/<table/i.test(html)&&/submit time|submission|提交时间/i.test(html))) throw new SourceError('无法识别平台提交页面，本次没有导入。');
  return output;
+}
+export async function readNowcoderPage(url,secret='',useSession=false){
+ async function read(cookie){
+  const html=await(await request(url,{headers:{Referer:'https://ac.nowcoder.com/',...(cookie?{Cookie:cookie}:{})}})).text();
+  return {html,rows:parseAcceptedPage(html,'牛客',''),usedCookie:!!cookie};
+ }
+ try{return await read(useSession?secret:'');}
+ catch(error){
+  if(!(error instanceof SourceError)||error.code!=='auth_required')throw error;
+  if(!secret)throw new SourceError('牛客公开记录要求登录，请在编辑账号中填写 Cookie 后重试。','auth_required');
+  if(useSession)throw new SourceError('牛客 Cookie 已失效或访问仍受限制，请重新登录并更新 Cookie。','auth_required');
+  try{return await read(secret);}
+  catch(authError){
+   if(authError instanceof SourceError&&authError.code==='auth_required')throw new SourceError('牛客 Cookie 已失效或访问仍受限制，请重新登录并更新 Cookie。','auth_required');
+   throw authError;
+  }
+ }
 }
 export async function collect(account,secret='') {
  const platform=account.platform_name, login=account.login_name, items=[];
@@ -92,16 +113,23 @@ export async function collect(account,secret='') {
  }else if(platform==='QOJ'||platform==='牛客'){
   if(platform==='QOJ'&&!secret) throw new SourceError('QOJ 需要登录 Cookie，请先编辑账号填写 Cookie。');
   if(platform==='牛客'&&!/^\d+$/.test(account.remote_uid||'')) throw new SourceError('牛客需要个人主页地址中的数字 UID，请先编辑账号填写。');
+  let usedCookie=platform==='QOJ';
   for(let page=1;page<=20;page++){
    const url=platform==='QOJ'?new URL('https://qoj.ac/submissions'):new URL('https://ac.nowcoder.com/acm/contest/profile/'+account.remote_uid+'/practice-coding');
    url.search=new URLSearchParams(platform==='QOJ'?{submitter:login,min_score:'100',max_score:'100',page:String(page)}:{page:String(page),pageSize:'200',statusTypeFilter:'5',orderType:'DESC',languageCategoryFilter:'-1'});
-   const html=await (await request(url,{headers:{Referer:platform==='QOJ'?'https://qoj.ac/':'https://ac.nowcoder.com/',...(secret?{Cookie:secret}:{})}})).text();
-   const rows=parseAcceptedPage(html,platform,login);items.push(...rows);
+   let html,rows;
+   if(platform==='牛客'){
+    const result=await readNowcoderPage(url,secret,usedCookie);({html,rows}=result);usedCookie=result.usedCookie;
+   }else{
+    html=await(await request(url,{headers:{Referer:'https://qoj.ac/',Cookie:secret}})).text();
+    rows=parseAcceptedPage(html,platform,login);
+   }
+   items.push(...rows);
    const next=new RegExp('(?:page|pageNo)='+String(page+1)+'(?:[^0-9]|$)').test(html);
    if(!next) break;
    if(page===20) partial=true; else await pause(1200);
   }
-  note='仅导入可见的 AC 提交，失败提交、完整提交次数和缺失历史无法推算。'+(partial?'本次达到 20 页上限，更早记录暂未覆盖。':'');
+  note=(platform==='牛客'?(usedCookie?'本次使用已保存的 Cookie 读取。':'本次读取公开数据，未使用 Cookie。'):'本次使用已保存的 QOJ Cookie。')+'仅导入可见的 AC 提交，失败提交、完整提交次数和缺失历史无法推算。'+(partial?'本次达到 20 页上限，更早记录暂未覆盖。':'');
  }else if(platform==='LeetCode'){
   const body=await (await request('https://leetcode.cn/graphql/noj-go/',{
    method:'POST',headers:{'Content-Type':'application/json',Referer:'https://leetcode.cn/',...(secret?{Cookie:secret}:{})},

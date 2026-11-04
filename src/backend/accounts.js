@@ -6,6 +6,7 @@ import {randomUUID,createHash} from 'node:crypto';
 import {capabilities,collect,SourceError} from './adapters.js';
 import {encrypt,decrypt} from './secrets.js';
 import {saveSubmissions} from './sync-store.js';
+import {nowcoderUid} from '../shared/account-config.js';
 
 export function accountRouter(pool) {
  const router=express.Router(), busy=new Set();
@@ -24,11 +25,13 @@ export function accountRouter(pool) {
   res.set('Cache-Control','no-store').json({platforms:platforms.map(p=>({...p,...capabilities[p.platform_name]})),accounts});
  });
  function input(body) {
-  const login=String(body.login_name||'').trim(),cookie=String(body.cookie||'').trim(),uid=String(body.remote_uid||'').trim();
+  const login=String(body.login_name||'').trim(),cookie=String(body.cookie||'').trim(),rawUid=String(body.remote_uid||'').trim();
+  const uid=rawUid?nowcoderUid(rawUid):'';
   if(!/^[a-zA-Z0-9_.-]{1,100}$/.test(login)) throw invalid('账号需为 1～100 位字母、数字、下划线、点或短横线，请填写个人主页的用户标识。');
   if(cookie.length>12000||/[\r\n\0]/.test(cookie)) throw invalid('Cookie 格式不正确或过长。');
   if(cookie&&!/^[^=;\s]+=[^;]*(?:;\s*[^=;\s]+=[^;]*)*;?$/.test(cookie)) throw invalid('请填写完整的 name=value 格式 Cookie。');
-  if(uid&&!/^\d{1,30}$/.test(uid)) throw invalid('牛客 UID 需为数字。');
+  if(rawUid&&!uid) throw invalid('请填写牛客数字 UID 或 nowcoder.com 的个人主页链接。');
+  if(cookie&&body.remove_cookie===true)throw invalid('请先取消“清除 Cookie”，再保存新的 Cookie。');
   return {login,cookie,uid};
  }
  router.post('/',async(req,res)=>{
@@ -59,11 +62,11 @@ export function accountRouter(pool) {
  router.post('/:id/sync',async(req,res)=>{
   const [[account]]=await pool.execute('SELECT a.*,p.platform_name FROM platform_account a JOIN platform p ON p.platform_id=a.platform_id WHERE a.account_id=? AND a.user_id=?',[req.params.id,await owner()]);
   if(!account) return res.status(404).json({message:'账号不存在。'});
-  if(busy.has(account.account_id)) return res.status(409).json({message:'该账号正在同步。'});
+  if(busy.has(account.platform_id)) return res.status(409).json({message:'同平台账号正在同步，请等待完成后再同步。'});
   if(!capabilities[account.platform_name]||capabilities[account.platform_name].mode==='暂未接入') throw invalid('该平台暂未接入同步。');
   if(account.platform_name==='QOJ'&&!account.login_pwd) throw invalid('请先编辑账号填写 QOJ 登录 Cookie。');
   if(account.platform_name==='牛客'&&!account.remote_uid) throw invalid('请先编辑账号填写个人主页中的数字 UID。');
-  busy.add(account.account_id);
+  busy.add(account.platform_id);busy.add(account.account_id);
   await pool.execute("UPDATE platform_account SET sync_status='running',sync_message='正在读取平台记录…',last_attempt=NOW() WHERE account_id=?",[account.account_id]);
   res.status(202).json({message:'同步已开始，请留意账号状态。'});
   void (async()=>{
@@ -91,7 +94,7 @@ export function accountRouter(pool) {
     console.error('Sync failed:',account.platform_name,error.code||error.name);
    }finally{
     if(locked) await connection.execute('SELECT RELEASE_LOCK(?)',[lockName]).catch(()=>{});
-    connection?.release();busy.delete(account.account_id);
+    connection?.release();busy.delete(account.platform_id);busy.delete(account.account_id);
    }
   })();
  });
