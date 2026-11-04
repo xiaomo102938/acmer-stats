@@ -68,3 +68,6 @@ html[data-theme="dark"] .activity-cell.level-4{background:#9bce89}
 .ability-description{font-size:12px;line-height:1.9;color:var(--muted)}.tag-name{white-space:normal;min-width:230px;max-width:320px;line-height:1.7}.ability-score{font-weight:600;color:var(--accent);padding:5px 8px;background:var(--selected);border-color:transparent}.ability-score small{font-size:10px;font-weight:400}.ability-detail{border-top:1px solid var(--border);margin-top:24px;padding-top:22px}.ability-detail h3{font-size:14px;margin:0}.ability-detail a{color:var(--accent)}.ability-detail td:first-child{white-space:normal;min-width:210px;line-height:1.7}
 
 .inventory-note{margin:-6px 0 22px;line-height:1.9}
+.overall-pagination{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:18px}
+
+.overall-ability{margin-bottom:22px}

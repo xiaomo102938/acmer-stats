@@ -1,26 +1,27 @@
 import assert from 'node:assert/strict';
-import mysql from 'mysql2/promise';
 const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3000';
-const connection=await mysql.createConnection({host:process.env.DB_HOST||'127.0.0.1',port:Number(process.env.DB_PORT||3306),user:process.env.DB_USER||'root',password:process.env.DB_PASSWORD,database:process.env.DB_NAME||'acmer_stats',decimalNumbers:true});
-try{
- const data=await(await fetch(base+'/api/dashboard')).json();
- assert.ok(data.tags.some(t=>t.tag_name==='dp'&&t.display_name==='动态规划 / Dynamic Programming'));
- assert.ok(!data.tags.some(t=>['动态规划','贪心','数学','图论','字符串','二分','数据结构'].includes(t.tag_name)));
- const [raw]=await connection.query(`SELECT pt.tag_id,p.platform_name,pr.native_difficulty,pr.difficulty_source,pr.problem_id,r.passed FROM record r
- JOIN problem pr ON pr.problem_id=r.problem_id JOIN platform p ON p.platform_id=pr.platform_id JOIN problem_tag pt ON pt.problem_id=pr.problem_id
- WHERE r.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)`);
- for(const profile of data.tagAbility){
-  const rows=raw.filter(r=>r.tag_id===profile.tag_id&&r.platform_name===profile.platform_name);
-  const rated=rows.filter(r=>r.passed===1&&/^[0-9]+([.][0-9]+)?$/.test(r.native_difficulty||'')&&
-   ((r.platform_name==='Codeforces'&&r.difficulty_source==='codeforces')||(r.platform_name==='AtCoder'&&['atcoder_problems','atcoder_problems_experimental'].includes(r.difficulty_source))));
-  const highest=rated.map(r=>Number(r.native_difficulty)).sort((a,b)=>b-a).slice(0,25);
-  assert.equal(profile.total_count,rows.length);assert.equal(profile.rated_count,rated.length);assert.equal(profile.sample_count,highest.length);
-  assert.equal(profile.ability_value,highest.length?Math.round(highest.reduce((a,b)=>a+b,0)/highest.length*10)/10:null);
- }
- for(const profile of data.tagAbility.filter(r=>r.sample_count>0).slice(0,3)){
-  const response=await fetch(base+'/api/tags/'+profile.tag_id+'/ability?platform='+encodeURIComponent(profile.platform_name));assert.equal(response.status,200);
-  const {problems}=await response.json();assert.equal(problems.length,profile.sample_count);assert.equal(new Set(problems.map(p=>p.problem_id)).size,problems.length);
-  assert.equal(Math.round(problems.reduce((n,p)=>n+Number(p.rating),0)/problems.length*10)/10,profile.ability_value);
- }
- console.log('PASS: bilingual canonical tags, all platform-specific top-25 scores and selected problem lists match raw records');
-}finally{await connection.end();}
+const response=await fetch(base+'/api/dashboard');assert.equal(response.status,200);const d=await response.json();
+assert.equal(d.ratingVersion,'acmer-cf-v1');
+for(const profile of d.tagAbility.filter(p=>p.sample_count>0)){
+ const res=await fetch(base+'/api/tags/'+profile.tag_id+'/ability?platform='+encodeURIComponent(profile.platform_name));assert.equal(res.status,200);
+ const {problems}=await res.json();assert.equal(problems.length,profile.sample_count);
+ assert.equal(new Set(problems.map(p=>p.canonical_key)).size,problems.length,'same-origin mirrors count only once');
+ assert.ok(problems.every(p=>p.passed===1&&p.rating>=800&&p.method&&p.confidence));
+ assert.equal(Math.round(problems.reduce((s,p)=>s+p.rating,0)/problems.length*10)/10,profile.ability_value);
+ assert.equal(problems.filter(p=>p.estimated).length,profile.estimated_count);
+ assert.equal(Math.min(...problems.map(p=>p.rating)),profile.min_difficulty);
+ assert.equal(Math.max(...problems.map(p=>p.rating)),profile.max_difficulty);
+}
+assert.ok(d.tagAbility.some(p=>p.platform_name==='全部平台'&&p.sample_count===25));
+assert.ok(d.tagAbility.some(p=>p.platform_name==='洛谷'&&p.sample_count>0));
+assert.ok(d.tags.some(p=>p.tag_name==='dp'&&p.display_name==='动态规划 / Dynamic Programming'));
+assert.ok(!d.tags.some(p=>p.tag_name==='动态规划 dp'));
+console.log('PASS: every CF-scale profile matches its top25 list, canonical deduplication, source evidence, estimate count and Luogu coverage');
+const overall=await(await fetch(base+'/api/ability/overall')).json();
+assert.equal(overall.sample_limit,150);assert.equal(overall.sample_count,Math.min(150,overall.rated_count));
+assert.equal(new Set(overall.problems.map(p=>p.canonical_key)).size,overall.problems.length);
+assert.equal(overall.problems.length,d.overallAbility.sample_count);
+assert.equal(Math.round(overall.problems.reduce((n,p)=>n+p.rating,0)/overall.problems.length*10)/10,d.overallAbility.ability_value);
+assert.equal(overall.problems.filter(p=>p.estimated).length,d.overallAbility.estimated_count);
+assert.ok(overall.problems.every((p,i,a)=>p.passed===1&&(i===0||a[i-1].rating>=p.rating)));
+console.log('PASS: overall top150 list, average, unique canonical problems and estimated count match dashboard');

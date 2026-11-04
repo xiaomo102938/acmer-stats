@@ -5,9 +5,10 @@ import {GridComponent,TooltipComponent,LegendComponent} from 'echarts/components
 import {CanvasRenderer} from 'echarts/renderers';
 import Accounts from './accounts.js';
 import TagAnalysis from './tag-analysis.js';
+import OverallAbility from './overall-ability.js';
 import Activity from './activity.js';
 import {useTheme} from './theme.js';
-import {formatDifficulty,difficultyBuckets} from './difficulty.js';
+import {formatDifficulty,cfDifficultyBuckets} from './difficulty.js';
 import './style.css';
 echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendComponent,CanvasRenderer]);
 
@@ -23,15 +24,15 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{Accounts,Activity,TagAnalysis},
+ components:{Accounts,Activity,TagAnalysis,OverallAbility},
  setup(){
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
   const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
   const monthlyEl=ref(null),difficultyEl=ref(null),weekEl=ref(null);
   const charts=new Map();
-  const difficultyPlatform=ref('Codeforces');
-  const difficultyPlatforms=computed(()=>data.value?.platforms.filter(p=>p.total_count>0)||[]);
-  const difficultyNote=computed(()=>difficultyPlatform.value==='Codeforces'?'Codeforces 官方题目 rating，按 400 分分段；没有 rating 的题目单列。':difficultyPlatform.value==='AtCoder'?'AtCoder Problems 社区估计难度，按 400 分分段；不是比赛题目的得分，也不与 CF 分数混算。':difficultyPlatform.value==='洛谷'?'洛谷官方难度档位；练习清单没有逐题日期，未伪造为提交记录。':'当前平台按原有难度分类统计。');
+  const difficultyPlatform=ref('全部平台');
+  const difficultyPlatforms=computed(()=>[{platform_name:'全部平台'},...(data.value?.platforms.filter(p=>p.total_count>0)||[])]);
+  const difficultyNote=computed(()=>'统一按 CF 尺度分段。CF 为官方题目 rating；AT 和洛谷为低置信估分，缺少依据的题目单列。原始难度保留在入选题单中。');
   const {theme,isDark}=useTheme(draw);
   let requestNumber=0;
   const days=computed(()=>{
@@ -72,7 +73,7 @@ createApp({
    render(weekEl.value,{...base,xAxis:axis(days.value.map(x=>x.day.slice(5))),
     series:[{name:'提交次数',type:'bar',barMaxWidth:30,itemStyle:{borderRadius:[5,5,0,0]},data:days.value.map(x=>x.submission_count)},
      {name:'AC 次数',type:'line',symbolSize:6,data:days.value.map(x=>x.accepted_count)}]});
-   const buckets=difficultyBuckets(data.value.nativeDifficulty||[],difficultyPlatform.value);
+   const buckets=cfDifficultyBuckets(data.value.unifiedDifficulty||[],difficultyPlatform.value);
    render(difficultyEl.value,{animation:false,color:colors,tooltip:{...tooltip,trigger:'item'},legend:{bottom:0,textStyle:{color:text}},
     series:[{type:'pie',radius:['43%','65%'],center:['50%','36%'],label:{show:false},
      data:buckets}]});
@@ -133,13 +134,14 @@ createApp({
      </article>
      <article class="panel"><div class="panel-head"><h2>难度一览</h2><a class="text-link" href="#analysis">查看分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><p class="footnote">{{difficultyNote}}</p></article>
     </div>
-    <article class="panel next-step"><div><h2>想再多了解一点？</h2><p>查看月度节奏、平台分布和题型掌握度，规划下一次练习。</p></div><a class="page-button" href="#analysis">进入详细分析 →</a></article>
+    <article class="panel next-step"><div><h2>想再多了解一点？</h2><p>查看月度节奏、平台分布和题型能力参考，规划下一次练习。</p></div><a class="page-button" href="#analysis">进入详细分析 →</a></article>
    </section>
 
    <section v-else-if="page==='analysis'&&data" key="analysis" aria-label="详细分析">
+    <OverallAbility :profile="data.overallAbility" :refresh-key="dataVersion" />
     <div class="chart-grid">
      <article class="panel"><div class="panel-head"><h2>月度练习趋势</h2><span>按题目汇总</span></div><div ref="monthlyEl" class="chart" role="img" aria-label="月度刷题数与通过数趋势"></div><p class="footnote">使用每道题记录中保存的刷题日期，并非逐次提交活动。</p></article>
-     <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>按平台独立统计</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><p class="footnote">{{difficultyNote}}</p></article>
+     <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>CF 统一尺度</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><p class="footnote">{{difficultyNote}}</p></article>
     </div>
     <article class="panel platform-analysis"><div class="panel-head"><h2>各平台练习情况</h2><span>已记录题目与通过情况</span></div><div class="platform-grid">
      <div class="platform" v-for="p in data.platforms" :key="p.platform_id"><div><b>{{p.platform_name}}</b><span>{{p.passed_count}} / {{p.total_count}} 道通过</span></div><div class="track"><i :style="{width:(p.pass_rate??0)+'%'}"></i></div><em>{{p.total_count?p.pass_rate+'%':'暂无记录'}}</em></div>

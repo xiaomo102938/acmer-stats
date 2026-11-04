@@ -1,5 +1,6 @@
 export const luoguDifficulties=['未评定','入门','普及-','普及','普及+/提高-','提高','提高+/省选-','省选/NOI-','NOI/NOI+/CTS'];
 export function formatDifficulty(row){
+ if(row.rating!=null)return (row.estimated?'≈ CF ':'CF ')+row.rating+(row.platform_name==='Codeforces'?'':' · 原始 '+(row.platform_name==='洛谷'?luoguDifficulties[Number(row.native_difficulty)]||row.native_difficulty:row.native_difficulty));
  const value=row.native_difficulty;
  if(row.platform_name==='洛谷'&&value!=null&&luoguDifficulties[Number(value)])return luoguDifficulties[Number(value)];
  if(value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))){
@@ -9,6 +10,15 @@ export function formatDifficulty(row){
  }
  if(['Codeforces','AtCoder'].includes(row.platform_name))return '暂无公开难度';
  return row.difficulty||'暂无难度';
+}
+export function cfDifficultyBuckets(rows,platform){
+ const groups=new Map();
+ for(const row of rows.filter(r=>platform==='全部平台'||r.platform_name===platform)){
+  const n=row.cf_rating,lower=n==null?Infinity:Math.floor(n/400)*400;
+  const label=n==null?'暂无估分':lower+'–'+(lower+399);
+  const old=groups.get(label)||{name:label,value:0,order:lower};old.value+=Number(row.total_count);groups.set(label,old);
+ }
+ return [...groups.values()].sort((a,b)=>a.order-b.order).map(({order,...row})=>row);
 }
 export function difficultyBuckets(rows,platform){
  const groups=new Map();

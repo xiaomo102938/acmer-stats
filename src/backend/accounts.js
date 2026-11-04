@@ -1,6 +1,7 @@
 import express from 'express';
 import {collectLuogu,LuoguError} from './luogu.js';
 import {saveLuoguSnapshot} from './luogu-store.js';
+import {enrichLuoguProblems} from './luogu-metadata.js';
 import {randomUUID,createHash} from 'node:crypto';
 import {capabilities,collect,SourceError} from './adapters.js';
 import {encrypt,decrypt} from './secrets.js';
@@ -75,7 +76,11 @@ export function accountRouter(pool) {
     locked=true;
     if(account.platform_name==='洛谷'){
      const snapshot=await collectLuogu(account.login_name,decrypt(account.login_pwd));
-     await saveLuoguSnapshot(connection,account,snapshot);
+     const saved=await saveLuoguSnapshot(connection,account,snapshot);
+     const meta=await enrichLuoguProblems(connection,account.platform_id,decrypt(account.login_pwd),async(n,total)=>{
+      await connection.execute("UPDATE platform_account SET sync_status='running',sync_message=? WHERE account_id=?",['题数已同步，正在补充题型标签 '+n+' / '+total+'（限速请求，首次可能需要数分钟）',account.account_id]);
+     });
+     await connection.execute("UPDATE platform_account SET sync_status='success',sync_message=? WHERE account_id=?",[saved.message+' 本次补充 '+meta.updated+' 道题的题型元数据。',account.account_id]);
     }else{
      const result=await collect(account,decrypt(account.login_pwd));
      await saveSubmissions(connection,account,result);

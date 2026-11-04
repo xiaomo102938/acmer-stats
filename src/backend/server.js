@@ -1,3 +1,4 @@
+import {abilityProfiles,readAbilityRows,ratedProblems,ratingVersion,overallAbility,readProblemRows} from './ability.js';
 import express from 'express';
 import {accountRouter} from './accounts.js';
 import mysql from 'mysql2/promise';
@@ -41,13 +42,17 @@ app.get('/api/dashboard', async (_req, res) => {
  FROM platform_snapshot s JOIN platform_account a ON a.account_id=s.account_id JOIN platform p ON p.platform_id=a.platform_id
  WHERE a.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)`);
     const tags = await read('SELECT * FROM v_tag_stats ORDER BY total_count DESC, pass_rate DESC');
-    const tagAbility = await read(`SELECT * FROM v_tag_ability WHERE user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)
- ORDER BY (sample_count=25) DESC,ability_value DESC,sample_count DESC,display_name`);
+    const abilityRows=await readAbilityRows(connection);
+    const abilityPlatforms=['全部平台',...new Set(abilityRows.map(r=>r.platform_name))];
+    const tagAbility=abilityPlatforms.flatMap(p=>abilityProfiles(abilityRows,p).map(({problems,...row})=>row));
     const difficulty = await read('SELECT * FROM v_difficulty_stats');
     const nativeDifficulty = await read(`SELECT p.platform_name,pr.difficulty,pr.native_difficulty,COUNT(r.record_id) AS total_count
       FROM v_problem_progress r JOIN problem pr ON pr.problem_id=r.problem_id
       JOIN platform p ON p.platform_id=pr.platform_id
       GROUP BY p.platform_name,pr.difficulty,pr.native_difficulty`);
+    const ratingRows=await readProblemRows(connection);
+    const {problems:overallProblems,...overall}=overallAbility(ratingRows);
+    const unifiedDifficulty=ratedProblems(ratingRows).map(r=>({platform_name:r.platform_name,cf_rating:r.rating,estimated:r.estimated,total_count:1}));
     const monthly = await read('SELECT * FROM v_monthly_trend ORDER BY solve_month');
     const daily = await read(`SELECT DATE(submitted_at) AS day,COUNT(*) AS submission_count,
       SUM(passed=1) AS accepted_count,COUNT(DISTINCT problem_id) AS problem_count
@@ -58,34 +63,32 @@ app.get('/api/dashboard', async (_req, res) => {
       FROM synced_submission WHERE submitted_at>=DATE_SUB(CURDATE(),INTERVAL 6 DAY)
       AND submitted_at<DATE_ADD(CURDATE(),INTERVAL 1 DAY)`);
     const [clock] = await read('SELECT CURRENT_DATE() AS server_date');
-    const recent = await read(`SELECT pr.problem_name, p.platform_name, pr.difficulty, pr.native_difficulty, pr.difficulty_source, r.passed, r.submit_count, r.solve_date
+    const recent = await read(`SELECT pr.problem_name, p.platform_name, pr.difficulty, pr.native_difficulty, pr.difficulty_source,pr.source_key,pr.problem_id, r.passed, r.submit_count, r.solve_date
       FROM record r JOIN problem pr ON pr.problem_id=r.problem_id
       JOIN platform p ON p.platform_id=pr.platform_id
       ORDER BY r.solve_date DESC,r.record_id LIMIT 8`);
     await connection.commit();
-    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent, nativeDifficulty, tagAbility, platformSnapshots, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
+    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent:ratedProblems(recent), nativeDifficulty, unifiedDifficulty, ratingVersion, overallAbility:overall, tagAbility, platformSnapshots, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
   } catch (error) {
     await connection.rollback();
     throw error;
   } finally { connection.release(); }
 });
+app.get('/api/ability/overall',async(_req,res)=>{
+ const connection=await pool.getConnection();
+ try{res.set('Cache-Control','no-store').json({...overallAbility(await readProblemRows(connection)),ratingVersion});}
+ finally{connection.release();}
+});
 app.get('/api/tags/:id/ability',async(req,res)=>{
- const platform=String(req.query.platform||'');
- if(!['Codeforces','AtCoder'].includes(platform))return res.status(400).json({message:'当前仅支持 CF 官方难度和 AtCoder Problems 估计难度。'});
+ const platform=String(req.query.platform||'全部平台');
  const connection=await pool.getConnection();
  try{
   const [[tag]]=await connection.execute('SELECT tag_id,COALESCE(display_name,tag_name) AS display_name FROM tag WHERE tag_id=?',[req.params.id]);
   if(!tag)return res.status(404).json({message:'题型不存在。'});
-  const [problems]=await connection.execute(`SELECT pr.problem_id,pr.problem_name,pr.problem_url,
-   CAST(pr.native_difficulty AS DECIMAL(10,2)) AS rating,pr.difficulty_source,r.solve_date
-   FROM record r JOIN problem pr ON pr.problem_id=r.problem_id
-   JOIN platform p ON p.platform_id=pr.platform_id JOIN problem_tag pt ON pt.problem_id=pr.problem_id
-   WHERE r.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1) AND pt.tag_id=? AND p.platform_name=? AND r.passed=1
-   AND pr.native_difficulty REGEXP '^[0-9]+([.][0-9]+)?$'
-   AND ((p.platform_name='Codeforces' AND pr.difficulty_source='codeforces')
-    OR (p.platform_name='AtCoder' AND pr.difficulty_source IN ('atcoder_problems','atcoder_problems_experimental')))
-   ORDER BY CAST(pr.native_difficulty AS DECIMAL(10,2)) DESC,pr.problem_id LIMIT 25`,[tag.tag_id,platform]);
-  res.set('Cache-Control','no-store').json({tag,platform,problems});
+  const rows=await readAbilityRows(connection);
+  if(platform!=='全部平台'&&!rows.some(r=>r.platform_name===platform))return res.status(400).json({message:'该平台暂无题型数据。'});
+  const profile=abilityProfiles(rows,platform,tag.tag_id)[0];
+  res.set('Cache-Control','no-store').json({tag,platform,ratingVersion,problems:profile?.problems||[]});
  }finally{connection.release();}
 });
 
