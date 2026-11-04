@@ -1,3 +1,4 @@
+import {skillSettingsRouter,readSkillSettings,mergeSkillRows,specialtyAbility} from './skill-settings.js';
 import {applyLeetcodeTotals} from './leetcode.js';
 import {ratingRouter} from './ratings.js';
 import {trendRouter} from './trends.js';
@@ -21,7 +22,7 @@ const pool = mysql.createPool({
 });
 const app = express();
 app.disable('x-powered-by');
-app.use(express.json({limit:'24kb'}));
+app.use(express.json({limit:'192kb'}));
 app.use('/api',(req,res,next)=>{
  if(!['GET','HEAD','OPTIONS'].includes(req.method)){
   if(req.get('X-Acmer-Request')!=='1') return res.status(403).json({message:'请求来源校验失败，请从本站操作。'});
@@ -33,6 +34,7 @@ app.use('/api',(req,res,next)=>{
  }
  next();
 });
+app.use('/api/skill-settings',skillSettingsRouter(pool));
 app.use('/api/accounts',accountRouter(pool));
 app.use('/api/submissions',submissionRouter(pool));
 app.use('/api/trends',trendRouter(pool));
@@ -50,7 +52,8 @@ app.get('/api/dashboard', async (_req, res) => {
  WHERE a.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)`);
     applyLeetcodeTotals(overview,platforms,platformSnapshots);
     const tags = await read('SELECT * FROM v_tag_stats ORDER BY total_count DESC, pass_rate DESC');
-    const abilityRows=await readAbilityRows(connection);
+    const skillSettings=await readSkillSettings(connection);
+    const abilityRows=mergeSkillRows(await readAbilityRows(connection),skillSettings.config);
     const abilityPlatforms=['全部平台',...new Set(abilityRows.map(r=>r.platform_name))];
     const tagAbility=abilityPlatforms.flatMap(p=>abilityProfiles(abilityRows,p).map(({problems,...row})=>row));
     const difficulty = await read('SELECT * FROM v_difficulty_stats');
@@ -59,7 +62,7 @@ app.get('/api/dashboard', async (_req, res) => {
       JOIN platform p ON p.platform_id=pr.platform_id
       GROUP BY p.platform_name,pr.difficulty,pr.native_difficulty`);
     const ratingRows=await readProblemRows(connection);
-    const {problems:overallProblems,...overall}=overallAbility(ratingRows);
+    const {problems:overallProblems,...overall}=specialtyAbility(ratingRows,abilityRows,skillSettings.config);
     const unifiedDifficulty=ratedProblems(ratingRows).map(r=>({platform_name:r.platform_name,cf_rating:r.rating,estimated:r.estimated,total_count:1}));
     const monthly = await read('SELECT * FROM v_monthly_trend ORDER BY solve_month');
     const daily = await read(`SELECT DATE(submitted_at) AS day,COUNT(*) AS submission_count,
@@ -76,24 +79,25 @@ app.get('/api/dashboard', async (_req, res) => {
       JOIN platform p ON p.platform_id=pr.platform_id
       ORDER BY r.solve_date DESC,r.record_id LIMIT 8`);
     await connection.commit();
-    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent:ratedProblems(recent), nativeDifficulty, unifiedDifficulty, ratingVersion, overallAbility:overall, tagAbility, platformSnapshots, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
+    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent:ratedProblems(recent), nativeDifficulty, unifiedDifficulty, ratingVersion, overallAbility:overall, tagAbility, skillConfig:skillSettings.config, platformSnapshots, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
   } catch (error) {
     await connection.rollback();
     throw error;
   } finally { connection.release(); }
 });
-app.get('/api/ability/overall',async(_req,res)=>{
+app.get('/api/ability/overall',async(req,res)=>{
  const connection=await pool.getConnection();
- try{res.set('Cache-Control','no-store').json({...overallAbility(await readProblemRows(connection)),ratingVersion});}
+ try{const state=await readSkillSettings(connection);res.set('Cache-Control','no-store').json({...specialtyAbility(await readProblemRows(connection),await readAbilityRows(connection),state.config,req.query.scope==='all'?'all':'specialty'),ratingVersion});}
  finally{connection.release();}
 });
 app.get('/api/tags/:id/ability',async(req,res)=>{
  const platform=String(req.query.platform||'全部平台');
  const connection=await pool.getConnection();
  try{
-  const [[tag]]=await connection.execute('SELECT tag_id,COALESCE(display_name,tag_name) AS display_name FROM tag WHERE tag_id=?',[req.params.id]);
+  const state=await readSkillSettings(connection);
+  const rows=mergeSkillRows(await readAbilityRows(connection),state.config);
+  const tag=rows.find(r=>r.tag_id===req.params.id);
   if(!tag)return res.status(404).json({message:'题型不存在。'});
-  const rows=await readAbilityRows(connection);
   if(platform!=='全部平台'&&!rows.some(r=>r.platform_name===platform))return res.status(400).json({message:'该平台暂无题型数据。'});
   const profile=abilityProfiles(rows,platform,tag.tag_id)[0];
   res.set('Cache-Control','no-store').json({tag,platform,ratingVersion,problems:profile?.problems||[]});

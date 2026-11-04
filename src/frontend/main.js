@@ -1,3 +1,4 @@
+import SkillSettings from './skill-settings.js';
 import PlatformAnalysis from './platform-analysis.js';
 import PracticeTrends from './practice-trends.js';
 import Submissions from './submissions.js';
@@ -27,7 +28,7 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{PlatformAnalysis,PracticeTrends,Submissions,Accounts,Activity,TagAnalysis,OverallAbility},
+ components:{SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Accounts,Activity,TagAnalysis,OverallAbility},
  setup(){
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
   const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
@@ -144,13 +145,14 @@ createApp({
     </div>
     <PlatformAnalysis :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
     <TagAnalysis :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
-    <TagAnalysis graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
+    <TagAnalysis :skill-config="data.skillConfig" graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
 
    <section v-else-if="page==='records'" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>
 
    <section v-else-if="page==='settings'" key="settings" aria-label="设置">
     <article class="panel appearance-panel"><div class="panel-head"><h2>外观主题</h2><span>偏好自动保存</span></div><div class="appearance-row"><div><h3>选择你舒服的阅读方式</h3><p>白色、深绿、纯黑与灰色可选，支持跟随系统和轻量渐变。</p></div><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div></article>
+    <SkillSettings @saved="load" />
     <Accounts @synced="load" />
    </section>
    <footer>刷题手记 · 数据来自本机 MySQL <span>每一次练习，都在积累。</span></footer>

@@ -2,7 +2,7 @@ import SkillGraph from './skill-graph.js';
 import {ref,computed,watch,nextTick} from 'vue';
 export default{
  components:{SkillGraph},
- props:{graphOnly:{type:Boolean,default:false},profiles:{type:Array,default:()=>[]},refreshKey:{type:Number,default:0}},
+ props:{skillConfig:{type:Object,default:null},graphOnly:{type:Boolean,default:false},profiles:{type:Array,default:()=>[]},refreshKey:{type:Number,default:0}},
  setup(props){
   const detailEl=ref(null),panelEl=ref(null),page=ref(1),pageSize=ref(15);
   const platform=ref('全部平台'),selected=ref(null),problems=ref([]),loading=ref(false),error=ref('');
@@ -43,7 +43,7 @@ export default{
   <nav v-if="rows.length" class="submission-pagination" aria-label="题型能力分页"><button :disabled="page<=1" @click="changePage(page-1)">上一页</button><template v-for="(n,i) in pageButtons" :key="n"><span v-if="i&&n>pageButtons[i-1]+1">…</span><button :aria-current="n===page?'page':undefined" @click="changePage(n)">{{n}}</button></template><button :disabled="page>=pages" @click="changePage(page+1)">下一页</button><span aria-live="polite">第 {{page}} / {{pages}} 页</span></nav>
   <p v-if="!rows.length" class="muted">该平台暂无题型记录。</p>
   </template>
-  <SkillGraph v-else :profiles="rows" @inspect="show" />
+  <SkillGraph v-else :config="skillConfig" :profiles="rows" @inspect="show" />
   <p v-if="!graphOnly" class="footnote">点击分数查看题单、平台、原始难度及评分依据。CF 使用官方题目 rating；AT 换算和洛谷档位映射均为低置信估计，满 25 题也不代表换算误差消失。QOJ、牛客、力扣缺少可靠换算依据的题目暂不计分。此值不是个人 CF rating。</p>
   <details class="footnote"><summary>换算规则与来源</summary><p>版本 acmer-cf-v1。AT：round100(clamp(3900 × (AT难度 + 940) / 5155, 800, 3900))。这是将选手 rating 相关关系用于题目尺度的实验性外推，尚未经过题目配对校准。</p><p>洛谷八档由低到高：800 / 1000 / 1400 / 1800 / 2000 / 2200 / 2700 / 3200。新增“提高”档 2000 为本项目插值，其余参考旧七档社区映射，全部属于粗估；未评定不计分。</p><p><a href="https://silverfoxxxy.github.io/rating-converter" target="_blank" rel="noopener noreferrer">AT–CF Rating Converter</a> · <a href="https://github.com/EndeavourChiu/Luogu-Rating-Predictor" target="_blank" rel="noopener noreferrer">洛谷映射参考</a></p></details>
   <section v-if="selected" ref="detailEl" class="ability-detail" :aria-label="graphOnly?'图谱入选题单':'能力参考入选题单'">

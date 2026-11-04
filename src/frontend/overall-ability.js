@@ -2,26 +2,33 @@ import {ref,computed,watch} from 'vue';
 export default{
  props:{profile:{type:Object,default:()=>({})},refreshKey:{type:Number,default:0}},
  setup(props){
+  const scope=ref('specialty'),alternate=ref(null);
+  const effective=computed(()=>scope.value==='specialty'?props.profile:(alternate.value||{}));
+  async function changeScope(){const id=++serial;open.value=false;problems.value=[];error.value='';if(scope.value==='all'){loading.value=true;try{const r=await fetch('/api/ability/overall?scope=all');const b=await r.json();if(!r.ok)throw Error(b.message);if(id===serial)alternate.value=b;}catch(e){if(id===serial)error.value=e.message;}finally{if(id===serial)loading.value=false;}}}
   const open=ref(false),loading=ref(false),error=ref(''),problems=ref([]),page=ref(1);let serial=0;
   const pages=computed(()=>Math.max(1,Math.ceil(problems.value.length/25)));
   const visible=computed(()=>problems.value.slice((page.value-1)*25,page.value*25));
-  watch(()=>props.refreshKey,()=>{serial++;open.value=false;loading.value=false;error.value='';problems.value=[];page.value=1;});
+  watch(()=>props.refreshKey,()=>{serial++;scope.value='specialty';alternate.value=null;open.value=false;loading.value=false;error.value='';problems.value=[];page.value=1;});
   async function toggle(){
    if(open.value){serial++;open.value=false;loading.value=false;return;}
    open.value=true;loading.value=true;error.value='';page.value=1;const id=++serial;
-   try{const response=await fetch('/api/ability/overall');const body=await response.json();if(!response.ok)throw new Error(body.message);
+   try{const response=await fetch('/api/ability/overall?scope='+scope.value);const body=await response.json();if(!response.ok)throw new Error(body.message);
     if(id===serial)problems.value=body.problems;
    }catch(e){if(id===serial)error.value=e.message||'题单读取失败';}
    finally{if(id===serial)loading.value=false;}
   }
-  return {open,loading,error,problems,page,pages,visible,toggle};
+  return {scope,effective,changeScope,open,loading,error,problems,page,pages,visible,toggle};
  },
  template:`<article class="panel overall-ability" aria-label="综合能力参考">
-  <div class="panel-head"><h2>综合能力参考</h2><span>全部平台 · 最高难度 150 题均值</span></div>
-  <div class="week-summary"><div><strong>{{profile.ability_value ?? '—'}}</strong><span>CF 尺度参考值</span></div><div><strong>{{profile.sample_count||0}} / 150</strong><span>{{profile.sample_status}}</span></div><div><strong>{{profile.estimated_count||0}}</strong><span>入选估分题</span></div><div><strong>{{profile.rated_count||0}}</strong><span>有效评分通过题</span></div></div>
-  <p class="ability-description">不区分题型，从全部已通过且有评分依据的题目中选最高 150 道求平均；一题有多个标签也只算一次，可识别的跨平台同源题合并。{{profile.sample_count<150?'当前不足 150 道，仅作暂定参考。':''}}</p>
-  <p class="footnote">{{profile.sample_count?'入选难度 '+profile.min_difficulty+'–'+profile.max_difficulty+'。':''}}已通过题中 {{(profile.passed_count||0)-(profile.rated_count||0)}} 道暂无评分依据，未计分。CF 为官方题目分，AT 和洛谷为低置信估分；这不是个人 CF rating。</p>
-  <button v-if="profile.sample_count>0" @click="toggle" :aria-expanded="open" aria-controls="overall-problems">{{open?'收起入选题单':'查看前 150 题入选题单'}}</button>
+  <div class="panel-head"><h2>{{scope==='specialty'?'专职综合能力参考':'全部题目综合参考'}}</h2><span>全部平台 · 最高难度 150 题均值</span></div>
+  <label>参考范围<select v-model="scope" @change="changeScope" aria-label="综合能力参考范围"><option value="specialty">专职题型</option><option value="all">全部题目参考</option></select></label>
+  <p v-if="scope==='specialty'&&!effective.configured" class="footnote">尚未配置专职题型，请前往 <a href="#settings">设置 · 题型与技能图谱</a> 选择。</p>
+  <p v-if="error" class="error" role="alert">{{error}}</p>
+  <template v-if="scope==='all'||effective.configured"><p v-if="scope==='specialty'" class="footnote">专职：{{effective.specialtyNames?.join('、')}}{{effective.includeDescendants?'（含实线下级分支）':'（仅所选题型）'}}。仅统计已同步且有题型标签的题目，主页累计汇总不推算为题单。</p><div class="week-summary"><div><strong>{{effective.ability_value ?? '—'}}</strong><span>CF 尺度参考值</span></div><div><strong>{{effective.sample_count||0}} / 150</strong><span>{{effective.sample_status}}</span></div><div><strong>{{effective.estimated_count||0}}</strong><span>入选估分题</span></div><div><strong>{{effective.rated_count||0}}</strong><span>有效评分通过题</span></div></div>
+  <p class="ability-description">{{scope==='specialty'?'从专职题型范围':'从全部题目'}}内已通过且有评分依据的题目中，选最高 150 道求平均；一题有多个标签也只算一次，可识别的跨平台同源题合并。{{effective.sample_count<150?'当前不足 150 道，仅作暂定参考。':''}}</p>
+  <p class="footnote">{{effective.sample_count?'入选难度 '+effective.min_difficulty+'–'+effective.max_difficulty+'。':''}}已通过题中 {{(effective.passed_count||0)-(effective.rated_count||0)}} 道暂无评分依据，未计分。CF 为官方题目分，AT 和洛谷为低置信估分；这不是个人 CF rating。</p>
+  <button v-if="effective.sample_count>0" @click="toggle" :aria-expanded="open" aria-controls="overall-problems">{{open?'收起入选题单':'查看前 150 题入选题单'}}</button>
+  </template>
   <section v-if="open" id="overall-problems" class="ability-detail" aria-label="综合能力入选题单">
    <p v-if="loading" role="status">正在读取入选题单…</p><p v-else-if="error" role="alert" class="error">{{error}}</p>
    <template v-else><p class="footnote">共 {{problems.length}} 道，每页 25 道。题目按 CF 尺度降序排列。</p>
