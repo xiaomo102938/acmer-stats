@@ -1,46 +1,64 @@
 import ChoicePicker from './choice-picker.js';
-import {ref,computed,onMounted} from 'vue';
-import SkillGraph from './skill-graph.js';
-import {defaultSkills,validateSkills,mergeDraft,specialtyKeys} from '../shared/skill-settings.js';
+import TopologyEditor from './topology-editor.js';
+import {ref,computed,onMounted,watch} from 'vue';
+import {validateSkills,specialtyKeys} from '../shared/skill-settings.js';
+import {mergeTopology,edgeKey} from '../shared/topology-merge.js';
+import {completePositions} from '../shared/topology-geometry.js';
+const clone=v=>JSON.parse(JSON.stringify(v));
+const specialty=c=>({specialties:clone(c.specialties),includeDescendants:c.includeDescendants});
+const topology=c=>({nodes:clone(c.nodes),names:clone(c.names),positions:completePositions(c.nodes,c.positions)});
 export default{
- components:{SkillGraph,ChoicePicker},emits:['saved'],
+ components:{ChoicePicker,TopologyEditor},emits:['saved'],
  setup(_props,{emit}){
-  const draft=ref(null),catalog=ref([]),revision=ref(0),saved=ref(''),error=ref(''),busy=ref(false),selected=ref('dp'),source=ref(''),target=ref(''),add=ref(''),preview=ref(false);const baseline=ref('');
-  const dirty=computed(()=>draft.value&&JSON.stringify(draft.value)!==baseline.value);
-  const standard=computed(()=>catalog.value.filter(t=>!draft.value?.aliases[t.key]));
-  const name=id=>draft.value?.names[id]||catalog.value.find(t=>t.key===id)?.name||id;
-  const current=computed(()=>draft.value?.nodes.find(n=>n.id===selected.value));
-  const candidates=computed(()=>standard.value.filter(t=>!draft.value.nodes.some(n=>n.id===t.key)));
-  const choices=items=>items.map(t=>({key:t.key??t.id,label:name(t.key??t.id),hint:t.key??t.id}));
-  const validation=computed(()=>{if(!draft.value)return '';try{validateSkills(draft.value,catalog.value);return '';}catch(e){return e.message;}});
-  const coverage=computed(()=>draft.value?specialtyKeys(draft.value).size:0);
-  async function load(){busy.value=true;error.value='';try{const r=await fetch('/api/skill-settings');const b=await r.json();if(!r.ok)throw Error(b.message);draft.value=b.config;catalog.value=b.catalog;revision.value=b.revision;baseline.value=JSON.stringify(b.config);selected.value=b.config.nodes[0]?.id||'';preview.value=false;}catch(e){error.value=e.message;}finally{busy.value=false;}}
-  async function save(){if(validation.value){error.value=validation.value;return;}busy.value=true;error.value='';saved.value='';try{const r=await fetch('/api/skill-settings',{method:'PUT',headers:{'Content-Type':'application/json','X-Acmer-Request':'1'},body:JSON.stringify({config:draft.value,revision:revision.value})});const b=await r.json();if(!r.ok)throw Error(b.message);revision.value=b.revision;baseline.value=JSON.stringify(draft.value);saved.value=b.message;emit('saved');}catch(e){error.value=e.message;}finally{busy.value=false;}}
-  function merge(){error.value='';try{draft.value=mergeDraft(JSON.parse(JSON.stringify(draft.value)),source.value,target.value);selected.value=target.value;source.value='';target.value='';preview.value=false;}catch(e){error.value=e.message;}}
-  function undo(id){delete draft.value.aliases[id];if(!draft.value.nodes.some(n=>n.id===id))draft.value.nodes.push({id,parent:null,secondary:[]});}
-  function remove(){const id=current.value.id;if(draft.value.nodes.some(n=>n.parent===id||n.secondary.includes(id))){error.value='请先为下级更换主前驱，并移除指向该节点的副前驱引用。';return;}draft.value.nodes=draft.value.nodes.filter(n=>n.id!==id);selected.value=draft.value.nodes[0]?.id||'';preview.value=false;}
-  function addNode(){if(!add.value)return;draft.value.nodes.push({id:add.value,parent:null,secondary:[]});selected.value=add.value;add.value='';}
-  function rootChanged(){if(current.value?.parent===null)current.value.secondary=[];preview.value=false;}
-  function reset(){draft.value=defaultSkills();for(const t of catalog.value)draft.value.names[t.key]=t.name;selected.value='dp';preview.value=false;saved.value='已恢复默认草稿，点击保存后生效；取消编辑可恢复上次保存。';}
+  const base=ref(null),catalog=ref([]),revision=ref(0),draftRevision=ref(0),storedDraft=ref(null),sDraft=ref(null),tDraft=ref(null),editorKey=ref(0),busy=ref(false),error=ref(''),message=ref(''),first=ref(''),second=ref(''),preview=ref(false),drop=ref([]),mergeName=ref(''),undoSource=ref('');
+  const name=id=>base.value?.names[id]||catalog.value.find(t=>t.key===id)?.name||id;
+  const standard=computed(()=>catalog.value.filter(t=>!Object.hasOwn(base.value?.aliases||{},t.key)));
+  const choices=computed(()=>standard.value.map(t=>({key:t.key,label:name(t.key),hint:t.key})));
+  const sDirty=computed(()=>!!base.value&&JSON.stringify(sDraft.value)!==JSON.stringify(specialty(base.value)));
+  const tDirty=computed(()=>!!base.value&&JSON.stringify(tDraft.value)!==JSON.stringify(topology(base.value)));
+  const draftDirty=computed(()=>!!base.value&&JSON.stringify(tDraft.value)!==JSON.stringify(storedDraft.value||topology(base.value)));
+  const coverage=computed(()=>base.value?specialtyKeys({...base.value,...sDraft.value}).size:0);
+  const conflict=computed(()=>{if(!base.value)return '';try{validateSkills({...base.value,...tDraft.value},catalog.value);return '';}catch(e){return e.message;}});
+  const draftConflict=computed(()=>{if(!base.value)return '';try{validateSkills({...base.value,...tDraft.value},catalog.value,{draft:true});return '';}catch(e){return e.message;}});
+  const plan=computed(()=>{if(!preview.value)return null;try{return mergeTopology(base.value,first.value,second.value,catalog.value,drop.value);}catch(e){return {conflict:e.message};}});
+  const mergeBlocked=computed(()=>sDirty.value||tDirty.value||!!storedDraft.value);
+  watch([first,second],()=>{preview.value=false;drop.value=[];undoSource.value='';});
+  async function load(){busy.value=true;error.value='';try{const r=await fetch('/api/skill-settings');const b=await r.json();if(!r.ok)throw Error(b.message);base.value=b.config;catalog.value=b.catalog;revision.value=b.revision;draftRevision.value=b.draftRevision;storedDraft.value=b.topologyDraft;sDraft.value=specialty(b.config);tDraft.value=b.topologyDraft?clone(b.topologyDraft):topology(b.config);editorKey.value++;preview.value=false;undoSource.value='';}catch(e){error.value=e.message;}finally{busy.value=false;}}
+  async function save(module){busy.value=true;error.value='';message.value='';try{
+   if(['merge','unmerge'].includes(module)&&mergeBlocked.value)throw Error('请先保存或撤销专职修改，并应用或放弃拓扑草稿，再归并标签。');
+   const body={module,revision:revision.value,draftRevision:draftRevision.value};
+   if(module==='specialty')body.value=clone(sDraft.value);
+   if(module==='topology'||module==='draft')body.value=clone(tDraft.value);
+   if(module==='merge'){if(!plan.value?.config||plan.value.conflict)throw Error(plan.value?.conflict||'请先预览归并结果。');Object.assign(body,{first:first.value,second:second.value,drop:drop.value,name:mergeName.value});}
+   if(module==='unmerge')body.source=undoSource.value;
+   const r=await fetch('/api/skill-settings',{method:'PATCH',headers:{'Content-Type':'application/json','X-Acmer-Request':'1'},body:JSON.stringify(body)});const b=await r.json();if(!r.ok)throw Error(b.message);
+   base.value=b.config;revision.value=b.revision;draftRevision.value=b.draftRevision;storedDraft.value=b.topologyDraft;
+   if(module==='specialty')sDraft.value=specialty(b.config);
+   if(module==='topology'||module==='discardDraft'){tDraft.value=topology(b.config);editorKey.value++;}
+   if(module==='merge'||module==='unmerge'){sDraft.value=specialty(b.config);tDraft.value=topology(b.config);editorKey.value++;preview.value=false;undoSource.value='';first.value='';second.value='';}
+   message.value=b.message;if(module!=='draft'&&module!=='discardDraft')emit('saved');
+  }catch(e){error.value=e.message;}finally{busy.value=false;}}
+  function previewMerge(){error.value='';if(mergeBlocked.value){error.value='请先保存或撤销其他模块的修改，并应用或放弃拓扑草稿。';return;}preview.value=true;drop.value=[];undoSource.value='';if(plan.value?.config)mergeName.value=name(plan.value.keep);}
+  function cancelSpecialty(){sDraft.value=specialty(base.value);}
+  function cancelTopology(){tDraft.value=storedDraft.value?clone(storedDraft.value):topology(base.value);editorKey.value++;}
+  function cancelMerge(){preview.value=false;drop.value=[];undoSource.value='';first.value='';second.value='';}
   onMounted(load);
-  return {draft,catalog,revision,saved,error,busy,selected,source,target,add,preview,dirty,standard,name,current,candidates,choices,validation,coverage,load,save,merge,undo,remove,addNode,rootChanged,reset};
+  return {base,catalog,revision,storedDraft,sDraft,tDraft,editorKey,busy,error,message,first,second,preview,drop,mergeName,undoSource,name,standard,choices,sDirty,tDirty,draftDirty,coverage,conflict,draftConflict,plan,mergeBlocked,load,save,previewMerge,cancelSpecialty,cancelTopology,cancelMerge,edgeKey};
  },
- template:`<article class="panel skill-settings" aria-label="题型与技能图谱设置"><div class="panel-head"><h2>题型与技能图谱</h2><span>{{dirty?'有未保存的修改':'已保存配置'}}</span></div>
- <p v-if="error" class="error" role="alert">{{error}}</p><p v-if="saved" role="status">{{saved}}</p>
- <fieldset v-if="draft" :disabled="busy" class="skill-fields">
- <h3>专职题型</h3><p class="footnote">可多选。默认综合能力只从专职范围内选最高 150 道已通过且有评分依据的题目，同题和可识别的同源题只算一次。未配置时会提示设置。</p>
- <ChoicePicker v-model="draft.specialties" :items="choices(standard)" label="专职题型" multiple />
- <label class="skill-check"><input type="checkbox" v-model="draft.includeDescendants">包含专职题型的实线下级分支（不沿虚线扩展）</label><p class="footnote">当前选中 {{draft.specialties.length}} 个专职题型，包含分支后覆盖 {{coverage}} 个题型。</p>
- <hr><h3>标签类型归并</h3><p class="footnote">只归并已有标签，原始平台标签和题目数据保留。后续同步自动沿用规则；同一题带多个别名不重复计数。归并不是建立父子关系。</p>
- <div class="skill-edit-row"><ChoicePicker v-model="source" :items="choices(standard)" label="待归并标签" /><ChoicePicker v-model="target" :items="choices(standard.filter(t=>t.key!==source))" label="归入标准题型" /><button :disabled="!source||!target" @click="merge">加入归并草稿</button></div>
- <label v-if="target">标准题型显示名称<input v-model="draft.names[target]" maxlength="100" aria-label="标准题型显示名称"></label>
- <ul v-if="Object.keys(draft.aliases).length"><li v-for="(to,from) in draft.aliases" :key="from">{{from}} → {{name(to)}} <button @click="undo(from)">撤销此归并</button></li></ul><p v-else class="footnote">暂无个人归并规则；系统自带的中英文标准化继续生效。</p>
- <hr><h3>技能图谱客制化拓扑关系</h3><p class="footnote">根节点没有前驱；非根节点恰有一个主前驱（实线），可有多个副前驱（虚线）。禁止自环、重复连边及任何实虚混合环。未纳入图谱的题型仍可选为专职。</p>
- <div class="skill-edit-row"><ChoicePicker v-model="add" :items="choices(candidates)" label="添加图谱题型" /><button :disabled="!add" @click="addNode">添加节点</button></div>
- <ChoicePicker v-model="selected" :items="choices(draft.nodes)" label="编辑图谱节点" :clearable="false" />
- <div v-if="current" :key="current.id" class="skill-node-editor"><label>显示名称<input v-model="draft.names[current.id]" :placeholder="name(current.id)" maxlength="100" aria-label="题型显示名称"></label><ChoicePicker v-model="current.parent" :items="[{key:null,label:'根节点（无前驱）'},...choices(draft.nodes.filter(n=>n.id!==current.id))]" label="主前驱" :clearable="false" @change="rootChanged" /><ChoicePicker v-model="current.secondary" :items="choices(draft.nodes.filter(n=>n.id!==current.id&&n.id!==current.parent))" label="副前驱" multiple :disabled="current.parent===null" /><button @click="remove">从图谱移除此节点</button></div>
- <p v-if="validation" class="error" role="alert">{{validation}}</p><p v-else class="footnote">检查通过：{{draft.nodes.length}} 个节点，拓扑无环。预览和保存使用相同校验，服务端再次校验。</p>
- <div class="skill-actions"><button :disabled="busy||!!validation||!dirty" @click="save">{{busy?'正在保存…':'保存题型与图谱设置'}}</button><button :disabled="busy||!dirty" @click="load">取消编辑 / 重新加载</button><button @click="reset">恢复默认草稿</button><button :disabled="!!validation" @click="preview=!preview">{{preview?'收起预览':'预览拓扑草稿'}}</button></div>
- <SkillGraph v-if="preview&&!validation" :config="draft" :profiles="[]" /><p v-if="preview" class="footnote">此处预览关系与显示名称，题数统一为 0；分析页使用真实统计。</p>
- </fieldset><p v-else>正在读取设置…</p></article>`
+ template:`<section class="skill-settings" aria-label="题型与技能图谱设置"><p v-if="error" class="error" role="alert">{{error}}</p><p v-if="message" role="status">{{message}}</p>
+ <fieldset v-if="base" :disabled="busy" class="skill-fields">
+ <article class="panel" aria-label="专职题型设置"><div class="panel-head module-head"><h2>专职题型</h2><div><button class="module-save" :class="{dirty:sDirty}" :disabled="!sDirty" @click="save('specialty')">保存专职修改</button><button :disabled="!sDirty" @click="cancelSpecialty">撤销专职修改</button></div></div>
+ <p class="footnote">多选你的队内分工。综合能力默认从专职范围选最高 150 道通过题；没有配置时引导设置。</p><ChoicePicker v-model="sDraft.specialties" :items="choices" label="专职题型" multiple /><label class="skill-check"><input type="checkbox" v-model="sDraft.includeDescendants">包含实线下级分支（不沿虚线扩展）</label><p class="footnote">已选 {{sDraft.specialties.length}} 个专职，覆盖 {{coverage}} 个题型。此模块独立保存，不应用未保存的拓扑。</p></article>
+ <article class="panel" aria-label="标签类型归并设置"><div class="panel-head module-head"><h2>标签类型归并</h2><div><button class="module-save" :class="{dirty:preview||undoSource}" :disabled="mergeBlocked||(!undoSource&&(!plan?.config||!!plan.conflict||!mergeName.trim()))" @click="save(undoSource?'unmerge':'merge')">保存归并修改</button><button :disabled="!preview&&!undoSource&&!first&&!second" @click="cancelMerge">撤销归并草稿</button></div></div>
+ <p class="footnote">两个节点须属于同一棵实线树。深节点并入浅节点，同深度时保留第二个节点；原始标签保留为别名。标签、图谱与专职引用一起保存。</p><p v-if="mergeBlocked" class="error">其他模块尚有修改或拓扑草稿，请先保存、应用或撤销，再归并。</p>
+ <div class="skill-edit-row"><ChoicePicker v-model="first" :items="choices" label="第一个归并题型" /><ChoicePicker v-model="second" :items="choices.filter(t=>t.key!==first)" label="第二个归并题型" /><button :disabled="!first||!second||mergeBlocked" @click="previewMerge">预览节点归并</button></div>
+ <section v-if="preview&&plan" class="merge-preview" aria-label="归并结果预览"><p v-if="plan.config">保留节点：{{name(plan.keep)}}；并入节点：{{name(plan.remove)}}。位置采用较浅节点（深度 {{plan.shallower}}），自动去除自环及重复边。</p><label v-if="plan.config">合并后显示名称<input v-model="mergeName" maxlength="100" aria-label="合并后显示名称"></label>
+ <p v-if="plan.conflict" class="error" role="alert">{{plan.conflict}}。不会自动应用，请明确移除冲突的副前驱关系后再保存。</p><p v-else class="footnote">校验通过，可以保存并应用。</p>
+ <div v-if="plan.config" class="merge-edge-list"><label v-for="e in plan.secondary" :key="edgeKey(e)" class="skill-check"><input type="checkbox" :checked="!drop.includes(edgeKey(e))" @change="drop=$event.target.checked?drop.filter(k=>k!==edgeKey(e)):[...drop,edgeKey(e)]">保留副前驱 {{name(e.from)}} → {{name(e.to)}}</label><p v-if="!plan.secondary.length" class="footnote">无副前驱冲突。</p><details><summary>合并后的主前驱关系（{{plan.config.nodes.filter(n=>n.parent).length}} 条）</summary><p v-for="n in plan.config.nodes.filter(n=>n.parent)" :key="n.id">{{name(n.parent)}} → {{name(n.id)}}</p></details></div></section>
+ <ul v-if="Object.keys(base.aliases).length"><li v-for="(to,from) in base.aliases" :key="from">{{from}} → {{name(to)}} <button :disabled="mergeBlocked" @click="undoSource=from;preview=false">准备撤销此归并</button></li></ul><p v-else class="footnote">暂无个人归并。撤销已保存归并时，来源标签作为独立根恢复，不猜测过去的连线。</p><p v-if="undoSource">待撤销别名：{{undoSource}}。点击模块右上角保存后生效。</p>
+ </article>
+ <article class="panel" aria-label="技能图谱客制化设置"><div class="panel-head module-head"><h2>技能图谱客制化</h2><div><button class="module-save" :class="{dirty:tDirty}" :disabled="!tDirty||!!conflict" @click="save('topology')">应用拓扑修改</button><button class="module-save" :class="{dirty:draftDirty}" :disabled="!draftDirty||!!draftConflict" @click="save('draft')">保存拓扑草稿</button><button :disabled="!draftDirty" @click="cancelTopology">撤销本次编辑</button><button v-if="storedDraft" @click="save('discardDraft')">放弃已存草稿</button></div></div>
+ <p v-if="storedDraft" class="footnote">已恢复数据库中的拓扑草稿；分析页仍使用上次应用的图谱。</p><p v-if="conflict" class="error" role="alert">尚不能应用：{{conflict}}</p><p v-else class="footnote">{{tDraft.nodes.length}} 个节点，规则检查通过。右上角应用后才影响分析页。</p><TopologyEditor :key="editorKey" v-model="tDraft" :catalog="standard" />
+ </article><button @click="load">重新加载全部设置（放弃未保存编辑）</button>
+ </fieldset><p v-else>正在读取设置…</p></section>`
 };
