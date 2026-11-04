@@ -14,5 +14,5 @@ test('node counts use source deduplicated totals, never sum children or guess un
  const folded=skillGraph(p,[]);assert.equal(folded.nodes.length,6);assert.equal(folded.edges.length,0);
 });
 test('sizes are monotonic and capped; incomplete and absent scores remain distinct',()=>{
- assert.ok(nodeSize(100)>nodeSize(10));assert.ok(nodeSize(1000)<=72);assert.equal(nodeSize(-1),24);assert.equal(nodeTone(null),'unrated');assert.equal(nodeTone({sample_count:0,ability_value:null}),'unrated');assert.equal(nodeTone({sample_count:1,ability_value:3200}),'provisional');
+ assert.ok(nodeSize(100)>nodeSize(10));assert.ok(nodeSize(107)/nodeSize(3)>3);assert.ok(nodeSize(1000)<=150);assert.equal(nodeSize(-1),20);assert.equal(nodeTone(null),'unrated');assert.equal(nodeTone({sample_count:0,ability_value:null}),'unrated');assert.equal(nodeTone({sample_count:1,ability_value:3200}),'provisional');
 });

@@ -20,3 +20,9 @@ test('expansion starts from existing positions and coincident seeds separate',()
  const graph=skillGraph([],[]),same=new Map(graph.nodes.map(n=>[n.id,{x:500,y:360}])),sim=createSkillLayout(graph,same);settle(sim);
  const p=[...sim.positions().values()];assert.ok(p.every(n=>Number.isFinite(n.x)&&Number.isFinite(n.y)));assert.ok(p.some(n=>Math.hypot(n.x-500,n.y-360)>30));
 });
+
+test('enlarged high-count nodes fit the canvas and keep their circles separated',()=>{
+ const profiles=families.map(f=>({tag_name:f.id,passed_count:400})),g=skillGraph(profiles,families.map(f=>f.id)),sim=createSkillLayout(g);settle(sim);const p=sim.positions();
+ for(const n of g.nodes){const a=p.get(n.id);assert.ok(a.x-n.size/2>=0&&a.x+n.size/2<=1000&&a.y-n.size/2>=0&&a.y+n.size/2+24<=720);}
+ for(let i=0;i<g.nodes.length;i++)for(let j=i+1;j<g.nodes.length;j++){const a=g.nodes[i],b=g.nodes[j],x=p.get(a.id),y=p.get(b.id);assert.ok(Math.hypot(x.x-y.x,x.y-y.y)>(a.size+b.size)/2,'large circles must not overlap');}
+});

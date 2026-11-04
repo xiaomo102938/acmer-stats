@@ -8,7 +8,7 @@ export const families=[
  {id:'search',name:'搜索',children:[['dfs and similar','DFS'],['bfs','BFS'],['binary search','二分查找'],['divide and conquer','分治'],['brute force','暴力枚举']]}
 ];
 export const extraRelations=[['trees','tree dp'],['dfs and similar','tree dp'],['data structures','lca'],['trees','lca'],['number theory','fft']];
-export const nodeSize=count=>Math.min(72,24+2.4*Math.sqrt(Math.max(0,Number(count)||0)));
+export const nodeSize=count=>Math.min(150,20+9*Math.sqrt(Math.max(0,Number(count)||0)));
 export function nodeTone(row){
  if(!row||!row.sample_count||row.ability_value==null)return 'unrated';
  if(row.sample_count<25)return 'provisional';
