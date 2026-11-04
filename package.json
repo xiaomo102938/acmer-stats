@@ -6,7 +6,7 @@
     "start": "node --env-file=.env src/backend/server.js",
     "build": "vite build",
     "dev": "vite --host 127.0.0.1",
-    "test": "node --test tests/sync-unit.test.js tests/difficulty.test.js tests/heatmap.test.js tests/tags.test.js tests/luogu.test.js tests/ability.test.js tests/account-config.test.js tests/trends.test.js tests/skill-graph.test.js tests/skill-layout.test.js tests/ratings.test.js tests/leetcode.test.js tests/skill-settings.test.js"
+    "test": "node --test tests/sync-unit.test.js tests/difficulty.test.js tests/heatmap.test.js tests/tags.test.js tests/luogu.test.js tests/ability.test.js tests/account-config.test.js tests/trends.test.js tests/skill-graph.test.js tests/skill-layout.test.js tests/ratings.test.js tests/leetcode.test.js tests/skill-settings.test.js tests/topology-editor.test.js"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
