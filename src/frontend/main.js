@@ -145,6 +145,7 @@ createApp({
      <div class="platform" v-for="p in data.platforms" :key="p.platform_id"><div><b>{{p.platform_name}}</b><span>{{p.passed_count}} / {{p.total_count}} 道通过</span></div><div class="track"><i :style="{width:(p.pass_rate??0)+'%'}"></i></div><em>{{p.total_count?p.pass_rate+'%':'暂无记录'}}</em></div>
     </div><p v-for="s in data.platformSnapshots||[]" :key="s.platform_name+s.login_name" class="footnote">{{s.platform_name}} 公开清单：{{s.passed_count}} 道通过 / {{s.attempted_count}} 道尝试；主页报告：{{s.profile_passed_count??'—'}} / {{s.profile_attempted_count??'—'}}。汇总保留原有示例，可能多于公开清单。</p></article>
     <TagAnalysis :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
+    <TagAnalysis graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
 
    <section v-else-if="page==='records'" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>
