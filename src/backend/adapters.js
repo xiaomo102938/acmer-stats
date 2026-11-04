@@ -49,7 +49,7 @@ export function parseAcceptedPage(html,platform,login) {
   const links=$(row).find('a[href]').toArray();
   const problemLink=links.find(a=>platform==='QOJ'?/\/problem\/\d+/.test($(a).attr('href')):/\/(?:acm\/(?:problem\/\d+|contest\/\d+\/[^/?#]+)|practice\/[^/?#]+)/.test($(a).attr('href')));
   if(!problemLink) return;
-  const accepted=cells.toArray().some(cell=>/^(?:100(?:\.0+)?|Accepted|AC|答案正确|通过)$/i.test($(cell).text().trim()));
+  const accepted=cells.toArray().some(cell=>(platform==='QOJ'?/^(?:100(?:\.0+)?|Accepted|AC(?:\s*[✓✔])?)$/i:/^(?:100(?:\.0+)?|Accepted|AC|答案正确|通过)$/i).test($(cell).text().trim()));
   if(!accepted) return;
   const date=text.match(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/);
   let submission=links.map(a=>$(a).attr('href')).find(h=>/\/(?:submission|status)\/\d+/.test(h)||/^#\d+$/.test(h));

@@ -46,3 +46,9 @@ test('Nowcoder uses real submission ids and preserves contest problem keys',()=>
 test('Unrelated tables are not treated as empty submission histories',()=>{
  assert.throws(()=>parseAcceptedPage('<table><tr><td>unrelated</td></tr></table>','QOJ','example'),SourceError);
 });
+
+test('QOJ current AC checkmark and saved absolute contest links preserve real submission ids',()=>{
+ const row=(id,verdict)=>`<tr><td><a href="https://qoj.ac/submission/${id}">#${id}</a></td><td><a href="https://qoj.ac/contest/42/problem/7">Example</a></td><td><a href="https://qoj.ac/submission/${id}">${verdict}</a></td><td>2026-10-01 12:30:00</td></tr>`;
+ const rows=parseAcceptedPage('<table>'+row(123,'AC ✓')+row(124,'WA')+row(125,'ML')+row(126,'Not AC ✓')+'</table>','QOJ','example');
+ assert.equal(rows.length,1);assert.equal(rows[0].id,'123');assert.equal(rows[0].key,'7');
+});
