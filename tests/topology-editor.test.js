@@ -20,3 +20,11 @@ import {reactive} from 'vue';
 test('merge preview accepts Vue reactive config without mutating editor state',()=>{
  const original=reactive(config()),p=mergeTopology(original,'four','five',catalog);assert.equal(p.conflict,'');assert.equal(p.keep,'five');assert.equal(original.nodes.length,5);assert.deepEqual(original.aliases,{});
 });
+import {defaultSkills} from '../src/shared/skill-settings.js';import {forestPositions} from '../src/shared/topology-geometry.js';
+test('forest layout separates primary trees, respects hierarchy and preserves manual coordinates',()=>{
+ const c=defaultSkills(),p=forestPositions(c.nodes);assert.equal(Object.keys(p).length,c.nodes.length);validateSkills({...c,positions:p},c.nodes.map(n=>({key:n.id})));
+ for(const n of c.nodes)if(n.parent)assert.ok(p[n.id].x>p[n.parent].x,'children are to the right of primary parent');
+ const noSecondary=forestPositions(c.nodes.map(n=>({...n,secondary:[]})));assert.deepEqual(p,noSecondary);
+ const manual={dp:{x:9500,y:9500}},filled=completePositions(c.nodes,manual);assert.deepEqual(filled.dp,manual.dp);assert.ok(Object.entries(filled).every(([id,pos])=>canPlace(id,pos,filled)));
+ const many=Array.from({length:400},(_,i)=>({id:'n'+i,parent:null,secondary:[]})),bounded=forestPositions(many);assert.ok(Object.entries(bounded).every(([id,pos])=>canPlace(id,pos,bounded)));
+});
