@@ -1,3 +1,4 @@
+import Submissions from './submissions.js';
 import {createApp,onMounted,onBeforeUnmount,ref,computed,watch,nextTick} from 'vue';
 import * as echarts from 'echarts/core';
 import {BarChart,LineChart,PieChart} from 'echarts/charts';
@@ -15,7 +16,7 @@ echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendCo
 const pages=[
  {id:'overview',icon:'◫',name:'数据简览',eyebrow:'YOUR PRACTICE, AT A GLANCE',title:'看看最近，又进步了多少。',description:'用几个关键数字，快速回顾你的积累和最近 7 天的练习。'},
  {id:'analysis',icon:'↗',name:'详细分析',eyebrow:'EXPLORE YOUR PRACTICE',title:'从数据里，找到下一步。',description:'结合练习趋势、平台分布和题型能力参考，了解你的训练方向。'},
- {id:'records',icon:'≡',name:'最近记录',eyebrow:'YOUR RECENT PRACTICE',title:'每一次尝试，都有迹可循。',description:'查看最近更新的题目、通过状态和累计提交次数。'},
+ {id:'records',icon:'≡',name:'提交记录',eyebrow:'YOUR SUBMISSION HISTORY',title:'每一次尝试，都有迹可循。',description:'按时间查看已同步的每次提交，包括通过与未通过记录。'},
  {id:'settings',icon:'⚙',name:'设置',eyebrow:'MAKE IT YOURS',title:'把练习空间，调成你的样子。',description:'在这里管理平台账号、同步数据，以及调整页面外观。'}
 ];
 const aliases={trends:'analysis',tags:'analysis',recent:'records',accounts:'settings'};
@@ -24,7 +25,7 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{Accounts,Activity,TagAnalysis,OverallAbility},
+ components:{Submissions,Accounts,Activity,TagAnalysis,OverallAbility},
  setup(){
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
   const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
@@ -80,6 +81,7 @@ createApp({
      data:buckets}]});
   }
   async function load(){
+   if(page.value==='records'){dataVersion.value++;return;}
    const request=++requestNumber;loading.value=true;error.value='';
    try{
     const response=await fetch('/api/dashboard');const body=await response.json();
@@ -116,7 +118,7 @@ createApp({
    <header><span class="breadcrumb">个人工作台 / {{current.name}}</span><button v-if="page!=='settings'" @click="load" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button><span v-else class="header-hint">你的账号与偏好</span></header>
    <section class="intro"><p class="eyebrow">{{current.eyebrow}}</p><h1>{{current.title}}</h1><p>{{current.description}}</p></section>
    <div v-if="error&&page!=='settings'" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
-   <p v-if="loading&&!data&&page!=='settings'" role="status">正在读取数据库…</p>
+   <p v-if="loading&&!data&&page!=='settings'&&page!=='records'" role="status">正在读取数据库…</p>
 
    <section v-if="page==='overview'&&data" key="overview" aria-label="数据简览">
     <div class="metrics">
@@ -150,9 +152,7 @@ createApp({
     <TagAnalysis :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
 
-   <section v-else-if="page==='records'&&data" key="records" aria-label="最近记录">
-    <article class="panel recent"><div class="panel-head"><h2>最近更新的题目</h2><span>最近 8 条记录</span></div><div class="table-wrap"><table><thead><tr><th>题目</th><th>平台</th><th>难度</th><th>状态</th><th>提交次数</th><th>日期</th></tr></thead><tbody><tr v-for="(r,i) in data.recent" :key="i"><td class="problem">{{r.problem_name}}</td><td>{{r.platform_name}}</td><td>{{formatDifficulty(r)}}</td><td><span class="badge" :class="{good:r.passed===1}">{{r.passed===1?'已通过':'待攻克'}}</span></td><td>{{r.submit_count}}</td><td>{{r.solve_date}}</td></tr></tbody></table></div><p v-if="!data.recent.length" class="muted">还没有刷题记录</p><p class="footnote">每道题显示一条汇总记录，提交次数是已录入和已同步的记录合计。</p></article>
-   </section>
+   <section v-else-if="page==='records'" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>
 
    <section v-else-if="page==='settings'" key="settings" aria-label="设置">
     <article class="panel appearance-panel"><div class="panel-head"><h2>外观主题</h2><span>偏好自动保存</span></div><div class="appearance-row"><div><h3>选择你舒服的阅读方式</h3><p>白色、深绿、纯黑与灰色可选，支持跟随系统和轻量渐变。</p></div><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div></article>
