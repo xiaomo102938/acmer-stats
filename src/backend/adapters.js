@@ -9,7 +9,7 @@ export const capabilities={
  QOJ:{mode:'需要 Cookie',note:'同步可访问的已判定提交（含非 AC）；最多 100 页，受可见范围限制。'},
  LeetCode:{mode:'主页汇总与最近 AC',note:'填写个人主页 /u/ 后的标识（不是显示昵称）；累计题数取公开主页，逐次记录只提供最近 AC，不能还原全部历史。'},
  '牛客':{mode:'公开数据优先',note:'填写主页链接或数字 UID；先读取公开练习 AC，要求登录时才使用已保存 Cookie。最多 20 页，不包含全部比赛和失败提交。'},
- '洛谷':{mode:'公开练习与活动',note:'填写数字 UID；同步通过/尝试题目清单及站点活动，不虚构提交次数和解题日期。'}
+ '洛谷':{mode:'公开练习与活动 · 可选 AC 明细',note:'填写数字 UID；同步通过、尝试题目及站点活动。保存登录 Cookie 后可同步带时间的 AC 记录。'}
 };
 export class SourceError extends Error {constructor(message,code='source_error'){super(message);this.code=code;}}
 async function request(url,options={}) {

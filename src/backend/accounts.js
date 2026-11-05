@@ -1,6 +1,6 @@
 import {refreshAccountRating} from './ratings.js';
 import express from 'express';
-import {collectLuogu,LuoguError} from './luogu.js';
+import {collectLuogu,collectLuoguAccepted,LuoguError} from './luogu.js';
 import {saveLuoguSnapshot} from './luogu-store.js';
 import {enrichLuoguProblems} from './luogu-metadata.js';
 import {randomUUID,createHash} from 'node:crypto';
@@ -114,12 +114,23 @@ export function accountRouter(pool,captureSnapshot) {
     await connection.execute("UPDATE platform_account SET sync_status='running',sync_message='正在读取平台记录…',last_attempt=NOW() WHERE account_id=?",[account.account_id]);
     let message;
     if(account.platform_name==='洛谷'){
-     const snapshot=await collectLuogu(account.login_name,decrypt(account.login_pwd));
+     const secret=decrypt(account.login_pwd);
+     const snapshot=await collectLuogu(account.login_name,secret);
      const saved=await saveLuoguSnapshot(connection,account,snapshot);
-     const meta=await enrichLuoguProblems(connection,account.platform_id,decrypt(account.login_pwd),async(n,total)=>{
+     let recordMessage='填写洛谷登录 Cookie 后可同步逐题 AC 日期。';
+     if(secret){
+      let records;
+      try{records=await collectLuoguAccepted(account.login_name,secret);}
+      catch(error){
+       if(!(error instanceof LuoguError))throw error;
+       recordMessage='AC 明细未更新。'+error.message;
+      }
+      if(records)recordMessage=(await saveSubmissions(connection,account,records)).message;
+     }
+     const meta=await enrichLuoguProblems(connection,account.platform_id,secret,async(n,total)=>{
       await connection.execute("UPDATE platform_account SET sync_status='running',sync_message=? WHERE account_id=?",['题数已同步，正在补充题型标签 '+n+' / '+total+'（限速请求，首次可能需要数分钟）',account.account_id]);
      });
-     message=saved.message+' 本次补充 '+meta.updated+' 道题的题型元数据。';
+     message=saved.message+' '+recordMessage+' 本次补充 '+meta.updated+' 道题的题型元数据。';
     }else{
      const result=await collect(account,decrypt(account.login_pwd));
      ({message}=await saveSubmissions(connection,account,result));

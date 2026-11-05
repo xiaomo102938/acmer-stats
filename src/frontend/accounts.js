@@ -97,6 +97,6 @@ export default {
     <div v-if="confirming===a.account_id" class="unbind-confirm" role="alert">解绑后保留已同步的刷题记录。<button :disabled="batch?.running||startingBatch" @click="remove(a)">确认解绑</button><button @click="confirming=null">取消</button></div>
    </article>
   </div>
-  <p class="footnote">牛客和力扣的 AC 数据不包含完整失败提交，不能视作真实的全历史通过率。洛谷只提供可见练习清单与站点活动，不含逐次提交；同步记录的次数以实际获取到的提交为准，当前字段上限为 999。</p>
+  <p class="footnote">牛客和力扣的 AC 数据不包含完整失败提交，不能视作真实的全历史通过率。洛谷公开同步提供练习清单和站点活动，保存登录 Cookie 后可补充带时间的 AC 记录；同步记录的次数以实际获取到的提交为准，当前字段上限为 999。</p>
  </section>`
 };

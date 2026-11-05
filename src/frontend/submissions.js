@@ -63,6 +63,6 @@ export default{
    <button v-else type="button" class="submission-note-button" :disabled="saving" @click="editNote(r)">{{r.note||'添加备注'}}</button>
    </td><td>{{r.platform_name}}</td><td>{{r.account_login}}</td><td>{{r.source_id}}</td></tr></tbody></table><p v-if="!error&&!items.length" class="muted">没有符合当前条件的提交记录。</p></div>
   <nav class="submission-pagination" aria-label="提交记录分页"><button :disabled="loading||page<=1" @click="load(page-1)">上一页</button><template v-for="(n,i) in buttons" :key="n"><span v-if="i&&n>buttons[i-1]+1">…</span><button :disabled="loading" :aria-current="n===page?'page':undefined" @click="load(n)">{{n}}</button></template><button :disabled="loading||page>=pages" @click="load(page+1)">下一页</button><span aria-live="polite">第 {{page}} / {{pages}} 页</span><form @submit.prevent="go"><label>跳至 <input v-model.number="jump" type="number" min="1" :max="pages" required aria-label="跳转页码"> 页</label><button :disabled="loading">跳转</button></form></nav>
-  <p class="footnote">同一平台的同一道题共用一条备注，清空后保存即可删除。首次 AC 按完整已同步历史判定。待攻克只显示没有已知 AC 的题，每题取最近一次非 AC。未评级放在难度排序末尾。仅含已同步数据：CF、AT 和 QOJ 可包含非 AC；牛客、力扣当前主要提供 AC，洛谷清单及手工汇总没有逐次提交信息，不在此虚构记录。旧数据若未保存具体判定，仅标记“非 AC”，后续重新同步可补充。时间相同时使用固定编号排序。</p>
+  <p class="footnote">同一平台的同一道题共用一条备注，清空后保存即可删除。首次 AC 按完整已同步历史判定。待攻克只显示没有已知 AC 的题，每题取最近一次非 AC。未评级放在难度排序末尾。仅含已同步数据：CF、AT 和 QOJ 可包含非 AC；牛客、力扣和洛谷的明细当前主要提供 AC，手工汇总没有逐次提交信息，不在此虚构记录。旧数据若未保存具体判定，仅标记“非 AC”，后续重新同步可补充。时间相同时使用固定编号排序。</p>
  </article>`
 };
