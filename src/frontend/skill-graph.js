@@ -9,20 +9,52 @@ export default{
   const expanded=ref(['dp']),selected=ref('dp'),zoom=ref(100);
   const raw=computed(()=>props.config?customSkillGraph(props.profiles,expanded.value,props.config,props.counts):skillGraph(props.profiles,expanded.value)),positions=ref(new Map()),arranging=ref(false),layoutState=ref('idle'),iterations=ref(0);
   const displayed=ref({nodes:[],edges:[],height:720});
-  let timer,serial=0;
+  let timer,frame;
+  function cancelLayout(){
+   clearTimeout(timer);
+   cancelAnimationFrame(frame);
+  }
   function arrange(){
-   clearTimeout(timer);const id=++serial,input=raw.value,simulation=createSkillLayout(input,positions.value,{preferences});arranging.value=true;layoutState.value='running';
-   function batch(){
-    if(id!==serial)return;
-    const start=performance.now();let state;
-    do{state=simulation.step(8);}while(!state.done&&performance.now()-start<4);
-    if(state.done){positions.value=simulation.positions();displayed.value={...input,height:720,nodes:input.nodes.map(n=>({...n,...positions.value.get(n.id)}))};iterations.value=state.steps;layoutState.value=state.reason;arranging.value=false;timer=undefined;}
-    else timer=setTimeout(batch,0);
+   cancelLayout();
+   const input=raw.value;
+   const simulation=createSkillLayout(input,positions.value,{preferences});
+   const animate=positions.value.size>0&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
+   arranging.value=true;
+   layoutState.value='running';
+   let lastFrame=-Infinity;
+
+   function publish(){
+    positions.value=simulation.positions();
+    displayed.value={...input,height:720,nodes:input.nodes.map(n=>({...n,...positions.value.get(n.id)}))};
    }
-   timer=setTimeout(batch,0);
+
+   function batch(timestamp){
+    if(animate&&timestamp-lastFrame<32){
+     frame=requestAnimationFrame(batch);
+     return;
+    }
+    lastFrame=timestamp;
+    const start=performance.now();
+    let state;
+    do{state=simulation.step(4);}
+    while(!state.done&&performance.now()-start<4&&(!animate||state.steps%12!==0));
+
+    if(animate||state.done)publish();
+    if(state.done){
+     iterations.value=state.steps;
+     layoutState.value=state.reason;
+     arranging.value=false;
+    }else if(animate){
+     frame=requestAnimationFrame(batch);
+    }else{
+     timer=setTimeout(batch,0);
+    }
+   }
+   if(animate)frame=requestAnimationFrame(batch);
+   else timer=setTimeout(batch,0);
   }
   watch(()=>raw.value.nodes.map(n=>n.id).join('|')+';'+raw.value.edges.map(e=>e.from+'>'+e.to).join('|'),arrange,{immediate:true});
-  onBeforeUnmount(()=>{serial++;clearTimeout(timer);});
+  onBeforeUnmount(cancelLayout);
   const graph=computed(()=>{
    const latest=new Map(raw.value.nodes.map(n=>[n.id,n]));
    return {...displayed.value,known:raw.value.known,nodes:displayed.value.nodes.map(n=>({...n,...latest.get(n.id),x:n.x,y:n.y}))};
