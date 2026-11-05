@@ -1,7 +1,11 @@
 // Bounded deterministic force layout. The component runs short batches and stops scheduling on completion.
+import {normalizeLayoutPreferences} from './skill-layout-preferences.js';
+
 const hash=s=>{let n=2166136261;for(const c of s)n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0;};
 export function createSkillLayout(graph,previous=new Map(),options={}){
  const width=1000,height=720,maxSteps=options.maxSteps??700,stableRequired=options.stableRequired??20;
+ const {friction,repulsion,treeSpacing,spring}=normalizeLayoutPreferences(options.preferences);
+ const velocityRetention=1-friction/100;
  const roots=graph.nodes.filter(n=>n.root),rootIndex=new Map(roots.map((n,i)=>[n.id,i]));
  const nodes=graph.nodes.map(n=>{
   const old=previous.get(n.id),parent=previous.get(n.family),angle=(rootIndex.get(n.family)||0)*Math.PI*2/Math.max(1,roots.length)-Math.PI/2;
@@ -20,19 +24,19 @@ export function createSkillLayout(graph,previous=new Map(),options={}){
     if(Math.abs(dx)+Math.abs(dy)<.001){const angle=(hash(a.id+'>'+b.id)%6283)/1000;dx=Math.cos(angle)*.1;dy=Math.sin(angle)*.1;}
     const d=Math.max(.1,Math.hypot(dx,dy));
     const separateTrees=a.family!==b.family;
-    const spacing=Math.max(125,a.radius+b.radius+36)+(separateTrees?24:0);
-    const repulsion=1250*a.charge*b.charge*(separateTrees?2.5:1)/(d*d);
-    const force=Math.min(12,repulsion+Math.max(0,spacing-d)*.075);
+    const spacing=Math.max(125,a.radius+b.radius+36)+(separateTrees?24*treeSpacing/100:0);
+    const chargeForce=1250*(repulsion/100)*a.charge*b.charge*(separateTrees?1+1.5*treeSpacing/100:1)/(d*d);
+    const force=Math.min(12,chargeForce+Math.max(0,spacing-d)*.075);
     const fx=dx/d*force,fy=dy/d*force;
     a.fx-=fx;a.fy-=fy;b.fx+=fx;b.fy+=fy;
    }
    for(const {a,b,kind}of edges){
-    const dx=b.x-a.x,dy=b.y-a.y,d=Math.max(1,Math.hypot(dx,dy)),force=(d-Math.max(kind==='related'?185:150,a.radius+b.radius+60))*(kind==='related'?.004:.012);
+    const dx=b.x-a.x,dy=b.y-a.y,d=Math.max(1,Math.hypot(dx,dy)),force=(d-Math.max(kind==='related'?185:150,a.radius+b.radius+60))*(spring/100)*(kind==='related'?.004:.012);
     a.fx+=dx/d*force;a.fy+=dy/d*force;b.fx-=dx/d*force;b.fy-=dy/d*force;
    }
    let movement=0;const cooling=Math.max(.008,Math.pow(.992,steps));
    for(const n of nodes){
-    n.vx=(n.vx+n.fx*cooling)*.76;n.vy=(n.vy+n.fy*cooling)*.76;
+    n.vx=(n.vx+n.fx*cooling)*velocityRetention;n.vy=(n.vy+n.fy*cooling)*velocityRetention;
     const speed=Math.hypot(n.vx,n.vy);if(speed>5){n.vx*=5/speed;n.vy*=5/speed;}
     const x=Math.max(Math.max(80,n.radius+12),Math.min(width-Math.max(80,n.radius+12),n.x+n.vx)),y=Math.max(Math.max(65,n.radius+12),Math.min(height-Math.max(65,n.radius+30),n.y+n.vy));
     movement=Math.max(movement,Math.hypot(x-n.x,y-n.y));if(x===n.x)n.vx=0;if(y===n.y)n.vy=0;n.x=x;n.y=y;

@@ -1,15 +1,17 @@
 import {ref,computed,watch,onBeforeUnmount} from 'vue';
+import {readLayoutPreferences} from './skill-layout-preferences.js';
 import {createSkillLayout} from './skill-layout.js';
 import {families,extraRelations,skillGraph,customSkillGraph,nodeFontSize} from './skill-graph-model.js';
 export default{
  props:{counts:Object,profiles:{type:Array,default:()=>[]},config:{type:Object,default:null}},emits:['inspect'],
  setup(props){
+  const preferences=readLayoutPreferences();
   const expanded=ref(['dp']),selected=ref('dp'),zoom=ref(100);
   const raw=computed(()=>props.config?customSkillGraph(props.profiles,expanded.value,props.config,props.counts):skillGraph(props.profiles,expanded.value)),positions=ref(new Map()),arranging=ref(false),layoutState=ref('idle'),iterations=ref(0);
   const displayed=ref({nodes:[],edges:[],height:720});
   let timer,serial=0;
   function arrange(){
-   clearTimeout(timer);const id=++serial,input=raw.value,simulation=createSkillLayout(input,positions.value);arranging.value=true;layoutState.value='running';
+   clearTimeout(timer);const id=++serial,input=raw.value,simulation=createSkillLayout(input,positions.value,{preferences});arranging.value=true;layoutState.value='running';
    function batch(){
     if(id!==serial)return;
     const start=performance.now();let state;
