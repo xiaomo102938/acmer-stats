@@ -13,6 +13,7 @@ import {CanvasRenderer} from 'echarts/renderers';
 import Accounts from './accounts.js';
 import TagAnalysis from './tag-analysis.js';
 import OverallAbility from './overall-ability.js';
+import AbilityTrends from './ability-trends.js';
 import Activity from './activity.js';
 import {useTheme} from './theme.js';
 import {formatDifficulty,cfDifficultyBuckets} from './difficulty.js';
@@ -40,7 +41,7 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,Accounts,Activity,TagAnalysis,OverallAbility},
+ components:{SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,Accounts,Activity,TagAnalysis,OverallAbility,AbilityTrends},
  setup(){
   const sidebarCollapsed=ref(false),sidebarInteracted=ref(false);
   try { sidebarCollapsed.value=localStorage.getItem('acmer-sidebar-collapsed')==='1'; } catch {}
@@ -184,6 +185,7 @@ createApp({
 
    <section v-else-if="page==='analysis'&&data" key="analysis" aria-label="详细分析">
     <OverallAbility :profile="data.overallAbility" :refresh-key="dataVersion" />
+    <AbilityTrends :refresh-key="dataVersion" />
     <PracticeTrends :refresh-key="dataVersion" />
     <div class="analysis-difficulty">
      <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>CF 统一尺度</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
