@@ -2,15 +2,24 @@
 import {normalizeLayoutPreferences} from './skill-layout-preferences.js';
 
 const hash=s=>{let n=2166136261;for(const c of s)n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0;};
+export const skillViewSize={width:1000,height:720};
+export function skillLayoutBounds(nodeCount){
+ // Grow area in proportion to node count once the base layout gets crowded.
+ const scale=Math.sqrt(Math.max(1,nodeCount/40));
+ const width=skillViewSize.width*scale,height=skillViewSize.height*scale;
+ return {scale,width,height,left:(skillViewSize.width-width)/2,top:(skillViewSize.height-height)/2};
+}
 export function createSkillLayout(graph,previous=new Map(),options={}){
- const width=1000,height=720,maxSteps=options.maxSteps??700,stableRequired=options.stableRequired??20;
+ const {scale,width,height,left,top}=skillLayoutBounds(graph.nodes.length);
+ const centerX=skillViewSize.width/2,centerY=skillViewSize.height/2;
+ const maxSteps=options.maxSteps??700,stableRequired=options.stableRequired??20;
  const {friction,repulsion,treeSpacing,spring}=normalizeLayoutPreferences(options.preferences);
  const velocityRetention=1-friction/100;
  const roots=graph.nodes.filter(n=>n.root),rootIndex=new Map(roots.map((n,i)=>[n.id,i]));
  const nodes=graph.nodes.map(n=>{
   const old=previous.get(n.id),parent=previous.get(n.family),angle=(rootIndex.get(n.family)||0)*Math.PI*2/Math.max(1,roots.length)-Math.PI/2;
   const jitter=(hash(n.id)%6283)/1000;
-  const center=parent||{x:width/2+Math.cos(angle)*235,y:height/2+Math.sin(angle)*210};
+  const center=parent||{x:centerX+Math.cos(angle)*235*scale,y:centerY+Math.sin(angle)*210*scale};
   const radius=(n.size||24)/2;
   return {id:n.id,family:n.family,radius,charge:1+radius/60,x:old?.x??center.x+(n.root?0:Math.cos(jitter)*85),y:old?.y??center.y+(n.root?0:Math.sin(jitter)*85),vx:0,vy:0,fx:0,fy:0};
  });
@@ -18,7 +27,7 @@ export function createSkillLayout(graph,previous=new Map(),options={}){
  let steps=0,stable=0,done=nodes.length===0,reason=done?'stable':null,lastMovement=Infinity;
  function step(budget=20){
   for(let tick=0;tick<budget&&!done;tick++){
-   for(const n of nodes){n.fx=(width/2-n.x)*.0015;n.fy=(height/2-n.y)*.0015;}
+   for(const n of nodes){n.fx=(centerX-n.x)*.0015/scale;n.fy=(centerY-n.y)*.0015/scale;}
    for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
     const a=nodes[i],b=nodes[j];let dx=b.x-a.x,dy=b.y-a.y;
     if(Math.abs(dx)+Math.abs(dy)<.001){const angle=(hash(a.id+'>'+b.id)%6283)/1000;dx=Math.cos(angle)*.1;dy=Math.sin(angle)*.1;}
@@ -38,7 +47,9 @@ export function createSkillLayout(graph,previous=new Map(),options={}){
    for(const n of nodes){
     n.vx=(n.vx+n.fx*cooling)*velocityRetention;n.vy=(n.vy+n.fy*cooling)*velocityRetention;
     const speed=Math.hypot(n.vx,n.vy);if(speed>5){n.vx*=5/speed;n.vy*=5/speed;}
-    const x=Math.max(Math.max(80,n.radius+12),Math.min(width-Math.max(80,n.radius+12),n.x+n.vx)),y=Math.max(Math.max(65,n.radius+12),Math.min(height-Math.max(65,n.radius+30),n.y+n.vy));
+    const horizontalPadding=Math.max(80,n.radius+12);
+    const x=Math.max(left+horizontalPadding,Math.min(left+width-horizontalPadding,n.x+n.vx));
+    const y=Math.max(top+Math.max(65,n.radius+12),Math.min(top+height-Math.max(65,n.radius+30),n.y+n.vy));
     movement=Math.max(movement,Math.hypot(x-n.x,y-n.y));if(x===n.x)n.vx=0;if(y===n.y)n.vy=0;n.x=x;n.y=y;
    }
    steps++;lastMovement=movement;stable=movement<.08?stable+1:0;

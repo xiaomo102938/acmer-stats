@@ -26,3 +26,16 @@ test('enlarged high-count nodes fit the canvas and keep their circles separated'
  for(const n of g.nodes){const a=p.get(n.id);assert.ok(a.x-n.size/2>=0&&a.x+n.size/2<=1000&&a.y-n.size/2>=0&&a.y+n.size/2+24<=720);}
  for(let i=0;i<g.nodes.length;i++)for(let j=i+1;j<g.nodes.length;j++){const a=g.nodes[i],b=g.nodes[j],x=p.get(a.id),y=p.get(b.id);assert.ok(Math.hypot(x.x-y.x,x.y-y.y)>(a.size+b.size)/2,'large circles must not overlap');}
 });
+
+test('expanding a dense graph gives nodes space beyond the original layout',()=>{
+ const nodes=Array.from({length:130},(_,i)=>({id:String(i),root:i<7,family:String(i%7),size:i<7?125:35}));
+ const edges=nodes.slice(7).map(n=>({from:n.family,to:n.id,kind:'branch'}));
+ const initial=createSkillLayout({nodes:nodes.slice(0,7),edges:[]});
+ settle(initial);
+ const expanded=createSkillLayout({nodes,edges},initial.positions());
+ const state=settle(expanded),points=[...expanded.positions().values()];
+ const span=axis=>Math.max(...points.map(p=>p[axis]))-Math.min(...points.map(p=>p[axis]));
+ assert.ok(state.width>1000&&state.height>720);
+ assert.ok(span('x')>1000&&span('y')>720);
+ assert.ok(state.steps<=700);
+});
