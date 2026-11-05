@@ -55,7 +55,7 @@ export function trendRouter(pool){
    const merged=new Map(daily.map(r=>[r.day,r]));for(const r of firstAC)merged.set(r.day,{...(merged.get(r.day)||{day:r.day}),first_ac_count:r.first_ac_count});
    const buckets=trendBuckets(range,[...merged.values()]);
    const years=[...new Set([...(range.mode==='year'?[Number(range.start.slice(0,4))]:[]),...Array.from({length:Number(clock.today.slice(0,4))-Number((first.first_day||clock.today).slice(0,4))+1},(_,i)=>Number(clock.today.slice(0,4))-i)])].sort((a,b)=>b-a);
-   await connection.commit();res.set('Cache-Control','no-store').json({...range,serverDate:clock.today,earliest:first.first_day,years,platforms:platforms.map(p=>p.platform_name),buckets});
+   await connection.commit();res.set('Cache-Control','no-store').json({...range,platform,serverDate:clock.today,earliest:first.first_day,years,platforms:platforms.map(p=>p.platform_name),buckets});
   }catch(e){await connection.rollback();throw e;}finally{connection.release();}
  });return router;
 }

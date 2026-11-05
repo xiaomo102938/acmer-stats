@@ -51,6 +51,7 @@ createApp({
   const cardOrder=useCardOrder(page);
   const {editingCards}=cardOrder;
   const displayPreferences=useDisplayPreferences();
+  const recordsQuery=ref(page.value==='records'?location.hash.split('?')[1]||'':'');
   const recommendation=ref(recommendationRoute()),recommendationEl=ref(null);
   const pageData=shallowRef({});
   const data=computed(()=>pageData.value[page.value]??null);
@@ -64,7 +65,7 @@ createApp({
    const request=++requestNumber;
    loading.value=false;error.value='';
    if(view==='settings'){pageData.value={};return;}
-   if(view==='records'){dataVersion.value++;return;}
+   if(view==='records')return;
    loading.value=true;
    try{
     const response=await apiFetch(view==='overview'?'/api/dashboard?view=overview':'/api/dashboard');const body=await response.json();
@@ -78,6 +79,8 @@ createApp({
    const requested=resolvePage();
    const next=editingCards.value&&requested==='overview'?page.value:requested;
    page.value=next;
+   const [,query='']=location.hash.slice(1).split('?');
+   recordsQuery.value=next==='records'&&requested==='records'?query:'';
    recommendation.value=recommendationRoute();
    if(recommendation.value.open){
     const params=new URLSearchParams({recommend:'1'});
@@ -85,7 +88,8 @@ createApp({
     history.replaceState(null,'','#analysis?'+params);
     return;
    }
-   if(location.hash!=='#'+next)history.replaceState(null,'','#'+next);
+   const hash='#'+next+(recordsQuery.value?'?'+recordsQuery.value:'');
+   if(location.hash!==hash)history.replaceState(null,'',hash);
   }
   watch(editingCards,async editing=>{
    if(editing){disposeCharts();window.scrollTo({top:0,behavior:'instant'});}
@@ -112,7 +116,7 @@ createApp({
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
   return {
    ...cardOrder,...displayPreferences,...dashboardCharts,
-   recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
+   recordsQuery,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
    pages,page,current,data,dataVersion,loading,error,load,theme
   };
  },
@@ -165,7 +169,7 @@ createApp({
     <TagAnalysis :style="cardStyle('graph')" :skill-config="data.skillConfig" :skill-counts="data.skillCounts" graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
 
-   <section v-else-if="page==='records'" v-show="!editingCards" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>
+   <section v-else-if="page==='records'" v-show="!editingCards" key="records" aria-label="提交记录"><Submissions :route-query="recordsQuery" :refresh-key="dataVersion" /></section>
 
    <section v-else-if="page==='settings'" v-show="!editingCards" key="settings" class="ordered-cards" aria-label="设置">
     <article class="panel appearance-panel" :style="cardStyle('appearance')"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div>

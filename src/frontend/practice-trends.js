@@ -7,6 +7,7 @@ import {CanvasRenderer} from 'echarts/renderers';
 echarts.use([BarChart,GridComponent,TooltipComponent,DataZoomComponent,CanvasRenderer]);
 const choices={month:['day','week'],year:['day','week','month','quarter'],life:['day','week','month','quarter','year','threeYear']};
 const labels={day:'日',week:'周',month:'月',quarter:'季',year:'年',threeYear:'3 年'};
+const recordStatuses={submission_count:'all',accepted_count:'ac',first_ac_count:'first'};
 const metrics={submission_count:'提交次数',accepted_count:'AC 提交次数',first_ac_count:'首次 AC 题数'};
 export default{
  props:{refreshKey:Number},
@@ -16,15 +17,22 @@ export default{
   const available=computed(()=>choices[mode.value]);
   const total=computed(()=>data.value?.buckets.reduce((sum,b)=>sum+Number(b[metric.value]),0)||0);
   function draw(){
-   if(!data.value||!chartEl.value)return;if(!chart)chart=echarts.init(chartEl.value);
+   if(!data.value||!chartEl.value)return;
+   if(!chart){
+    chart=echarts.init(chartEl.value);
+    chart.on('click','series.bar',({data:point})=>{
+     if(!loading.value&&point?.href)location.hash=point.href;
+    });
+   }
    const css=getComputedStyle(document.documentElement),token=n=>css.getPropertyValue(n).trim(),b=data.value.buckets;
-   const zoom=grain.value==='day'&&b.length>90;
-   chart.setOption({animation:false,color:[token('--green')],tooltip:{trigger:'axis',backgroundColor:token('--panel'),borderColor:token('--border'),textStyle:{color:token('--text')},formatter:params=>{const p=params[0],row=b[p.dataIndex];return row.start+' — '+row.end+'<br/>'+metrics[metric.value]+'：'+row[metric.value];}},
+   const activeMetric=metric.value;
+   const zoom=data.value.grain==='day'&&b.length>90;
+   chart.setOption({animation:false,color:[token('--green')],tooltip:{trigger:'axis',backgroundColor:token('--panel'),borderColor:token('--border'),textStyle:{color:token('--text')},formatter:params=>{if(!params.length)return '';const {start,end,value,href}=params[0].data;return start+' — '+end+'<br/>'+metrics[activeMetric]+'：'+value+(href?'<br/>点击柱子查看提交记录':'');}},
     grid:{left:48,right:18,top:25,bottom:zoom?85:45},
     xAxis:{type:'category',data:b.map(r=>r.label),axisLabel:{color:token('--muted'),hideOverlap:true},axisLine:{lineStyle:{color:token('--border')}}},
     yAxis:{type:'value',minInterval:1,axisLabel:{color:token('--muted')},splitLine:{lineStyle:{color:token('--rowBorder')}}},
     dataZoom:zoom?[{type:'slider',startValue:Math.max(0,b.length-90),endValue:b.length-1,bottom:10,height:22,filterMode:'filter',textStyle:{color:token('--muted')},borderColor:token('--border'),backgroundColor:token('--track')},{type:'inside',startValue:Math.max(0,b.length-90),endValue:b.length-1}]:[],
-    series:[{name:metrics[metric.value],type:'bar',barMaxWidth:34,itemStyle:{borderRadius:[4,4,0,0]},data:b.map(r=>r[metric.value])}]},true);
+    series:[{name:metrics[metric.value],type:'bar',barMaxWidth:34,itemStyle:{borderRadius:[4,4,0,0]},data:b.map(({start,end,[activeMetric]:value})=>({start,end,value,href:value?'#records?'+new URLSearchParams({from:start,to:end,status:recordStatuses[activeMetric],platform:data.value.platform==='all'?'':data.value.platform}):''}))}]},true);
   }
   async function load(){
    request?.abort();request=new AbortController();const id=++serial;loading.value=true;error.value='';
@@ -53,7 +61,7 @@ export default{
   </div>
   <LoadingNotice v-if="loading&&!data" skeleton>正在读取练习趋势…</LoadingNotice>
   <p v-if="error" class="error" role="alert">{{error}}</p>
-  <p v-if="data" class="trend-summary" aria-live="polite">{{data.start}} — {{data.end}} · {{metrics[metric]}}：{{total}} · {{data.buckets.length}} 个分组</p>
+  <p v-if="data" class="trend-summary" aria-live="polite">{{data.start}} — {{data.end}} · {{metrics[metric]}}：{{total}} · {{data.buckets.length}} 个分组 · 点击柱子查看提交</p>
   <div ref="chartEl" v-show="data" :class="{'content-ready':data}" class="chart trend-chart" role="img" :aria-label="'按'+labels[grain]+'统计的'+metrics[metric]" :aria-busy="loading"></div>
   <p v-if="grain==='day'&&(data?.buckets.length||0)>90" class="footnote">初始显示最后 90 天，可拖动底部缩放条查看其他日期，也可在图内缩放。</p>
   <ModuleHelp><p class="footnote">周一至周日为一周，季度按自然季度；3 年分组从所选平台生涯首条已同步记录所在年份起算。边缘分组仅计入所选日期，当前月／年截至今天。首次 AC 按完整已同步历史中每题的首次通过计算，同题重复 AC 不重复计新题。仅统计已同步提交，历史缺失及仅提供 AC 的平台会影响结果；洛谷清单和手工汇总不推算逐题时间。</p></ModuleHelp>

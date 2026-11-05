@@ -34,6 +34,17 @@ export function submissionRouter(pool){
     return ratedProblems([...progress,...rows]).slice(progress.length);
    };
    if(user){
+    const {config,catalog}=await readSkillSettings(connection);
+    tags=catalog.filter(({key})=>!Object.hasOwn(config.aliases,key)).map(({key,name})=>({key,name:config.names[key]||name}));
+    if(config.specialties.length)tags.unshift({key:'@specialty',name:'我的专职题型'});
+    const tagFilter=tag==='@specialty'?specialtyKeys(config):tag?new Set([resolveTag(tag,config)]):null;
+    let tagCondition,tagArgs=[];
+    if(tagFilter&&status!=='retry'){
+      const aliases=Object.keys(config.aliases).filter(key=>tagFilter.has(resolveTag(key,config)));
+      tagArgs=[...new Set([...tagFilter,...aliases])];
+      tagCondition=tagArgs.length?`EXISTS (SELECT 1 FROM problem_tag pt JOIN tag t ON t.tag_id=pt.tag_id
+       WHERE pt.problem_id=s.problem_id AND t.tag_name IN (${tagArgs.map(()=>'?').join(',')}))`:'1=0';
+    }
     const args=[user.user_id];
     const conditions=['s.user_id=?'];
     if(status==='ac'||status==='first')conditions.push('s.passed=1');
@@ -43,8 +54,10 @@ export function submissionRouter(pool){
     }
     if(status==='first')conditions.push(`NOT EXISTS (SELECT 1 FROM synced_submission a
       WHERE a.user_id=s.user_id AND a.problem_id=s.problem_id AND a.passed=1
+       ${platform?'AND a.platform_id=s.platform_id':''}
        AND (a.submitted_at<s.submitted_at OR (a.submitted_at=s.submitted_at AND a.submission_id<s.submission_id)))`);
     if(status!=='retry'){
+     if(tagCondition){conditions.push(tagCondition);args.push(...tagArgs);}
      if(platform){conditions.push('p.platform_name=?');args.push(platform);}
      if(from){conditions.push('s.submitted_at>=?');args.push(from);}
      if(to){conditions.push('s.submitted_at<DATE_ADD(?,INTERVAL 1 DAY)');args.push(to);}
@@ -62,12 +75,8 @@ export function submissionRouter(pool){
     if(status==='retry'||sort!=='time'||unique==='1'){
      let [rows]=await connection.query(select,args);
      if(status==='retry'){
-      const {config,catalog}=await readSkillSettings(connection);
-      tags=catalog.filter(({key})=>!Object.hasOwn(config.aliases,key)).map(({key,name})=>({key,name:config.names[key]||name}));
-      if(config.specialties.length)tags.unshift({key:'@specialty',name:'我的专职题型'});
-      const filter=tag==='@specialty'?specialtyKeys(config):tag?new Set([resolveTag(tag,config)]):null;
       progress=await readProblemRows(connection);
-      rows=retryProblems(rows,progress,filter?mergeSkillRows(await readAbilityRows(connection),config):[],filter);
+      rows=retryProblems(rows,progress,tagFilter?mergeSkillRows(await readAbilityRows(connection),config):[],tagFilter);
       rows=rows.filter(row=>(!platform||row.platform_name===platform)&&(!from||row.submitted_at.slice(0,10)>=from)&&
        (!to||row.submitted_at.slice(0,10)<=to)&&(!term||contains(row,term)));
      }else if(unique==='1'){
