@@ -58,7 +58,7 @@ app.use('/api/submissions',submissionRouter(pool));
 app.use('/api/practice',practiceRouter(pool));
 app.use('/api/trends',trendRouter(pool));
 app.use('/api/ratings',ratingRouter(pool));
-app.get('/api/dashboard', async (_req, res) => {
+app.get('/api/dashboard', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
@@ -70,6 +70,31 @@ app.get('/api/dashboard', async (_req, res) => {
  FROM platform_snapshot s JOIN platform_account a ON a.account_id=s.account_id JOIN platform p ON p.platform_id=a.platform_id
  WHERE a.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)`);
     applyLeetcodeTotals(overview,platforms,platformSnapshots);
+    const daily = await read(`SELECT DATE(submitted_at) AS day,COUNT(*) AS submission_count,
+      SUM(passed=1) AS accepted_count,COUNT(DISTINCT problem_id) AS problem_count
+      FROM synced_submission
+      WHERE submitted_at>=DATE_SUB(CURDATE(),INTERVAL 6 DAY) AND submitted_at<DATE_ADD(CURDATE(),INTERVAL 1 DAY)
+      GROUP BY DATE(submitted_at) ORDER BY day`);
+    const [weekSummary] = await read(`SELECT COUNT(DISTINCT problem_id) AS problem_count
+      FROM synced_submission WHERE submitted_at>=DATE_SUB(CURDATE(),INTERVAL 6 DAY)
+      AND submitted_at<DATE_ADD(CURDATE(),INTERVAL 1 DAY)`);
+    const [clock] = await read('SELECT CURRENT_DATE() AS server_date');
+    const ratingRows=await readProblemRows(connection);
+    if(req.query.view==='overview'){
+      const difficultyCounts=new Map();
+      for(const row of ratedProblems(ratingRows)){
+        const key=JSON.stringify([row.platform_name,row.rating]);
+        const group=difficultyCounts.get(key);
+        if(group)group.total_count++;
+        else difficultyCounts.set(key,{platform_name:row.platform_name,cf_rating:row.rating,total_count:1});
+      }
+      await connection.commit();
+      return res.set('Cache-Control','no-store').json({
+        overview:overview[0]||null,platforms,unifiedDifficulty:[...difficultyCounts.values()],
+        daily,weekProblems:weekSummary.problem_count,serverDate:clock.server_date
+      });
+    }
+    const unifiedDifficulty=ratedProblems(ratingRows).map(r=>({platform_name:r.platform_name,cf_rating:r.rating,estimated:r.estimated,total_count:1}));
     const tags = await read('SELECT * FROM v_tag_stats ORDER BY total_count DESC, pass_rate DESC');
     const skillSettings=await readSkillSettings(connection);
     const abilityRows=mergeSkillRows(await readAbilityRows(connection),skillSettings.config);
@@ -80,19 +105,8 @@ app.get('/api/dashboard', async (_req, res) => {
       FROM v_problem_progress r JOIN problem pr ON pr.problem_id=r.problem_id
       JOIN platform p ON p.platform_id=pr.platform_id
       GROUP BY p.platform_name,pr.difficulty,pr.native_difficulty`);
-    const ratingRows=await readProblemRows(connection);
     const {problems:overallProblems,...overall}=specialtyAbility(ratingRows,abilityRows,skillSettings.config,'specialty',recency);
-    const unifiedDifficulty=ratedProblems(ratingRows).map(r=>({platform_name:r.platform_name,cf_rating:r.rating,estimated:r.estimated,total_count:1}));
     const monthly = await read('SELECT * FROM v_monthly_trend ORDER BY solve_month');
-    const daily = await read(`SELECT DATE(submitted_at) AS day,COUNT(*) AS submission_count,
-      SUM(passed=1) AS accepted_count,COUNT(DISTINCT problem_id) AS problem_count
-      FROM synced_submission
-      WHERE submitted_at>=DATE_SUB(CURDATE(),INTERVAL 6 DAY) AND submitted_at<DATE_ADD(CURDATE(),INTERVAL 1 DAY)
-      GROUP BY DATE(submitted_at) ORDER BY day`);
-    const [weekSummary] = await read(`SELECT COUNT(DISTINCT problem_id) AS problem_count
-      FROM synced_submission WHERE submitted_at>=DATE_SUB(CURDATE(),INTERVAL 6 DAY)
-      AND submitted_at<DATE_ADD(CURDATE(),INTERVAL 1 DAY)`);
-    const [clock] = await read('SELECT CURRENT_DATE() AS server_date');
     const recent = await read(`SELECT pr.problem_name, p.platform_name, pr.difficulty, pr.native_difficulty, pr.difficulty_source,pr.source_key,pr.problem_id, r.passed, r.submit_count, r.solve_date
       FROM record r JOIN problem pr ON pr.problem_id=r.problem_id
       JOIN platform p ON p.platform_id=pr.platform_id

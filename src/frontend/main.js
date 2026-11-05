@@ -8,7 +8,7 @@ import PracticeTrends from './practice-trends.js';
 import Submissions from './submissions.js';
 import Practice from './practice.js';
 import SiteStatus from './site-status.js';
-import {createApp,onMounted,onBeforeUnmount,ref,computed,watch,nextTick} from 'vue';
+import {createApp,onMounted,onBeforeUnmount,ref,shallowRef,computed,watch,nextTick} from 'vue';
 import Accounts from './accounts.js';
 import TagAnalysis from './tag-analysis.js';
 import OverallAbility from './overall-ability.js';
@@ -51,19 +51,25 @@ createApp({
   const {editingCards}=cardOrder;
   const displayPreferences=useDisplayPreferences();
   const recommendation=ref(recommendationRoute()),recommendationEl=ref(null);
-  const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
+  const pageData=shallowRef({});
+  const data=computed(()=>pageData.value[page.value]??null);
+  const loading=ref(false),error=ref(''),dataVersion=ref(0);
   const dashboardCharts=useDashboardCharts(data,editingCards,()=>isDark.value);
   const {draw,disposeCharts,resize,difficultyPlatform}=dashboardCharts;
   const {theme,isDark}=useTheme(draw);
   let requestNumber=0;
   async function load(){
-   if(page.value==='records'){dataVersion.value++;return;}
-   const request=++requestNumber;loading.value=true;error.value='';
+   const view=page.value;
+   const request=++requestNumber;
+   loading.value=false;error.value='';
+   if(view==='settings'){pageData.value={};return;}
+   if(view==='records'){dataVersion.value++;return;}
+   loading.value=true;
    try{
-    const response=await apiFetch('/api/dashboard');const body=await response.json();
+    const response=await apiFetch(view==='overview'?'/api/dashboard?view=overview':'/api/dashboard');const body=await response.json();
     if(!response.ok)throw new Error(body.message);
-    if(request!==requestNumber)return;
-    data.value=body;dataVersion.value++;await nextTick();draw();
+    if(request!==requestNumber||page.value!==view)return;
+    pageData.value={...pageData.value,[view]:body};dataVersion.value++;await nextTick();draw();
    }catch(e){if(request===requestNumber)error.value=e.message||'加载失败';}
    finally{if(request===requestNumber)loading.value=false;}
   }
@@ -88,7 +94,8 @@ createApp({
   watch(page,async()=>{
    disposeCharts();await nextTick();draw();
    window.scrollTo({top:0,behavior:'instant'});
-   if(page.value!=='settings'&&!editingCards.value)load();
+   if(page.value==='settings'||editingCards.value){requestNumber++;loading.value=false;error.value='';}
+   else load();
   });
   watch([()=>recommendation.value.open,()=>recommendation.value.tag,()=>!!data.value],async()=>{
    if(!recommendation.value.open)return;
