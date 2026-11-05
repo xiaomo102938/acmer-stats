@@ -133,3 +133,18 @@ main>header{margin-bottom:22px}main>header h1{font-size:calc(24px * var(--font-s
 .recommendation-section{margin-bottom:var(--card-gap,22px);scroll-margin-top:20px}
 
 .site-status{position:relative;margin-top:auto;color:var(--muted);font-size:calc(12px * var(--font-scale,1))}.site-status summary{display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 4px;list-style:none}.site-status summary::-webkit-details-marker{display:none}.status-dot{width:8px;height:8px;flex:none;border-radius:50%;background:var(--muted)}.status-dot.ok{background:var(--green)}.status-dot.database{background:var(--warningText)}.status-dot.offline{background:#c54e4e}.site-status-detail{position:absolute;bottom:100%;left:0;z-index:5;min-width:205px;max-width:calc(100vw - 32px);padding:12px;background:var(--panel);border:1px solid var(--border);border-radius:8px}.site-status-detail p{margin:0 0 8px}.sidebar-collapsed .site-status-label{display:none}.sidebar-collapsed .site-status summary{justify-content:center}@media(max-width:700px){.site-status{margin-top:8px}.site-status-detail{bottom:auto;top:100%}}
+
+.ordered-cards{display:flex;flex-direction:column;reading-flow:flex-visual}
+.ordered-cards>.skill-settings,.ordered-cards>.skill-settings>.skill-fields{display:contents}
+.ordered-cards>.skill-settings>.error,.ordered-cards>.skill-settings>[role="status"],.ordered-cards>.skill-settings>[aria-label="题型与图谱设置恢复"]{order:-1}
+.card-order-info{margin:14px 0;color:var(--muted)}
+.card-order-editor{display:grid;gap:var(--card-gap,22px);margin-bottom:var(--card-gap,22px)}
+.card-order-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:0 16px}
+.card-order-row h2{flex:1;padding:13px 0}
+.card-order-row h2[draggable="true"]{cursor:grab;user-select:none}
+.card-order-row h2 span{color:var(--muted);margin-right:5px}
+.card-order-dragged{opacity:.55}
+.card-order-target{outline:2px solid var(--accent)}
+.card-order-toggle{display:inline-flex;align-items:center;gap:7px;padding:10px 0}
+.nav-locked{opacity:.45;cursor:default}
+.nav-locked:hover{background:transparent}

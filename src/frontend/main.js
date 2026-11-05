@@ -1,4 +1,5 @@
 import {apiFetch} from './api-fetch.js';
+import CardOrderEditor from './card-order-editor.js';
 import ModuleHelp from './module-help.js';
 import SkillLayoutSettings from './skill-layout-settings.js';
 import SkillSettings from './skill-settings.js';
@@ -35,6 +36,30 @@ const pages=[
  {id:'records',icon:'≡',name:'提交记录'},
  {id:'settings',icon:'⚙',name:'设置'}
 ];
+const cardOrderKey='acmer-page-card-order';
+const cardCatalog={
+ analysis:[
+  {id:'overall',title:'综合能力参考'},{id:'ability-trend',title:'能力变化趋势'},
+  {id:'practice-trend',title:'练习趋势'},{id:'difficulty',title:'难度分布'},
+  {id:'platforms',title:'各平台练习情况'},{id:'topics',title:'题型能力参考'},
+  {id:'recommendation',title:'推荐练习'},{id:'graph',title:'技能图谱'}
+ ],
+ records:[{id:'submissions',title:'提交记录'}],
+ settings:[
+  {id:'appearance',title:'外观'},{id:'layout',title:'技能图谱布局偏好'},
+  {id:'specialty',title:'专职题型'},{id:'aliases',title:'标签类型归并'},
+  {id:'topology',title:'技能图谱客制化'},{id:'accounts',title:'平台账号与同步'}
+ ]
+};
+function readCardOrder(){
+ let saved;
+ try{saved=JSON.parse(localStorage.getItem(cardOrderKey));}catch{}
+ return Object.fromEntries(Object.entries(cardCatalog).map(([page,cards])=>{
+  const defaults=cards.map(card=>card.id);
+  const previous=Array.isArray(saved?.[page])?saved[page].filter(id=>defaults.includes(id)):[];
+  return [page,[...new Set([...previous,...defaults])]];
+ }));
+}
 const aliases={practice:'analysis',trends:'analysis',tags:'analysis',recent:'records',accounts:'settings'};
 function recommendationRoute(){
  const [page,query]=location.hash.slice(1).split('?');
@@ -46,7 +71,7 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,SiteStatus,Accounts,Activity,TagAnalysis,OverallAbility,AbilityTrends},
+ components:{CardOrderEditor,SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,SiteStatus,Accounts,Activity,TagAnalysis,OverallAbility,AbilityTrends},
  setup(){
   const sidebarCollapsed=ref(false),sidebarInteracted=ref(false);
   try { sidebarCollapsed.value=localStorage.getItem('acmer-sidebar-collapsed')==='1'; } catch {}
@@ -57,6 +82,20 @@ createApp({
   }
 
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
+  const editingCards=ref(false),cardOrder=ref(readCardOrder()),cardOrderError=ref('');
+  const cardPositions=computed(()=>Object.fromEntries((cardOrder.value[page.value]??[]).map((id,index)=>[id,index])));
+  const editableCards=computed(()=>(cardOrder.value[page.value]??[]).map(id=>cardCatalog[page.value].find(card=>card.id===id)));
+  const cardStyle=id=>({order:cardPositions.value[id]});
+  function moveCard(from,to){
+   const order=cardOrder.value[page.value];
+   if(!editingCards.value||!order?.includes(from)||!order.includes(to)||from===to)return;
+   const next=order.filter(id=>id!==from);
+   next.splice(order.indexOf(to),0,from);
+   const updated={...cardOrder.value,[page.value]:next};
+   cardOrder.value=updated;
+   try{localStorage.setItem(cardOrderKey,JSON.stringify(updated));cardOrderError.value='';}
+   catch{cardOrderError.value='当前浏览器无法保存卡片顺序。';}
+  }
   const recommendation=ref(recommendationRoute()),recommendationEl=ref(null);
   const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
   const difficultyEl=ref(null),weekEl=ref(null);
@@ -109,7 +148,7 @@ createApp({
   }
   function draw(){
    charts.forEach((chart,element)=>{if(!element.isConnected){chart.dispose();charts.delete(element);}});
-   if(!data.value)return;
+   if(!data.value||editingCards.value)return;
    const dark=isDark.value;
    const colors=dark?['#83bc9c','#9faedb','#c4ce93','#d9b77f','#7d9289']:['#376c58','#86a895','#c4d5b8','#dfbf82','#b0b9aa'];
    const css=getComputedStyle(document.documentElement),token=name=>css.getPropertyValue(name).trim();
@@ -139,7 +178,9 @@ createApp({
    finally{if(request===requestNumber)loading.value=false;}
   }
   function hashChanged(){
-   const next=resolvePage();page.value=next;
+   const requested=resolvePage();
+   const next=editingCards.value&&requested==='overview'?page.value:requested;
+   page.value=next;
    recommendation.value=recommendationRoute();
    if(recommendation.value.open){
     const params=new URLSearchParams({recommend:'1'});
@@ -149,11 +190,15 @@ createApp({
    }
    if(location.hash!=='#'+next)history.replaceState(null,'','#'+next);
   }
+  watch(editingCards,async editing=>{
+   if(editing){disposeCharts();window.scrollTo({top:0,behavior:'instant'});}
+   else{await nextTick();draw();window.dispatchEvent(new Event('resize'));if(page.value==='analysis'&&!data.value)load();}
+  });
   watch(difficultyPlatform,()=>nextTick(draw));
   watch(page,async()=>{
    disposeCharts();await nextTick();draw();
    window.scrollTo({top:0,behavior:'instant'});
-   if(page.value!=='settings')load();
+   if(page.value!=='settings'&&!editingCards.value)load();
   });
   watch([()=>recommendation.value.open,()=>recommendation.value.tag,()=>!!data.value],async()=>{
    if(!recommendation.value.open)return;
@@ -168,7 +213,7 @@ createApp({
   watch(sidebarCollapsed,()=>nextTick(resize));
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
-  return {recommendation,recommendationEl,closeRecommendation,display,displayControls,displayIsDefault,resetDisplay,sidebarCollapsed,sidebarInteracted,toggleSidebar,pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
+  return {editingCards,editableCards,cardPositions,cardStyle,moveCard,cardOrderError,recommendation,recommendationEl,closeRecommendation,display,displayControls,displayIsDefault,resetDisplay,sidebarCollapsed,sidebarInteracted,toggleSidebar,pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
  },
  template:`
  <div class="layout" :class="{'sidebar-collapsed':sidebarCollapsed,'sidebar-interacted':sidebarInteracted}">
@@ -178,13 +223,16 @@ createApp({
     <button type="button" class="sidebar-toggle" aria-controls="main-navigation" :aria-expanded="!sidebarCollapsed" :aria-label="sidebarCollapsed?'展开侧栏':'折叠侧栏'" :title="sidebarCollapsed?'展开侧栏':'折叠侧栏'" @click="toggleSidebar">{{sidebarCollapsed?'»':'«'}}</button>
    </div>
    <p class="nav-label">我的练习空间</p>
-   <nav id="main-navigation" aria-label="主导航"><a v-for="item in pages" :key="item.id" :href="'#'+item.id" class="nav" :class="{active:page===item.id}" :aria-current="page===item.id?'page':undefined" :aria-label="item.name" :title="item.name"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></a></nav>
+   <nav id="main-navigation" aria-label="主导航"><template v-for="item in pages" :key="item.id"><span v-if="editingCards&&item.id==='overview'" class="nav nav-locked" aria-disabled="true" title="结束卡片位置编辑后可进入"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></span><a v-else :href="'#'+item.id" class="nav" :class="{active:page===item.id}" :aria-current="page===item.id?'page':undefined" :aria-label="item.name" :title="item.name"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></a></template></nav>
    <SiteStatus />
   </aside>
   <main>
-   <header><h1>{{current.name}}</h1><button v-if="page!=='settings'" @click="load" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
-   <div v-if="error&&page!=='settings'" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
-   <p v-if="loading&&!data&&!['settings','records'].includes(page)" role="status">正在读取数据库…</p>
+   <header><h1>{{current.name}}</h1><button v-if="editingCards&&page!=='settings'" @click="editingCards=false">结束卡片编辑</button><button v-else-if="page!=='settings'" @click="load" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
+   <div v-if="editingCards" class="card-order-info" role="status">拖动标题调整本页卡片顺序，松开后自动保存。模块只能在所属页面内移动。</div>
+   <p v-if="cardOrderError" class="error" role="alert">{{cardOrderError}}</p>
+   <CardOrderEditor v-if="editingCards" :key="page" :cards="editableCards" @move="moveCard"><label class="card-order-toggle"><input v-model="editingCards" type="checkbox">卡片位置编辑模式</label></CardOrderEditor>
+   <div v-if="!editingCards&&error&&page!=='settings'" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
+   <p v-if="!editingCards&&loading&&!data&&!['settings','records'].includes(page)" role="status">正在读取数据库…</p>
 
    <section v-if="page==='overview'&&data" key="overview" aria-label="数据简览">
     <div class="metrics">
@@ -203,23 +251,23 @@ createApp({
     </div>
    </section>
 
-   <section v-else-if="page==='analysis'&&data" key="analysis" aria-label="详细分析">
-    <OverallAbility :profile="data.overallAbility" :refresh-key="dataVersion" />
-    <AbilityTrends :refresh-key="dataVersion" />
-    <PracticeTrends :refresh-key="dataVersion" />
-    <div class="analysis-difficulty">
+   <section v-else-if="page==='analysis'&&data" v-show="!editingCards" key="analysis" class="ordered-cards" aria-label="详细分析">
+    <OverallAbility :style="cardStyle('overall')" :profile="data.overallAbility" :refresh-key="dataVersion" />
+    <AbilityTrends :style="cardStyle('ability-trend')" :refresh-key="dataVersion" />
+    <PracticeTrends :style="cardStyle('practice-trend')" :refresh-key="dataVersion" />
+    <div class="analysis-difficulty" :style="cardStyle('difficulty')">
      <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>CF 统一尺度</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
     </div>
-    <PlatformAnalysis :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
-    <TagAnalysis :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
-    <div v-if="recommendation.open" ref="recommendationEl" class="recommendation-section"><Practice :key="recommendation.tag" :initial-tag="recommendation.tag" :refresh-key="dataVersion" @close="closeRecommendation" /></div>
-    <TagAnalysis :skill-config="data.skillConfig" :skill-counts="data.skillCounts" graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
+    <PlatformAnalysis :style="cardStyle('platforms')" :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
+    <TagAnalysis :style="cardStyle('topics')" :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
+    <div v-if="recommendation.open&&!editingCards" ref="recommendationEl" class="recommendation-section" :style="cardStyle('recommendation')"><Practice :key="recommendation.tag" :initial-tag="recommendation.tag" :refresh-key="dataVersion" @close="closeRecommendation" /></div>
+    <TagAnalysis :style="cardStyle('graph')" :skill-config="data.skillConfig" :skill-counts="data.skillCounts" graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
 
-   <section v-else-if="page==='records'" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>
+   <section v-else-if="page==='records'" v-show="!editingCards" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>
 
-   <section v-else-if="page==='settings'" key="settings" aria-label="设置">
-    <article class="panel appearance-panel"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div>
+   <section v-else-if="page==='settings'" v-show="!editingCards" key="settings" class="ordered-cards" aria-label="设置">
+    <article class="panel appearance-panel" :style="cardStyle('appearance')"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div>
      <div class="display-controls">
       <div v-for="control in displayControls" :key="control.key" class="range-control">
        <div><label :for="'display-'+control.key">{{control.label}}</label><output :for="'display-'+control.key">{{display[control.key]}}{{control.unit}}</output></div>
@@ -228,11 +276,12 @@ createApp({
       </div>
       <button type="button" :disabled="displayIsDefault" @click="resetDisplay">恢复默认字号和间距</button>
      </div>
+     <label class="card-order-toggle"><input v-model="editingCards" type="checkbox">卡片位置编辑模式</label>
      <ModuleHelp><p class="footnote">主题可手动选择，也可以跟随系统。主题、字号和卡片间距保存在当前浏览器。</p></ModuleHelp>
     </article>
-    <SkillLayoutSettings />
-    <SkillSettings @saved="load" />
-    <Accounts @synced="load" />
+    <SkillLayoutSettings :style="cardStyle('layout')" />
+    <SkillSettings :card-positions="cardPositions" @saved="load" />
+    <Accounts :style="cardStyle('accounts')" @synced="load" />
    </section>
    <footer>刷题手记 · 数据来自本机 MySQL</footer>
   </main>
