@@ -1,11 +1,14 @@
 import {syncSetup} from '../shared/account-config.js';
-import {ref,onMounted,onBeforeUnmount,nextTick} from 'vue';
+import {ref,computed,onMounted,onBeforeUnmount,nextTick} from 'vue';
 export default {
  emits:['synced'],
  setup(_props,{emit}){
   const formEl=ref(null);
   const accounts=ref([]),platforms=ref([]),form=ref({platform_id:'',login_name:'',remote_uid:'',cookie:'',remove_cookie:false}),
    editing=ref(null),message=ref(''),failure=ref(''),saving=ref(false),confirming=ref(null);
+  const batch=ref(null),startingBatch=ref(false);
+  const anyRunning=computed(()=>batch.value?.running||accounts.value.some(a=>a.sync_status==='running'));
+  const canSyncAll=computed(()=>accounts.value.some(a=>syncSetup(a).ready&&platforms.value.find(p=>p.platform_id===a.platform_id)?.mode!=='暂未接入'));
   let timer,loading=false,wasRunning=false;
   async function api(url,options={}){
    const response=await fetch('/api/accounts'+url,{...options,headers:{'Content-Type':'application/json','X-Acmer-Request':'1',...options.headers}});
@@ -14,9 +17,9 @@ export default {
   async function refresh(){
    if(loading)return;loading=true;
    try{
-    const body=await api('');accounts.value=body.accounts;platforms.value=body.platforms;
+    const body=await api('');accounts.value=body.accounts;platforms.value=body.platforms;batch.value=body.batch;
     if(!form.value.platform_id&&body.platforms.length)form.value.platform_id=body.platforms[0].platform_id;
-    const running=body.accounts.some(a=>a.sync_status==='running');
+    const running=anyRunning.value;
     if(wasRunning&&!running)emit('synced');
     wasRunning=running;
    }catch(error){failure.value=error.message;}finally{loading=false;}
@@ -35,6 +38,15 @@ export default {
    await nextTick();formEl.value?.scrollIntoView({behavior:'instant',block:'center'});
    formEl.value?.querySelector(account.platform_name==='牛客'&&!account.remote_uid?'[name=remote_uid]':'[name=cookie]')?.focus();
   }
+  async function syncAll(){
+   startingBatch.value=true;failure.value='';message.value='';
+   try{
+    const body=await api('/sync-all',{method:'POST',body:'{}'});
+    batch.value=body.batch;wasRunning=true;
+    await refresh();
+   }catch(error){failure.value=error.message;}
+   finally{startingBatch.value=false;}
+  }
   async function sync(account){
    if(!syncSetup(account).ready){message.value=syncSetup(account).reason;await edit(account);message.value=syncSetup(account).reason;return;}
    failure.value='';message.value='';
@@ -49,11 +61,12 @@ export default {
   const selected=()=>platforms.value.find(p=>p.platform_id===form.value.platform_id);
   onMounted(()=>{refresh();timer=setInterval(refresh,2000);});
   onBeforeUnmount(()=>clearInterval(timer));
-  return {formEl,syncSetup,accounts,platforms,form,editing,message,failure,saving,confirming,save,cancel,edit,sync,remove,selected};
+  return {formEl,syncSetup,batch,startingBatch,anyRunning,canSyncAll,syncAll,accounts,platforms,form,editing,message,failure,saving,confirming,save,cancel,edit,sync,remove,selected};
  },
  template:`
  <section class="panel accounts-panel" id="accounts">
-  <div class="panel-head"><h2>平台账号与同步</h2><span>同一平台可添加多个账号</span></div>
+  <div class="panel-head"><h2>平台账号与同步</h2><button type="button" :disabled="!canSyncAll||anyRunning||startingBatch||saving" @click="syncAll">{{batch?.running||startingBatch?'正在同步全部…':'同步全部'}}</button></div>
+  <p v-if="batch" class="account-message" role="status"><template v-if="batch.running">已处理 {{batch.done}} / {{batch.total}} 个账号<span v-if="batch.current"> · 正在同步 {{batch.current}}</span></template><template v-else>本轮同步完成 · 成功 {{batch.succeeded}} · 失败 {{batch.failed}}</template><span v-if="batch.skipped"> · 跳过 {{batch.skipped}} 个（配置不完整或暂未支持）</span></p>
   <p class="account-description">绑定个人主页中的用户名，再点击同步。公开接口不需要密码；需要会话的平台可填写 Cookie。原有手工记录保留，重复同步按提交编号去重。</p>
   <div v-if="failure" class="error" role="alert">{{failure}}</div>
   <p v-if="message" class="account-message" role="status">{{message}}</p>
@@ -64,7 +77,7 @@ export default {
    <p v-if="selected()?.platform_name==='LeetCode'" class="footnote">请填写力扣个人主页 /u/ 后的标识，例如 happy-6reidercmp；显示昵称可能与该标识不同。</p>
    <label v-if="['QOJ','牛客','LeetCode','洛谷'].includes(selected()?.platform_name)" class="cookie-field">{{selected()?.platform_name==='QOJ'?'QOJ 登录 Cookie':'登录 Cookie（可选）'}}<input name="cookie" v-model="form.cookie" type="password" autocomplete="new-password" maxlength="12000" placeholder="name=value; name2=value2"></label>
    <label v-if="editing" class="check-label"><input type="checkbox" v-model="form.remove_cookie">清除已保存的 Cookie</label>
-   <div class="form-actions"><button class="primary" :disabled="saving">{{saving?'保存中…':editing?'保存设置':'添加账号'}}</button><button v-if="editing" type="button" @click="cancel">取消编辑</button></div>
+   <div class="form-actions"><button class="primary" :disabled="saving||(!!editing&&batch?.running)">{{saving?'保存中…':editing?'保存设置':'添加账号'}}</button><button v-if="editing" type="button" @click="cancel">取消编辑</button></div>
   </form>
   <p class="footnote">{{selected()?.note}} Cookie 在本机服务端加密保存；编辑时留空保留已有值，过期后需要更新。</p>
   <details v-if="['QOJ','牛客'].includes(selected()?.platform_name)" class="footnote cookie-guide"><summary>如何配置 {{selected()?.platform_name}} 同步</summary>
@@ -76,11 +89,11 @@ export default {
   <div class="account-list">
    <article class="account-card" v-for="a in accounts" :key="a.account_id">
     <div class="account-card-head"><div><b>{{a.platform_name}}</b><span class="account-login">{{a.login_name}}</span><span class="badge" :class="{good:a.sync_status==='success',weak:a.sync_status==='error'}">{{({idle:'未同步',running:'同步中',success:'已同步',error:'同步失败'})[a.sync_status]||a.sync_status}}</span></div>
-     <div class="account-actions"><button @click="sync(a)" :disabled="a.sync_status==='running'||platforms.find(p=>p.platform_id===a.platform_id)?.mode==='暂未接入'">{{a.sync_status==='running'?'同步中…':syncSetup(a).action}}</button><button @click="edit(a)" :disabled="a.sync_status==='running'">编辑</button><button @click="confirming=a.account_id" :disabled="a.sync_status==='running'">解绑</button></div></div>
+     <div class="account-actions"><button @click="sync(a)" :disabled="batch?.running||startingBatch||a.sync_status==='running'||platforms.find(p=>p.platform_id===a.platform_id)?.mode==='暂未接入'">{{a.sync_status==='running'?'同步中…':syncSetup(a).action}}</button><button @click="edit(a)" :disabled="batch?.running||startingBatch||a.sync_status==='running'">编辑</button><button @click="confirming=a.account_id" :disabled="batch?.running||startingBatch||a.sync_status==='running'">解绑</button></div></div>
     <p v-if="!syncSetup(a).ready" class="footnote">{{syncSetup(a).reason}}</p>
     <p class="account-detail">最近成功同步：{{a.last_sync||'尚未同步'}}<span v-if="a.has_secret"> · 已保存加密 Cookie</span><span v-if="a.remote_uid"> · UID {{a.remote_uid}}</span></p>
     <p class="account-result" :class="{failed:a.sync_status==='error'}">{{a.sync_message||platforms.find(p=>p.platform_id===a.platform_id)?.note}}</p>
-    <div v-if="confirming===a.account_id" class="unbind-confirm" role="alert">解绑后保留已同步的刷题记录。<button @click="remove(a)">确认解绑</button><button @click="confirming=null">取消</button></div>
+    <div v-if="confirming===a.account_id" class="unbind-confirm" role="alert">解绑后保留已同步的刷题记录。<button :disabled="batch?.running||startingBatch" @click="remove(a)">确认解绑</button><button @click="confirming=null">取消</button></div>
    </article>
   </div>
   <p class="footnote">牛客和力扣的 AC 数据不包含完整失败提交，不能视作真实的全历史通过率。洛谷只提供可见练习清单与站点活动，不含逐次提交；同步记录的次数以实际获取到的提交为准，当前字段上限为 999。</p>
