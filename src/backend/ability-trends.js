@@ -1,13 +1,16 @@
 import {createHash} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
 import express from 'express';
-import {abilityProfiles,overallAbility,shanghaiDay,abilityMinimums} from './ability.js';
+import {abilityProfiles,overallAbility,abilityMinimums} from './ability.js';
 import {ratingVersion} from './ability-difficulty.js';
-import {readAbilityRows,readProblemRows,readAcceptedDays} from './ability-store.js';
+import {readAbilityRows,readProblemRows} from './ability-store.js';
 import {readSkillSettings,specialtyAbility} from './skill-settings.js';
 import {mergeSkillRows,specialtyKeys} from '../shared/skill-settings.js';
 
+import {createCurrentTrendCache} from './current-ability-trend.js';
+
 const historyLimit=500;
+const currentScoreVersion=ratingVersion+'-recency-v10';
 const readJSON=value=>typeof value==='string'?JSON.parse(value):value;
 
 function scopeId(keys,config){
@@ -26,7 +29,7 @@ export function snapshotMetrics(problems,tags,config,recency){
  const profiles=new Map(abilityProfiles(mergeSkillRows(tags,config),'全部平台',null,abilityMinimums.topic,recency).map(row=>[row.tag_id,row]));
  const name=key=>config.names[key]||key;
  return {
-  version:ratingVersion+(recency?'-recency-v10':'-top15-v3'),
+  version:recency?currentScoreVersion:ratingVersion+'-top15-v3',
   all:metric(overallAbility(problems,recency),abilityMinimums.all,recency),
   specialty:{...metric(specialties.length?specialtyAbility(problems,tags,config,'specialty',recency):null,abilityMinimums.specialty,recency),
    scope:scopeId(keys,config),names:specialties.map(name),includeDescendants:config.includeDescendants},
@@ -52,21 +55,13 @@ export async function captureAbilitySnapshot(connection,origin){
  }catch(error){await connection.rollback();throw error;}
 }
 
-export function abilityTrendsRouter(pool){
+export function abilityTrendsRouter(pool,cachePath){
+ const loadCurrent=createCurrentTrendCache(pool,cachePath,currentScoreVersion,snapshotMetrics);
  const router=express.Router();
  router.get('/',async(req,res)=>{
   if(req.query.mode==='current'){
-   const connection=await pool.getConnection();
-   try{
-    const {config}=await readSkillSettings(connection);
-    const problems=await readProblemRows(connection),tags=await readAbilityRows(connection);
-    const days=await readAcceptedDays(connection),today=shanghaiDay();
-    const snapshots=Array.from({length:53},(_,index)=>{
-     const day=today-(52-index)*7;
-     return {at:new Date(day*86400000+16*3600000-1).toISOString(),...snapshotMetrics(problems,tags,config,{days,day})};
-    });
-    return res.set('Cache-Control','no-store').json({snapshots,historyLimit});
-   }finally{connection.release();}
+   const snapshots=await loadCurrent();
+   return res.set('Cache-Control','no-store').json({snapshots,historyLimit});
   }
   let rows;
   try{

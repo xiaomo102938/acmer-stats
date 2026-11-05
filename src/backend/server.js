@@ -53,7 +53,7 @@ app.get('/api/health',async(_req,res)=>{
 });
 app.use('/api/skill-settings',skillSettingsRouter(pool,saveAbilitySnapshot));
 app.use('/api/accounts',accountRouter(pool,saveAbilitySnapshot));
-app.use('/api/ability/trends',abilityTrendsRouter(pool));
+app.use('/api/ability/trends',abilityTrendsRouter(pool,path.join(root,'.cache','current-ability-trend.json')));
 app.use('/api/submissions',submissionRouter(pool));
 app.use('/api/practice',practiceRouter(pool));
 app.use('/api/trends',trendRouter(pool));
