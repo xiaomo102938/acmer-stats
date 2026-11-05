@@ -47,13 +47,18 @@ export async function readAcceptedDays(connection){
 }
 
 function currentProfile(problems,limit,day){
- const scores=problems.filter(row=>row.lastAcceptedDay!=null)
-  .map(row=>800+(row.rating-800)*2**(-(day-row.lastAcceptedDay)/183))
+ const dated=problems.filter(row=>row.lastAcceptedDay!=null);
+ const scores=dated.map(row=>{
+  const daysAfterGrace=Math.max(0,day-row.lastAcceptedDay-30);
+  const penalty=250*(1-2**(-daysAfterGrace/183));
+  return Math.max(800,row.rating-penalty);
+ })
   .sort((a,b)=>b-a);
  const sample=scores.slice(0,limit);
  return {
   current_value:sample.length?Math.round(10*sample.reduce((sum,score)=>sum+score,0)/sample.length)/10:null,
-  current_sample_count:sample.length,current_dated_count:scores.length
+  current_sample_count:sample.length,current_dated_count:dated.length,
+  current_unadjusted_value:sample.length?Math.round(10*dated.slice(0,limit).reduce((sum,row)=>sum+row.rating,0)/sample.length)/10:null
  };
 }
 
