@@ -127,10 +127,17 @@ export function accountRouter(pool,captureSnapshot) {
       }
       if(records)recordMessage=(await saveSubmissions(connection,account,records)).message;
      }
-     const meta=await enrichLuoguProblems(connection,account.platform_id,secret,async(n,total)=>{
-      await connection.execute("UPDATE platform_account SET sync_status='running',sync_message=? WHERE account_id=?",['题数已同步，正在补充题型标签 '+n+' / '+total+'（限速请求，首次可能需要数分钟）',account.account_id]);
-     });
-     message=saved.message+' '+recordMessage+' 本次补充 '+meta.updated+' 道题的题型元数据。';
+     let metadataMessage;
+     try{
+      const meta=await enrichLuoguProblems(connection,account.platform_id,secret,async(n,total)=>{
+       await connection.execute("UPDATE platform_account SET sync_status='running',sync_message=? WHERE account_id=?",['题数已同步，正在补充题型标签 '+n+' / '+total+'（限速请求，首次可能需要数分钟）',account.account_id]);
+      });
+      metadataMessage='本次补充 '+meta.updated+' 道题的题型元数据。';
+     }catch(error){
+      if(!(error instanceof LuoguError))throw error;
+      metadataMessage='部分题型标签未更新。'+error.message;
+     }
+     message=saved.message+' '+recordMessage+' '+metadataMessage;
     }else{
      const result=await collect(account,decrypt(account.login_pwd));
      ({message}=await saveSubmissions(connection,account,result));

@@ -5,9 +5,15 @@ const headers={'x-lentille-request':'content-only',Referer:'https://www.luogu.co
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let dictionary;
 async function get(url,secret){
- const response=await fetch(url,{headers:{...headers,...(secret?{Cookie:secret}:{})},redirect:'manual',signal:AbortSignal.timeout(20000)});
+ let response,text;
+ try{
+  response=await fetch(url,{headers:{...headers,...(secret?{Cookie:secret}:{})},redirect:'manual',signal:AbortSignal.timeout(20000)});
+  if(response.ok)text=await response.text();
+ }catch{
+  throw new LuoguError('洛谷题型元数据请求失败，下次同步可继续补充。');
+ }
  if(!response.ok)throw new LuoguError('洛谷题目元数据 HTTP '+response.status+'，已保留先前数据。');
- return parseLuoguPayload(await response.text());
+ return parseLuoguPayload(text);
 }
 export function problemMetadata(payload,key,tags){
  const problem=(payload.data||payload.currentData||payload).problem;
