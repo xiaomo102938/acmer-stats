@@ -36,9 +36,25 @@ function currentProfile(problems,minimum,day){
 
 export function abilityProfiles(rows,platform='全部平台',tagId=null,minimum=abilityMinimums.topic,recency){
  const rated=ratedProblems(rows);
- const filtered=rated.filter(r=>(platform==='全部平台'||r.platform_name===platform)&&(!tagId||r.tag_id===tagId));
+ const filtered=rated.filter(row=>(platform==='全部平台'||row.platform_name===platform)&&(!tagId||row.tag_id===tagId));
+ return profilesFromRatedRows(filtered,platform,minimum,recency);
+}
+
+export function abilityProfilesByPlatform(rows,recency){
+ // Resolve mirror ratings against all platforms before grouping the rows.
+ const rated=ratedProblems(rows);
+ const byPlatform=new Map();
+ for(const row of rated){
+  if(!byPlatform.has(row.platform_name))byPlatform.set(row.platform_name,[]);
+  byPlatform.get(row.platform_name).push(row);
+ }
+ const scopes=[['全部平台',rated],...byPlatform];
+ return scopes.flatMap(([platform,platformRows])=>profilesFromRatedRows(platformRows,platform,abilityMinimums.topic,recency));
+}
+
+function profilesFromRatedRows(rows,platform,minimum,recency){
  const groups=new Map();
- for(const row of filtered){
+ for(const row of rows){
   if(!groups.has(row.tag_id))groups.set(row.tag_id,{tag_id:row.tag_id,tag_name:row.tag_name,display_name:row.display_name,platform_name:platform,items:new Map()});
   const map=groups.get(row.tag_id).items,old=map.get(row.canonical_key);
   const acceptedDay=recency?.days.get(row.problem_id)?.find(day=>day<=recency.day);

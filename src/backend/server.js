@@ -5,7 +5,7 @@ import {trendRouter} from './trends.js';
 import {abilityTrendsRouter,captureAbilitySnapshot} from './ability-trends.js';
 import {submissionRouter} from './submissions.js';
 import {practiceRouter} from './practice.js';
-import {abilityProfiles,skillSubtreeCounts,shanghaiDay} from './ability.js';
+import {abilityProfiles,abilityProfilesByPlatform,skillSubtreeCounts,shanghaiDay} from './ability.js';
 import {ratedProblems,ratingVersion} from './ability-difficulty.js';
 import {readAbilityRows,readProblemRows,readAcceptedDays} from './ability-store.js';
 import express from 'express';
@@ -73,9 +73,8 @@ app.get('/api/dashboard', async (_req, res) => {
     const tags = await read('SELECT * FROM v_tag_stats ORDER BY total_count DESC, pass_rate DESC');
     const skillSettings=await readSkillSettings(connection);
     const abilityRows=mergeSkillRows(await readAbilityRows(connection),skillSettings.config);
-    const abilityPlatforms=['全部平台',...new Set(abilityRows.map(r=>r.platform_name))];
     const recency={days:await readAcceptedDays(connection),day:shanghaiDay()};
-    const tagAbility=abilityPlatforms.flatMap(p=>abilityProfiles(abilityRows,p,null,undefined,recency).map(({problems,...row})=>row));
+    const tagAbility=abilityProfilesByPlatform(abilityRows,recency).map(({problems,...row})=>row);
     const difficulty = await read('SELECT * FROM v_difficulty_stats');
     const nativeDifficulty = await read(`SELECT p.platform_name,pr.difficulty,pr.native_difficulty,COUNT(r.record_id) AS total_count
       FROM v_problem_progress r JOIN problem pr ON pr.problem_id=r.problem_id
