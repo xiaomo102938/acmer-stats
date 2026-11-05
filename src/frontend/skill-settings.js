@@ -12,6 +12,7 @@ export default{
  components:{ChoicePicker,TopologyEditor},emits:['saved'],
  setup(_props,{emit}){
   const base=ref(null),catalog=ref([]),revision=ref(0),draftRevision=ref(0),storedDraft=ref(null),sDraft=ref(null),tDraft=ref(null),editorKey=ref(0),busy=ref(false),error=ref(''),message=ref(''),first=ref(''),second=ref(''),preview=ref(false),drop=ref([]),mergeName=ref(''),undoSource=ref('');
+  const needsReload=ref(false);
   const name=id=>base.value?.names[id]||catalog.value.find(t=>t.key===id)?.name||id;
   const standard=computed(()=>catalog.value.filter(t=>!Object.hasOwn(base.value?.aliases||{},t.key)));
   const choices=computed(()=>standard.value.map(t=>({key:t.key,label:name(t.key),hint:t.key})));
@@ -24,7 +25,7 @@ export default{
   const plan=computed(()=>{if(!preview.value)return null;try{return mergeTopology(base.value,first.value,second.value,catalog.value,drop.value);}catch(e){return {conflict:e.message};}});
   const mergeBlocked=computed(()=>sDirty.value||tDirty.value||!!storedDraft.value);
   watch([first,second],()=>{preview.value=false;drop.value=[];undoSource.value='';});
-  async function load(){busy.value=true;error.value='';try{const r=await fetch('/api/skill-settings');const b=await r.json();if(!r.ok)throw Error(b.message);base.value=b.config;catalog.value=b.catalog;revision.value=b.revision;draftRevision.value=b.draftRevision;storedDraft.value=b.topologyDraft;sDraft.value=specialty(b.config);tDraft.value=b.topologyDraft?clone(b.topologyDraft):topology(b.config);editorKey.value++;preview.value=false;undoSource.value='';}catch(e){error.value=e.message;}finally{busy.value=false;}}
+  async function load(){busy.value=true;error.value='';needsReload.value=false;try{const r=await fetch('/api/skill-settings');const b=await r.json();if(!r.ok)throw Error(b.message);base.value=b.config;catalog.value=b.catalog;revision.value=b.revision;draftRevision.value=b.draftRevision;storedDraft.value=b.topologyDraft;sDraft.value=specialty(b.config);tDraft.value=b.topologyDraft?clone(b.topologyDraft):topology(b.config);editorKey.value++;preview.value=false;undoSource.value='';}catch(e){error.value=e.message;}finally{busy.value=false;}}
   async function save(module){busy.value=true;error.value='';message.value='';try{
    if(['merge','unmerge'].includes(module)&&mergeBlocked.value)throw Error('请先保存或撤销专职修改，并应用或放弃拓扑草稿，再归并标签。');
    const body={module,revision:revision.value,draftRevision:draftRevision.value};
@@ -32,7 +33,7 @@ export default{
    if(module==='topology'||module==='draft')body.value=clone(tDraft.value);
    if(module==='merge'){if(!plan.value?.config||plan.value.conflict)throw Error(plan.value?.conflict||'请先预览归并结果。');Object.assign(body,{first:first.value,second:second.value,drop:drop.value,name:mergeName.value});}
    if(module==='unmerge')body.source=undoSource.value;
-   const r=await fetch('/api/skill-settings',{method:'PATCH',headers:{'Content-Type':'application/json','X-Acmer-Request':'1'},body:JSON.stringify(body)});const b=await r.json();if(!r.ok)throw Error(b.message);
+   const r=await fetch('/api/skill-settings',{method:'PATCH',headers:{'Content-Type':'application/json','X-Acmer-Request':'1'},body:JSON.stringify(body)});const b=await r.json();if(!r.ok){needsReload.value=r.status===409;throw Error(b.message);}
    base.value=b.config;revision.value=b.revision;draftRevision.value=b.draftRevision;storedDraft.value=b.topologyDraft;
    if(module==='specialty')sDraft.value=specialty(b.config);
    if(module==='topology'||module==='discardDraft'){tDraft.value=topology(b.config);editorKey.value++;}
@@ -44,9 +45,12 @@ export default{
   function cancelTopology(){tDraft.value=storedDraft.value?clone(storedDraft.value):topology(base.value);editorKey.value++;}
   function cancelMerge(){preview.value=false;drop.value=[];undoSource.value='';first.value='';second.value='';}
   onMounted(load);
-  return {base,catalog,revision,storedDraft,sDraft,tDraft,editorKey,busy,error,message,first,second,preview,drop,mergeName,undoSource,name,standard,choices,sDirty,tDirty,draftDirty,coverage,conflict,draftConflict,plan,mergeBlocked,load,save,previewMerge,cancelSpecialty,cancelTopology,cancelMerge,edgeKey};
+  return {needsReload,base,catalog,revision,storedDraft,sDraft,tDraft,editorKey,busy,error,message,first,second,preview,drop,mergeName,undoSource,name,standard,choices,sDirty,tDirty,draftDirty,coverage,conflict,draftConflict,plan,mergeBlocked,load,save,previewMerge,cancelSpecialty,cancelTopology,cancelMerge,edgeKey};
  },
- template:`<section class="skill-settings" aria-label="题型与技能图谱设置"><p v-if="error" class="error" role="alert">{{error}}</p><p v-if="message" role="status">{{message}}</p>
+ template:`<section class="skill-settings" aria-label="题型与技能图谱设置"><article v-if="error && (!base || needsReload)" class="panel" aria-label="题型与图谱设置恢复">
+  <p class="error" role="alert">{{error}}</p>
+  <button :disabled="busy" @click="load">{{base?'重新加载题型与图谱设置（放弃未保存编辑）':'重试加载题型与图谱设置'}}</button>
+ </article><p v-else-if="error" class="error" role="alert">{{error}}</p><p v-if="message" role="status">{{message}}</p>
  <fieldset v-if="base" :disabled="busy" class="skill-fields">
  <article class="panel" aria-label="专职题型设置"><div class="panel-head module-head"><h2>专职题型</h2><div><button class="module-save" :class="{dirty:sDirty}" :disabled="!sDirty" @click="save('specialty')">保存专职修改</button><button :disabled="!sDirty" @click="cancelSpecialty">撤销专职修改</button></div></div>
  <p class="footnote">多选你的队内分工。综合能力默认从专职范围选最高 150 道通过题；没有配置时引导设置。</p><ChoicePicker v-model="sDraft.specialties" :items="choices" label="专职题型" multiple /><label class="skill-check"><input type="checkbox" v-model="sDraft.includeDescendants">包含实线下级分支（不沿虚线扩展）</label><p class="footnote">已选 {{sDraft.specialties.length}} 个专职，覆盖 {{coverage}} 个题型。此模块独立保存，不应用未保存的拓扑。</p></article>
@@ -60,6 +64,6 @@ export default{
  </article>
  <article class="panel" aria-label="技能图谱客制化设置"><div class="panel-head module-head"><h2>技能图谱客制化</h2><div><button class="module-save" :class="{dirty:tDirty}" :disabled="!tDirty||!!conflict" @click="save('topology')">应用拓扑修改</button><button class="module-save" :class="{dirty:draftDirty}" :disabled="!draftDirty||!!draftConflict" @click="save('draft')">保存拓扑草稿</button><button :disabled="!draftDirty" @click="cancelTopology">撤销本次编辑</button><button v-if="storedDraft" @click="save('discardDraft')">放弃已存草稿</button></div></div>
  <p v-if="storedDraft" class="footnote">已恢复数据库中的拓扑草稿；分析页仍使用上次应用的图谱。</p><p v-if="conflict" class="error" role="alert">尚不能应用：{{conflict}}</p><p v-else class="footnote">{{tDraft.nodes.length}} 个节点，规则检查通过。右上角应用后才影响分析页。</p><TopologyEditor :key="editorKey" v-model="tDraft" :catalog="standard" />
- </article><button @click="load">重新加载全部设置（放弃未保存编辑）</button>
- </fieldset><p v-else>正在读取设置…</p></section>`
+ </article>
+ </fieldset><p v-else-if="busy">正在读取设置…</p></section>`
 };
