@@ -102,3 +102,9 @@ html[data-theme="black"] button.primary,html[data-theme="gray"] button.primary{b
 .sidebar-heading{display:flex;align-items:center;justify-content:space-between;gap:6px}.sidebar-toggle{flex:none;padding:3px 8px;font-size:18px;line-height:1.2}.sidebar-collapsed .brand span,.sidebar-collapsed .nav-label,.sidebar-collapsed .nav-text,.sidebar-collapsed .aside-note{display:none}.sidebar-collapsed aside .nav{text-align:center;font-size:19px;padding:10px}.sidebar-collapsed .sidebar-heading{margin-bottom:16px}
 @media(min-width:701px){.sidebar-collapsed aside{width:64px;padding:24px 8px}.sidebar-collapsed .sidebar-heading{flex-direction:column;gap:12px}.sidebar-collapsed main{margin-left:64px;width:calc(100% - 64px)}}
 @media(max-width:700px){.sidebar-collapsed aside{padding:8px 16px}.sidebar-collapsed .sidebar-heading,.sidebar-collapsed .brand{margin-bottom:0}}
+@media(prefers-reduced-motion:no-preference){
+ .sidebar-interacted .sidebar-heading,.sidebar-interacted #main-navigation{animation:sidebar-open-in 150ms ease-out}
+ .sidebar-interacted.sidebar-collapsed .sidebar-heading,.sidebar-interacted.sidebar-collapsed #main-navigation{animation-name:sidebar-close-in}
+ @keyframes sidebar-open-in{from{opacity:.55;transform:translateX(-5px)}to{opacity:1;transform:translateX(0)}}
+ @keyframes sidebar-close-in{from{opacity:.55;transform:translateX(5px)}to{opacity:1;transform:translateX(0)}}
+}

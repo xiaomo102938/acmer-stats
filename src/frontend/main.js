@@ -31,9 +31,10 @@ function resolvePage(){
 createApp({
  components:{SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Accounts,Activity,TagAnalysis,OverallAbility},
  setup(){
-  const sidebarCollapsed=ref(false);
+  const sidebarCollapsed=ref(false),sidebarInteracted=ref(false);
   try { sidebarCollapsed.value=localStorage.getItem('acmer-sidebar-collapsed')==='1'; } catch {}
   function toggleSidebar(){
+   sidebarInteracted.value=true;
    sidebarCollapsed.value=!sidebarCollapsed.value;
    try { localStorage.setItem('acmer-sidebar-collapsed',sidebarCollapsed.value?'1':'0'); } catch {}
   }
@@ -113,10 +114,10 @@ createApp({
   watch(sidebarCollapsed,()=>nextTick(resize));
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
-  return {sidebarCollapsed,toggleSidebar,pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
+  return {sidebarCollapsed,sidebarInteracted,toggleSidebar,pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
  },
  template:`
- <div class="layout" :class="{'sidebar-collapsed':sidebarCollapsed}">
+ <div class="layout" :class="{'sidebar-collapsed':sidebarCollapsed,'sidebar-interacted':sidebarInteracted}">
   <aside>
    <div class="sidebar-heading">
     <a class="brand" href="#overview" aria-label="刷题手记首页" title="刷题手记首页">◈ <span>刷题手记<small>ACMER / INSIGHT</small></span></a>
