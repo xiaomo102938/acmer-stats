@@ -1,7 +1,7 @@
 import {mergeTopology,unmergeTopology} from '../shared/topology-merge.js';
 import express from 'express';
 import {defaultSkills,skillCatalog,validateSkills,mergeSkillRows,specialtyKeys,resolveTag} from '../shared/skill-settings.js';
-import {overallAbility,canonicalProblem} from './ability.js';
+import {overallAbility,canonicalProblem,abilityMinimums} from './ability.js';
 export async function readSkillSettings(c){
  const [[u]]=await c.query('SELECT user_id FROM user ORDER BY user_id LIMIT 1');
  const [[row]]=await c.execute('SELECT config,revision,topology_draft,draft_revision FROM user_skill_settings WHERE user_id=?',[u.user_id]);
@@ -13,7 +13,7 @@ export async function readSkillSettings(c){
 export function specialtyAbility(problemRows,tagRows,config,scope='specialty',recency){
  if(scope==='all')return {...overallAbility(problemRows,recency),scope:'all',configured:true};
  const keys=specialtyKeys(config),matches=new Set(tagRows.filter(r=>keys.has(resolveTag(r.tag_name,config))).map(canonicalProblem));
- return {...overallAbility(problemRows.filter(r=>matches.has(canonicalProblem(r))),recency,100),scope:'specialty',configured:config.specialties.length>0,specialties:config.specialties,specialtyNames:config.specialties.map(id=>config.names[id]||id),includeDescendants:config.includeDescendants};
+ return {...overallAbility(problemRows.filter(r=>matches.has(canonicalProblem(r))),recency,abilityMinimums.specialty),scope:'specialty',configured:config.specialties.length>0,specialties:config.specialties,specialtyNames:config.specialties.map(id=>config.names[id]||id),includeDescendants:config.includeDescendants};
 }
 export {mergeSkillRows};
 export function skillSettingsRouter(pool,captureSnapshot){

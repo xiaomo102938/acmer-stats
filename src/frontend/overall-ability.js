@@ -5,7 +5,7 @@ export default{
  setup(props){
   const scope=ref('specialty'),alternate=ref(null);
   const effective=computed(()=>scope.value==='specialty'?props.profile:(alternate.value||{}));
-  const limit=computed(()=>effective.value.sample_limit??(scope.value==='specialty'?100:150));
+  const limit=computed(()=>effective.value.sample_limit??(scope.value==='specialty'?70:120));
   async function changeScope(){const id=++serial;open.value=false;problems.value=[];error.value='';if(scope.value==='all'){loading.value=true;try{const r=await apiFetch('/api/ability/overall?scope=all');const b=await r.json();if(!r.ok)throw Error(b.message);if(id===serial)alternate.value=b;}catch(e){if(id===serial)error.value=e.message;}finally{if(id===serial)loading.value=false;}}}
   const open=ref(false),loading=ref(false),error=ref(''),problems=ref([]),page=ref(1);let serial=0;
   const pages=computed(()=>Math.max(1,Math.ceil(problems.value.length/25)));
@@ -26,7 +26,7 @@ export default{
   <label>参考范围<select v-model="scope" @change="changeScope" aria-label="综合能力参考范围"><option value="specialty">专职题型</option><option value="all">全部题目参考</option></select></label>
   <p v-if="scope==='specialty'&&!effective.configured" class="footnote">尚未配置专职题型，请前往 <a href="#settings">设置 · 题型与技能图谱</a> 选择。</p>
   <p v-if="error" class="error" role="alert">{{error}}</p>
-  <template v-if="scope==='all'||effective.configured"><p v-if="scope==='specialty'" class="footnote">专职：{{effective.specialtyNames?.join('、')}}{{effective.includeDescendants?'（含实线下级分支）':'（仅所选题型）'}}</p><div class="week-summary"><div><strong>{{effective.ability_value ?? '—'}}</strong><span>历史能力参考</span></div><div><strong>{{effective.current_value ?? '—'}}</strong><span>当前能力参考 · {{effective.current_sample_count||0}} / {{limit}} 道</span></div><div><strong>{{effective.sample_count||0}} / {{limit}}</strong><span>{{effective.sample_status}}</span></div><div><strong>{{effective.estimated_count||0}}</strong><span>入选估分题</span></div><div><strong>{{effective.rated_count||0}}</strong><span>有效评分通过题</span></div></div>
+  <template v-if="scope==='all'||effective.configured"><p v-if="scope==='specialty'" class="footnote">专职：{{effective.specialtyNames?.join('、')}}{{effective.includeDescendants?'（含实线下级分支）':'（仅所选题型）'}}</p><div class="week-summary"><div><strong>{{effective.ability_value ?? '—'}}</strong><span>历史能力参考</span></div><div><strong>{{effective.current_value ?? '—'}}</strong><span>当前能力参考 · {{effective.current_sample_count||0}} / {{effective.current_sample_limit??limit}} 道</span></div><div><strong>{{effective.sample_count||0}} / {{limit}}</strong><span>{{effective.sample_status}}</span></div><div><strong>{{effective.estimated_count||0}}</strong><span>入选估分题</span></div><div><strong>{{effective.rated_count||0}}</strong><span>有效评分通过题</span></div></div>
   <button v-if="effective.sample_count>0" @click="toggle" :aria-expanded="open" aria-controls="overall-problems">{{open?'收起入选题单':'查看前 '+limit+' 题入选题单'}}</button>
   </template>
   <section v-if="open" id="overall-problems" class="ability-detail" aria-label="综合能力入选题单">
@@ -36,7 +36,7 @@ export default{
     <div class="overall-pagination"><button :disabled="page<=1" @click="page--">上一页</button><span aria-live="polite">第 {{page}} / {{pages}} 页</span><button :disabled="page>=pages" @click="page++">下一页</button></div>
    </template>
   </section>
-  <ModuleHelp><p v-if="scope==='specialty'" class="footnote">专职参考仅统计已同步且有题型标签的题目，主页累计汇总不推算为题单。</p><p class="footnote">{{effective.current_dated_count||0}} / {{effective.rated_count||0}} 道有效评分题有 AC 日期。仅按有日期的题计算，扣分前的前 {{limit}} 道均值为 {{effective.current_unadjusted_value ?? '—'}}。当前分按最近一次 AC 调整，前 60 天不扣分，第 61 天起开始扣分，之后每 365 天，距离扣满 250 分的差额减半，最低为 800 分。调整后重新选前 {{limit}} 道，再按最近一次 AC 加权平均。AC 日期每早 183 天，权重减半。入选题等权平均为 {{effective.current_equal_weight_value ?? '—'}}。</p><p class="ability-description">{{scope==='specialty'?'从专职题型范围':'从全部题目'}}内已通过且有评分依据的题目中，选最高 {{limit}} 道求平均；一题有多个标签也只算一次，可识别的跨平台同源题合并。{{effective.sample_count<limit?'当前不足 '+limit+' 道，仅作暂定参考。':''}}</p>
+  <ModuleHelp><p v-if="scope==='specialty'" class="footnote">专职参考仅统计已同步且有题型标签的题目，主页累计汇总不推算为题单。</p><p class="footnote">{{effective.current_dated_count||0}} / {{effective.rated_count||0}} 道有效评分题有 AC 日期。仅按有日期的题计算，扣分前的计分均值为 {{effective.current_unadjusted_value ?? '—'}}。当前分按最近一次 AC 调整，前 60 天不扣分，第 61 天起开始扣分，之后每 365 天，距离扣满 250 分的差额减半，最低为 800 分。调整后重新选入选题，再按最近一次 AC 加权平均。AC 日期每早 183 天，权重减半。当前分按实际入选题占目标题数的比例折算，缺额计零。入选题等权计分为 {{effective.current_equal_weight_value ?? '—'}}。</p><p class="ability-description">{{scope==='specialty'?'从专职题型范围':'从全部题目'}}内已通过且有评分依据的题目中，取最高 15%（向上取整），专职至少 70 道，全部题目至少 120 道；一题有多个标签也只算一次，可识别的跨平台同源题合并。{{effective.sample_count<limit?'不足的 '+(limit-effective.sample_count)+' 道按零分计入。':''}}</p>
   <p class="footnote">{{effective.sample_count?'入选难度 '+effective.min_difficulty+'–'+effective.max_difficulty+'。':''}}已通过题中 {{(effective.passed_count||0)-(effective.rated_count||0)}} 道暂无评分依据，未计分。CF 为官方题目分，AT 和洛谷为低置信估分；这不是个人 CF rating。</p></ModuleHelp>
  </article>`
 };

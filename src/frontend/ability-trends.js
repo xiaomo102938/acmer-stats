@@ -20,7 +20,7 @@ export function abilityTrendPoints(snapshots,scope){
    previous=null;
    continue;
   }
-  if(previous&&(previous.version!==snapshot.version||previous.metric.scope!==metric.scope||previous.metric.limit!==metric.limit)){
+  if(previous&&(previous.version!==snapshot.version||previous.metric.scope!==metric.scope)){
    points.push({value:[(previous.value[0]+time)/2,null]});
   }
   const point={value:[time,metric.score],metric,version:snapshot.version};
@@ -101,7 +101,7 @@ export default{
   <p v-if="loading" class="muted" role="status">正在读取能力快照…</p>
   <p v-else-if="latest" class="trend-summary" aria-live="polite">
    {{mode==='current'?'评估日期 '+formatDay(latest.at): '最近快照 '+formatTime(latest.at)}} ·
-   <template v-if="current?.score!=null">CF 尺度 {{current.score}} 分 · 计分样本 {{current.count}} / {{current.limit}} 道{{current.count<current.limit?'（暂定）':''}}</template>
+   <template v-if="current?.score!=null">CF 尺度 {{current.score}} 分 · 计分样本 {{current.count}} / {{current.limit}} 道{{current.count<current.limit?'（缺额计零）':''}}</template>
    <template v-else>当前范围暂无计分样本。</template>
   </p>
   <p v-if="scope==='specialty'&&latest?.specialty.names.length" class="muted">{{latest.specialty.names.join('、')}}{{latest.specialty.includeDescendants?'（含实线下级分支）':''}}</p>
@@ -109,6 +109,6 @@ export default{
   <p v-if="hasBreak" class="muted">折线断开处表示计分范围或版本改变，或期间缺少可计分样本。</p>
   <p v-if="!loading&&!error&&count===1" class="muted">目前只有一个计分点，后续记录到变化时会显示趋势。</p>
   <p v-if="!loading&&!error&&!count" class="muted">当前范围暂无可绘制的能力快照。</p>
-  <ModuleHelp><p v-if="mode==='current'" class="footnote">以当前题型配置和难度资料回算过去 52 周。每个点只使用当天及之前的 AC 记录，重复 AC 刷新日期，同源题只算一次。最近一次 AC 在 前 60 天不扣分，第 61 天起开始扣分，之后每 365 天，距离扣满 250 分的差额减半。入选题按最近一次 AC 加权平均，AC 日期每早 183 天，权重减半。没有逐题 AC 日期的题仅计入历史分。</p><p v-else class="footnote">从功能启用时开始记录。服务启动、同步成功或保存题型设置后，数值、样本或计分范围有变化才保存快照。专职综合最多取 100 道，全部题目综合最多取 150 道，单题型最多取 25 道；样本不足的分数为暂定值。样本上限、计分范围或评分版本改变时，折线会断开。图表最多显示最近 {{historyLimit||500}} 条快照，时间为北京时间。</p></ModuleHelp>
+  <ModuleHelp><p v-if="mode==='current'" class="footnote">以当前题型配置和难度资料回算过去 52 周。每个点只使用当天及之前的 AC 记录，重复 AC 刷新日期，同源题只算一次。最近一次 AC 后前 60 天不扣分，第 61 天起开始扣分，之后每 365 天，距离扣满 250 分的差额减半。有日期的有效题中取最高 15%，单题型、专职和全部题目分别至少取 10、70 和 120 道，缺额按零分计入。入选题按最近一次 AC 加权平均，AC 日期每早 183 天，权重减半。没有逐题 AC 日期的题仅计入历史分。</p><p v-else class="footnote">从功能启用时开始记录。服务启动、同步成功或保存题型设置后，数值、样本或计分范围有变化才保存快照。取最高 15%（向上取整），专职至少 70 道，全部题目至少 120 道，单题型至少 10 道。缺额按零分计入。计分范围或评分版本改变时，折线会断开。图表最多显示最近 {{historyLimit||500}} 条快照，时间为北京时间。</p></ModuleHelp>
  </article>`
 };

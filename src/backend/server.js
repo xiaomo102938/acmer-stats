@@ -73,7 +73,7 @@ app.get('/api/dashboard', async (_req, res) => {
     const abilityRows=mergeSkillRows(await readAbilityRows(connection),skillSettings.config);
     const abilityPlatforms=['全部平台',...new Set(abilityRows.map(r=>r.platform_name))];
     const recency={days:await readAcceptedDays(connection),day:shanghaiDay()};
-    const tagAbility=abilityPlatforms.flatMap(p=>abilityProfiles(abilityRows,p,null,25,recency).map(({problems,...row})=>row));
+    const tagAbility=abilityPlatforms.flatMap(p=>abilityProfiles(abilityRows,p,null,undefined,recency).map(({problems,...row})=>row));
     const difficulty = await read('SELECT * FROM v_difficulty_stats');
     const nativeDifficulty = await read(`SELECT p.platform_name,pr.difficulty,pr.native_difficulty,COUNT(r.record_id) AS total_count
       FROM v_problem_progress r JOIN problem pr ON pr.problem_id=r.problem_id

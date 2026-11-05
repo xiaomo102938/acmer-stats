@@ -93,7 +93,8 @@ export function practiceRouter(pool){
   const profiles=abilityProfiles(tagRows);
   const key=known?selected:config.specialties[0]||profiles.find(p=>p.sample_count>0)?.tag_id||options[0]?.key;
   const profile=profiles.find(p=>p.tag_id===key);
-  const ability=profile?.ability_value??null,sampleCount=profile?.sample_count??0;
+  const sampleCount=profile?.sample_count??0;
+  const ability=sampleCount?Math.round(profile.problems.reduce((sum,row)=>sum+row.rating,0)/sampleCount):null;
   const desired=target===undefined?ability:Number(target);
   const info={options,selected:key,ability,sampleCount,target:desired,radius:recommendationRadius};
   let recommendations=[],sourceError='';

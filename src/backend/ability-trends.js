@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
 import express from 'express';
-import {abilityProfiles,overallAbility,ratingVersion,readAbilityRows,readProblemRows,readAcceptedDays,shanghaiDay} from './ability.js';
+import {abilityProfiles,overallAbility,ratingVersion,readAbilityRows,readProblemRows,readAcceptedDays,shanghaiDay,abilityMinimums} from './ability.js';
 import {readSkillSettings,specialtyAbility} from './skill-settings.js';
 import {mergeSkillRows,specialtyKeys} from '../shared/skill-settings.js';
 
@@ -14,21 +14,21 @@ function scopeId(keys,config){
 }
 
 function metric(profile,sampleLimit,recency){
- if(recency)return {score:profile?.current_value??null,count:profile?.current_sample_count??0,limit:profile?.sample_limit??sampleLimit};
+ if(recency)return {score:profile?.current_value??null,count:profile?.current_sample_count??0,limit:profile?.current_sample_limit??sampleLimit};
  return {score:profile?.ability_value??null,count:profile?.sample_count??0,limit:profile?.sample_limit??sampleLimit};
 }
 
 export function snapshotMetrics(problems,tags,config,recency){
  const keys=specialtyKeys(config);
  const specialties=[...config.specialties].sort();
- const profiles=new Map(abilityProfiles(mergeSkillRows(tags,config),'全部平台',null,25,recency).map(row=>[row.tag_id,row]));
+ const profiles=new Map(abilityProfiles(mergeSkillRows(tags,config),'全部平台',null,abilityMinimums.topic,recency).map(row=>[row.tag_id,row]));
  const name=key=>config.names[key]||key;
  return {
-  version:recency?ratingVersion+'-recency-v5':ratingVersion,
-  all:metric(overallAbility(problems,recency),150,recency),
-  specialty:{...metric(specialtyAbility(problems,tags,config,'specialty',recency),100,recency),
+  version:ratingVersion+(recency?'-recency-v6':'-top15-v1'),
+  all:metric(overallAbility(problems,recency),abilityMinimums.all,recency),
+  specialty:{...metric(specialties.length?specialtyAbility(problems,tags,config,'specialty',recency):null,abilityMinimums.specialty,recency),
    scope:scopeId(keys,config),names:specialties.map(name),includeDescendants:config.includeDescendants},
-  topics:specialties.map(key=>({key,name:name(key),scope:scopeId(new Set([key]),config),...metric(profiles.get(key),25,recency)}))
+  topics:specialties.map(key=>({key,name:name(key),scope:scopeId(new Set([key]),config),...metric(profiles.get(key),abilityMinimums.topic,recency)}))
  };
 }
 

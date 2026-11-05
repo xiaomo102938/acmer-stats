@@ -46,8 +46,13 @@ export async function readAcceptedDays(connection){
  return days;
 }
 
-function currentProfile(problems,limit,day){
+export const abilityMinimums={topic:10,specialty:70,all:120};
+const sampleTarget=(count,minimum)=>Math.max(minimum,Math.ceil(count*15/100));
+const roundScore=score=>Math.round(score*10)/10;
+
+function currentProfile(problems,minimum,day){
  const dated=problems.filter(row=>row.lastAcceptedDay!=null);
+ const limit=sampleTarget(dated.length,minimum);
  const scores=dated.map(row=>{
   const daysAfterGrace=Math.max(0,day-row.lastAcceptedDay-60);
   const penalty=250*(1-2**(-daysAfterGrace/365));
@@ -56,7 +61,7 @@ function currentProfile(problems,limit,day){
   .sort((a,b)=>b.score-a.score);
  const sample=scores.slice(0,limit);
  // A common weight factor cancels out in the average. Start at the newest age for numerical stability.
- const newestAge=Math.min(...sample.map(row=>row.age));
+ const newestAge=sample.reduce((youngest,row)=>Math.min(youngest,row.age),Infinity);
  let weightTotal=0,weightedScore=0;
  for(const row of sample){
   const weight=2**(-(row.age-newestAge)/183);
@@ -64,14 +69,14 @@ function currentProfile(problems,limit,day){
   weightedScore+=row.score*weight;
  }
  return {
-  current_value:sample.length?Math.round(10*weightedScore/weightTotal)/10:null,
-  current_equal_weight_value:sample.length?Math.round(10*sample.reduce((sum,row)=>sum+row.score,0)/sample.length)/10:null,
-  current_sample_count:sample.length,current_dated_count:dated.length,
-  current_unadjusted_value:sample.length?Math.round(10*dated.slice(0,limit).reduce((sum,row)=>sum+row.rating,0)/sample.length)/10:null
+  current_value:sample.length?roundScore(weightedScore/weightTotal*sample.length/limit):0,
+  current_equal_weight_value:roundScore(sample.reduce((sum,row)=>sum+row.score,0)/limit),
+  current_sample_count:sample.length,current_sample_limit:limit,current_dated_count:dated.length,
+  current_unadjusted_value:roundScore(dated.slice(0,limit).reduce((sum,row)=>sum+row.rating,0)/limit)
  };
 }
 
-export function abilityProfiles(rows,platform='全部平台',tagId=null,limit=25,recency){
+export function abilityProfiles(rows,platform='全部平台',tagId=null,minimum=abilityMinimums.topic,recency){
  const rated=ratedProblems(rows);
  const filtered=rated.filter(r=>(platform==='全部平台'||r.platform_name===platform)&&(!tagId||r.tag_id===tagId));
  const groups=new Map();
@@ -92,17 +97,18 @@ export function abilityProfiles(rows,platform='全部平台',tagId=null,limit=25
  return [...groups.values()].map(g=>{
   const all=[...g.items.values()],passed=all.filter(r=>r.passed===1),valid=passed.filter(r=>r.rating!=null);
   valid.sort((a,b)=>b.rating-a.rating||a.canonical_key.localeCompare(b.canonical_key));
+  const limit=sampleTarget(valid.length,minimum);
   const problems=valid.slice(0,limit),n=problems.length;
   return {tag_id:g.tag_id,tag_name:g.tag_name,display_name:g.display_name,platform_name:platform,total_count:all.length,passed_count:passed.length,rated_count:valid.length,
-   sample_count:n,ability_value:n?Math.round(problems.reduce((s,p)=>s+p.rating,0)/n*10)/10:null,
-   ...(recency?currentProfile(valid,limit,recency.day):{}),
+   sample_count:n,ability_value:roundScore(problems.reduce((s,p)=>s+p.rating,0)/limit),
+   ...(recency?currentProfile(valid,minimum,recency.day):{}),
    min_difficulty:n?problems[n-1].rating:null,max_difficulty:n?problems[0].rating:null,
-   estimated_count:problems.filter(r=>r.estimated).length,sample_limit:limit,sample_status:n===limit?'满'+limit+'题':n?'样本不足':'暂无有效评分',problems};
- }).sort((a,b)=>(b.sample_count===limit)-(a.sample_count===limit)||(b.ability_value??-1)-(a.ability_value??-1)||b.sample_count-a.sample_count||a.display_name.localeCompare(b.display_name));
+   estimated_count:problems.filter(r=>r.estimated).length,sample_limit:limit,sample_status:n===limit?'满'+limit+'题':'补 '+(limit-n)+' 道零分',problems};
+ }).sort((a,b)=>(b.ability_value??-1)-(a.ability_value??-1)||b.sample_count-a.sample_count||a.display_name.localeCompare(b.display_name));
 }
-export function overallAbility(rows,recency,limit=150){
- const profile=abilityProfiles(rows.map(r=>({...r,tag_id:'overall',tag_name:'overall',display_name:'综合能力参考'})),'全部平台',null,limit,recency)[0];
- return profile||{sample_count:0,sample_limit:limit,ability_value:null,estimated_count:0,rated_count:0,passed_count:0,total_count:0,min_difficulty:null,max_difficulty:null,sample_status:'暂无有效评分',problems:[]};
+export function overallAbility(rows,recency,minimum=abilityMinimums.all){
+ const profile=abilityProfiles(rows.map(r=>({...r,tag_id:'overall',tag_name:'overall',display_name:'综合能力参考'})),'全部平台',null,minimum,recency)[0];
+ return profile||{sample_count:0,sample_limit:minimum,ability_value:0,...(recency?currentProfile([],minimum,recency.day):{}),estimated_count:0,rated_count:0,passed_count:0,total_count:0,min_difficulty:null,max_difficulty:null,sample_status:'补 '+minimum+' 道零分',problems:[]};
 }
 export async function readProblemRows(connection){
  const [rows]=await connection.query(`SELECT pr.*,r.passed,r.solve_date,p.platform_name FROM v_problem_progress r

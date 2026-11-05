@@ -44,7 +44,7 @@ export default{
     <button :disabled="!options.length||loading">应用难度</button>
   </form>
   <p v-if="result" class="footnote">
-   <template v-if="result.ability!==null">题型参考 {{result.ability}} 分 · {{result.sampleCount}} / 25 道计分题{{result.sampleCount<25?'（暂定）':''}}。</template>
+   <template v-if="result.ability!==null">推荐难度基准 {{result.ability}} 分 · 取 {{result.sampleCount}} 道实际入选题的平均难度。</template>
    <template v-if="result.target!==null">推荐目标 {{result.target}} 分，范围 ±{{result.radius}} 分，排除本地已有记录的题目。</template>
    <template v-else>该题型暂无可计分样本，可以手动填写目标难度。</template>
   </p>
