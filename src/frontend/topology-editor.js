@@ -1,4 +1,5 @@
 import {completePositions,forestPositions} from './topology-editor-layout.js';
+import {clampGraphAxis} from './graph-pan.js';
 import {ref,computed,watch} from 'vue';
 import ChoicePicker from './choice-picker.js';
 import {canPlace,editorNode} from '../shared/topology-geometry.js';
@@ -18,6 +19,12 @@ export default{
   const options=computed(()=>nodes.value.map(n=>({key:n.id,label:name(n.id),hint:n.id})));
   const bounds=computed(()=>({width:Math.max(900,...Object.values(committedPositions.value).map(p=>p.x+110)),height:Math.max(560,...Object.values(committedPositions.value).map(p=>p.y+80))}));
   const viewBox=computed(()=>{const scale=100/zoom.value;return [pan.value.x,pan.value.y,bounds.value.width*scale,bounds.value.height*scale].join(' ');});
+  function setPan(x,y){
+   const {width,height}=bounds.value;
+   const scale=100/zoom.value;
+   pan.value={x:clampGraphAxis(x,width,width*scale),y:clampGraphAxis(y,height,height*scale)};
+  }
+  watch(bounds,()=>setPan(pan.value.x,pan.value.y));
   function commit(next){history.value=[...history.value.slice(-39),clone(props.modelValue)];emit('update:modelValue',next);}
   function update(fn){const next=clone(props.modelValue);next.positions=clone(positions.value);fn(next);commit(next);}
   function undo(){const last=history.value.pop();if(last)emit('update:modelValue',last);from.value='';message.value='已撤销上一步。';}
@@ -31,7 +38,7 @@ export default{
   function startConnection(kind){mode.value=kind;from.value=selected.value;message.value='请点击后继节点，空白处可取消连线。';}
   function activate(n){if(mode.value!=='move'&&from.value){connect(from.value,n.id);from.value='';mode.value='move';}selected.value=n.id;selectedEdge.value='';showCreate.value=false;}
   function reforest(){update(c=>c.positions=forestPositions(c.nodes));zoom.value=100;pan.value={x:0,y:0};message.value='已按主树重新排列为森林，可撤销。';}
-  function changeZoom(next){const previous=zoom.value,value=Math.max(25,Math.min(1000,Number(next)||100));pan.value={x:pan.value.x+bounds.value.width*(100/previous-100/value)/2,y:pan.value.y+bounds.value.height*(100/previous-100/value)/2};zoom.value=value;}
+  function changeZoom(next){const previous=zoom.value,value=Math.max(25,Math.min(1000,Number(next)||100));const shift=(100/previous-100/value)/2;zoom.value=value;setPan(pan.value.x+bounds.value.width*shift,pan.value.y+bounds.value.height*shift);}
   function background(e){
    if(e.button!==0||e.target!==svg.value)return;
    clearSelection();
@@ -44,10 +51,7 @@ export default{
    if(!gesture)return;
    const p=point(e,gesture.inverse);
    if(gesture.pan){
-    pan.value={
-     x:gesture.origin.x-(p.x-gesture.start.x),
-     y:gesture.origin.y-(p.y-gesture.start.y)
-    };
+    setPan(gesture.origin.x-(p.x-gesture.start.x),gesture.origin.y-(p.y-gesture.start.y));
     return;
    }
    const next={x:Math.max(90,Math.min(10000,gesture.origin.x+p.x-gesture.start.x)),y:Math.max(50,Math.min(10000,gesture.origin.y+p.y-gesture.start.y))};
@@ -66,7 +70,7 @@ export default{
   function removeNode(){if(!selected.value)return;const id=selected.value;update(c=>{c.nodes=c.nodes.filter(n=>n.id!==id).map(n=>({...n,parent:n.parent===id?null:n.parent,secondary:n.secondary.filter(p=>p!==id)}));delete c.positions[id];});selected.value='';message.value='节点及相连边已从草稿移除；题型与刷题数据保留。失去主前驱的下级成为根，请检查剩余副前驱。';}
   function removeEdge(){const e=edges.value.find(e=>edgeKey(e)===selectedEdge.value);if(!e)return;update(c=>{const n=c.nodes.find(n=>n.id===e.to);if(e.kind==='primary')n.parent=null;else n.secondary=n.secondary.filter(p=>p!==e.from);});selectedEdge.value='';message.value='连线已移除，请检查根节点与前驱约束。';}
   function rename(){const value=renameText.value.trim();if(!value||!selected.value)return;update(c=>c.names[selected.value]=value);}
-  function locate(id){selected.value=id;selectedEdge.value='';from.value='';mode.value='move';showCreate.value=false;const p=positions.value[id];if(p){zoom.value=150;pan.value={x:Math.max(0,p.x-250),y:Math.max(0,p.y-180)};}}
+  function locate(id){selected.value=id;selectedEdge.value='';from.value='';mode.value='move';showCreate.value=false;const p=positions.value[id];if(p){zoom.value=150;setPan(Math.max(0,p.x-250),Math.max(0,p.y-180));}}
   const line=e=>{const a=positions.value[e.from],b=positions.value[e.to],dx=b.x-a.x,dy=b.y-a.y,bend=Math.min(120,Math.max(35,Math.abs(dx)*.2));const c={x:(a.x+b.x)/2+(Math.abs(dx)<20?bend:0),y:(a.y+b.y)/2+(e.kind==='secondary'?bend:-bend)};
    function clip(p){const vx=c.x-p.x,vy=c.y-p.y,t=Math.min(80/Math.max(.001,Math.abs(vx)),32/Math.max(.001,Math.abs(vy)));return {x:p.x+vx*t,y:p.y+vy*t};}const start=clip(a),end=clip(b);return 'M '+start.x+','+start.y+' Q '+c.x+','+c.y+' '+end.x+','+end.y;};
   return {showCreate,clearSelection,selectEdge,startConnection,activate,reforest,changeZoom,renameText,svg,mode,selected,selectedEdge,from,adding,message,positions,zoom,pan,history,nodes,edges,name,candidates,options,viewBox,editorNode,edgeKey,down,background,move,up,connect,addNode,removeNode,removeEdge,rename,locate,line,undo};

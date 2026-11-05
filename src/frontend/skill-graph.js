@@ -1,4 +1,5 @@
-import {ref,computed,watch,onBeforeUnmount} from 'vue';
+import {ref,computed,watch,onMounted,onBeforeUnmount} from 'vue';
+import {clampGraphAxis} from './graph-pan.js';
 import {readLayoutPreferences} from './skill-layout-preferences.js';
 import {createSkillLayout} from './skill-layout.js';
 import {families,extraRelations,skillGraph,customSkillGraph,nodeFontSize} from './skill-graph-model.js';
@@ -77,11 +78,27 @@ export default{
    pan={x,y};
    scene.value?.setAttribute('transform',`translate(${x} ${y})`);
   }
+  function clampPan(x,y,inverse){
+   const width=canvas.value.clientWidth*inverse.a;
+   const height=canvas.value.clientHeight*inverse.d;
+   moveView(-clampGraphAxis(-x,1000,width),-clampGraphAxis(-y,graph.value.height,height));
+  }
+  function constrainView(){
+   const matrix=svg.value?.getScreenCTM();
+   if(matrix?.a>0&&matrix.d>0)clampPan(pan.x,pan.y,matrix.inverse());
+  }
+  let resizeObserver;
+  onMounted(()=>{
+   resizeObserver=new ResizeObserver(constrainView);
+   resizeObserver.observe(canvas.value);
+   resizeObserver.observe(svg.value);
+  });
+  onBeforeUnmount(()=>resizeObserver?.disconnect());
   function startPan(event){
    if(event.pointerType!=='mouse'||event.button!==0)return;
    suppressClick=false;
    const matrix=svg.value?.getScreenCTM();
-   if(!matrix)return;
+   if(!matrix?.a||!matrix.d)return;
    gesture={id:event.pointerId,x:event.clientX,y:event.clientY,origin:pan,inverse:matrix.inverse()};
   }
   function movePan(event){
@@ -95,7 +112,7 @@ export default{
    }
    // The inverse linear transform converts screen movement to SVG units at any zoom.
    const {a,b,c,d}=gesture.inverse;
-   moveView(gesture.origin.x+a*dx+c*dy,gesture.origin.y+b*dx+d*dy);
+   clampPan(gesture.origin.x+a*dx+c*dy,gesture.origin.y+b*dx+d*dy,gesture.inverse);
   }
   function endPan(event){
    if(gesture?.id!==event.pointerId)return;
@@ -108,7 +125,7 @@ export default{
    if(suppressClick&&event.detail>0){event.stopPropagation();suppressClick=false;return;}
    if(!event.target.closest('.skill-node'))clearSelection();
   }
-  function reset(){moveView(0,0);canvas.value?.scrollTo(0,0);positions.value=new Map();arrange();expanded.value=['dp'];selected.value='dp';zoom.value=100;}
+  function reset(){moveView(0,0);positions.value=new Map();arrange();expanded.value=['dp'];selected.value='dp';zoom.value=100;}
   function edgePath(e){
    const a=index.value.get(e.from),b=index.value.get(e.to),dx=b.x-a.x,dy=b.y-a.y,d=Math.max(1,Math.hypot(dx,dy));
    const start=a.size/2+2,end=b.size/2+8;
