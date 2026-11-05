@@ -24,9 +24,7 @@ export default{
   <label>参考范围<select v-model="scope" @change="changeScope" aria-label="综合能力参考范围"><option value="specialty">专职题型</option><option value="all">全部题目参考</option></select></label>
   <p v-if="scope==='specialty'&&!effective.configured" class="footnote">尚未配置专职题型，请前往 <a href="#settings">设置 · 题型与技能图谱</a> 选择。</p>
   <p v-if="error" class="error" role="alert">{{error}}</p>
-  <template v-if="scope==='all'||effective.configured"><p v-if="scope==='specialty'" class="footnote">专职：{{effective.specialtyNames?.join('、')}}{{effective.includeDescendants?'（含实线下级分支）':'（仅所选题型）'}}。仅统计已同步且有题型标签的题目，主页累计汇总不推算为题单。</p><div class="week-summary"><div><strong>{{effective.ability_value ?? '—'}}</strong><span>CF 尺度参考值</span></div><div><strong>{{effective.sample_count||0}} / 150</strong><span>{{effective.sample_status}}</span></div><div><strong>{{effective.estimated_count||0}}</strong><span>入选估分题</span></div><div><strong>{{effective.rated_count||0}}</strong><span>有效评分通过题</span></div></div>
-  <p class="ability-description">{{scope==='specialty'?'从专职题型范围':'从全部题目'}}内已通过且有评分依据的题目中，选最高 150 道求平均；一题有多个标签也只算一次，可识别的跨平台同源题合并。{{effective.sample_count<150?'当前不足 150 道，仅作暂定参考。':''}}</p>
-  <p class="footnote">{{effective.sample_count?'入选难度 '+effective.min_difficulty+'–'+effective.max_difficulty+'。':''}}已通过题中 {{(effective.passed_count||0)-(effective.rated_count||0)}} 道暂无评分依据，未计分。CF 为官方题目分，AT 和洛谷为低置信估分；这不是个人 CF rating。</p>
+  <template v-if="scope==='all'||effective.configured"><p v-if="scope==='specialty'" class="footnote">专职：{{effective.specialtyNames?.join('、')}}{{effective.includeDescendants?'（含实线下级分支）':'（仅所选题型）'}}</p><div class="week-summary"><div><strong>{{effective.ability_value ?? '—'}}</strong><span>CF 尺度参考值</span></div><div><strong>{{effective.sample_count||0}} / 150</strong><span>{{effective.sample_status}}</span></div><div><strong>{{effective.estimated_count||0}}</strong><span>入选估分题</span></div><div><strong>{{effective.rated_count||0}}</strong><span>有效评分通过题</span></div></div>
   <button v-if="effective.sample_count>0" @click="toggle" :aria-expanded="open" aria-controls="overall-problems">{{open?'收起入选题单':'查看前 150 题入选题单'}}</button>
   </template>
   <section v-if="open" id="overall-problems" class="ability-detail" aria-label="综合能力入选题单">
@@ -36,5 +34,7 @@ export default{
     <div class="overall-pagination"><button :disabled="page<=1" @click="page--">上一页</button><span aria-live="polite">第 {{page}} / {{pages}} 页</span><button :disabled="page>=pages" @click="page++">下一页</button></div>
    </template>
   </section>
+  <ModuleHelp><p v-if="scope==='specialty'" class="footnote">专职参考仅统计已同步且有题型标签的题目，主页累计汇总不推算为题单。</p><p class="ability-description">{{scope==='specialty'?'从专职题型范围':'从全部题目'}}内已通过且有评分依据的题目中，选最高 150 道求平均；一题有多个标签也只算一次，可识别的跨平台同源题合并。{{effective.sample_count<150?'当前不足 150 道，仅作暂定参考。':''}}</p>
+  <p class="footnote">{{effective.sample_count?'入选难度 '+effective.min_difficulty+'–'+effective.max_difficulty+'。':''}}已通过题中 {{(effective.passed_count||0)-(effective.rated_count||0)}} 道暂无评分依据，未计分。CF 为官方题目分，AT 和洛谷为低置信估分；这不是个人 CF rating。</p></ModuleHelp>
  </article>`
 };

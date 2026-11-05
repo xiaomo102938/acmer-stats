@@ -81,7 +81,6 @@ export default{
   return {nodeFontSize,arranging,layoutState,iterations,families,allIds,expanded,selected,zoom,graph,index,chosen,allNodes,related,missing,toggle,choose,click,reset,connected,edgePath};
  },
  template:`<section class="skill-graph" aria-label="题型技能图谱">
-  <p class="footnote">节点越大，去重通过题数越多；实线为基础与分支，虚线为跨方向关联。它们是人工整理的知识关系，不代表严格学习前置。</p>
   <div class="skill-controls"><label>定位题型<select :value="selected" @change="choose($event.target.value)" aria-label="定位技能图谱题型"><option v-for="n in allNodes" :key="n.id" :value="n.id">{{n.name}}</option></select></label><label>缩放 <input v-model.number="zoom" type="range" min="70" max="150" step="10" aria-label="技能图谱缩放">{{zoom}}%</label><button @click="expanded=allIds">展开全部</button><button @click="reset">重置视图</button></div>
   <div class="skill-legend"><span class="skill-unrated">● 暂无评分</span><span class="skill-provisional">● 不足 25 题，暂定</span><span class="skill-rated">● 参考值 &lt; 1800</span><span class="skill-strong">● 1800–2399</span><span class="skill-advanced">● ≥ 2400</span></div>
   <p class="footnote skill-layout-status" role="status">{{arranging?'正在自动排布，完成后将静止显示…':'布局已定格；展开分支时会重新排布，节点不支持拖拽。'}}</p>
@@ -96,6 +95,9 @@ export default{
    </svg>
   </div>
   <section v-if="chosen" class="skill-detail" aria-label="图谱节点详情"><div class="panel-head"><h3>{{chosen.row?.display_name||chosen.name}}</h3><span>实线子树 {{chosen.count}} 道通过题</span></div><p>CF 尺度参考值：{{chosen.row?.ability_value??'暂无'}} · {{chosen.row?.sample_status||'暂无有效评分'}} · {{chosen.row?.sample_count||0}} / 25 题</p><button v-if="chosen.row?.sample_count>0" @click="$emit('inspect',chosen.row)">查看该题型入选题单</button><p class="footnote">相关知识：<template v-for="(n,i) in related" :key="n.id"><span v-if="i"> · </span><button class="skill-related-button" @click="choose(n.id)">{{n.name}}</button></template><span v-if="!related.length">暂无已整理关系</span></p></section>
+  <ModuleHelp>
+  <p class="footnote">节点越大，去重通过题数越多；实线为基础与分支，虚线为跨方向关联。它们是人工整理的知识关系，不代表严格学习前置。</p>
   <p class="footnote">当前关系图共 {{graph.known.size}} 个节点；当前筛选还有 {{missing}} 个标签未纳入关系图，可在表格中查看。节点题数包含自身与全部实线下级的去重通过题，虚线关联不计入。能力参考与入选题单仍按当前题型计算。灰色或 0 表示当前同步数据缺少记录／评分，不代表没有学习过。评分沿用最高 25 题参考，不是个人 CF rating。</p>
+  </ModuleHelp>
  </section>`
 };

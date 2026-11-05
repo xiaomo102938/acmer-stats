@@ -1,3 +1,4 @@
+import ModuleHelp from './module-help.js';
 import SkillLayoutSettings from './skill-layout-settings.js';
 import SkillSettings from './skill-settings.js';
 import PlatformAnalysis from './platform-analysis.js';
@@ -145,7 +146,7 @@ createApp({
       <div ref="weekEl" class="chart" role="img" aria-label="最近七天提交与 AC 次数趋势"></div>
       <p class="footnote">根据已同步的提交明细统计；部分平台仅有 AC 数据，不包含手工和示例记录。</p>
      </article>
-     <article class="panel"><div class="panel-head"><h2>难度一览</h2><a class="text-link" href="#analysis">查看分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><p class="footnote">{{difficultyNote}}</p></article>
+     <article class="panel"><div class="panel-head"><h2>难度一览</h2><a class="text-link" href="#analysis">查看分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
     </div>
    </section>
 
@@ -153,7 +154,7 @@ createApp({
     <OverallAbility :profile="data.overallAbility" :refresh-key="dataVersion" />
     <PracticeTrends :refresh-key="dataVersion" />
     <div class="analysis-difficulty">
-     <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>CF 统一尺度</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><p class="footnote">{{difficultyNote}}</p></article>
+     <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>CF 统一尺度</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
     </div>
     <PlatformAnalysis :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
     <TagAnalysis :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
@@ -171,4 +172,4 @@ createApp({
    <footer>刷题手记 · 数据来自本机 MySQL</footer>
   </main>
  </div>`
-}).mount('#app');
+}).component('ModuleHelp',ModuleHelp).mount('#app');
