@@ -31,6 +31,13 @@ function resolvePage(){
 createApp({
  components:{SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Accounts,Activity,TagAnalysis,OverallAbility},
  setup(){
+  const sidebarCollapsed=ref(false);
+  try { sidebarCollapsed.value=localStorage.getItem('acmer-sidebar-collapsed')==='1'; } catch {}
+  function toggleSidebar(){
+   sidebarCollapsed.value=!sidebarCollapsed.value;
+   try { localStorage.setItem('acmer-sidebar-collapsed',sidebarCollapsed.value?'1':'0'); } catch {}
+  }
+
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
   const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
   const difficultyEl=ref(null),weekEl=ref(null);
@@ -103,16 +110,20 @@ createApp({
    if(page.value!=='settings')load();
   });
   const resize=()=>charts.forEach(c=>c.resize());
+  watch(sidebarCollapsed,()=>nextTick(resize));
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
-  return {pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
+  return {sidebarCollapsed,toggleSidebar,pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
  },
  template:`
- <div class="layout">
+ <div class="layout" :class="{'sidebar-collapsed':sidebarCollapsed}">
   <aside>
-   <a class="brand" href="#overview">◈ <span>刷题手记<small>ACMER / INSIGHT</small></span></a>
+   <div class="sidebar-heading">
+    <a class="brand" href="#overview" aria-label="刷题手记首页" title="刷题手记首页">◈ <span>刷题手记<small>ACMER / INSIGHT</small></span></a>
+    <button type="button" class="sidebar-toggle" aria-controls="main-navigation" :aria-expanded="!sidebarCollapsed" :aria-label="sidebarCollapsed?'展开侧栏':'折叠侧栏'" :title="sidebarCollapsed?'展开侧栏':'折叠侧栏'" @click="toggleSidebar">{{sidebarCollapsed?'»':'«'}}</button>
+   </div>
    <p class="nav-label">我的练习空间</p>
-   <nav aria-label="主导航"><a v-for="item in pages" :key="item.id" :href="'#'+item.id" class="nav" :class="{active:page===item.id}" :aria-current="page===item.id?'page':undefined">{{item.icon}}　{{item.name}}</a></nav>
+   <nav id="main-navigation" aria-label="主导航"><a v-for="item in pages" :key="item.id" :href="'#'+item.id" class="nav" :class="{active:page===item.id}" :aria-current="page===item.id?'page':undefined" :aria-label="item.name" :title="item.name"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></a></nav>
    <div class="aside-note"><span class="dot"></span> 本机数据库<p>每一道题，都留下进步的痕迹。</p></div>
   </aside>
   <main>
