@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
 import express from 'express';
-import {abilityProfiles,overallAbility,ratingVersion,readAbilityRows,readProblemRows} from './ability.js';
+import {abilityProfiles,overallAbility,ratingVersion,readAbilityRows,readProblemRows,readAcceptedDays,shanghaiDay} from './ability.js';
 import {readSkillSettings,specialtyAbility} from './skill-settings.js';
 import {mergeSkillRows,specialtyKeys} from '../shared/skill-settings.js';
 
@@ -13,21 +13,22 @@ function scopeId(keys,config){
  return createHash('sha256').update(JSON.stringify([[...keys].sort(),aliases])).digest('hex');
 }
 
-function metric(profile,sampleLimit){
+function metric(profile,sampleLimit,recency){
+ if(recency)return {score:profile?.current_value??null,count:profile?.current_sample_count??0,limit:sampleLimit};
  return {score:profile?.ability_value??null,count:profile?.sample_count??0,limit:sampleLimit};
 }
 
-export function snapshotMetrics(problems,tags,config){
+export function snapshotMetrics(problems,tags,config,recency){
  const keys=specialtyKeys(config);
  const specialties=[...config.specialties].sort();
- const profiles=new Map(abilityProfiles(mergeSkillRows(tags,config)).map(row=>[row.tag_id,row]));
+ const profiles=new Map(abilityProfiles(mergeSkillRows(tags,config),'全部平台',null,25,recency).map(row=>[row.tag_id,row]));
  const name=key=>config.names[key]||key;
  return {
-  version:ratingVersion,
-  all:metric(overallAbility(problems),150),
-  specialty:{...metric(specialtyAbility(problems,tags,config),150),
+  version:recency?ratingVersion+'-decay183':ratingVersion,
+  all:metric(overallAbility(problems,recency),150,recency),
+  specialty:{...metric(specialtyAbility(problems,tags,config,'specialty',recency),150,recency),
    scope:scopeId(keys,config),names:specialties.map(name),includeDescendants:config.includeDescendants},
-  topics:specialties.map(key=>({key,name:name(key),scope:scopeId(new Set([key]),config),...metric(profiles.get(key),25)}))
+  topics:specialties.map(key=>({key,name:name(key),scope:scopeId(new Set([key]),config),...metric(profiles.get(key),25,recency)}))
  };
 }
 
@@ -51,7 +52,20 @@ export async function captureAbilitySnapshot(connection,origin){
 
 export function abilityTrendsRouter(pool){
  const router=express.Router();
- router.get('/',async(_req,res)=>{
+ router.get('/',async(req,res)=>{
+  if(req.query.mode==='current'){
+   const connection=await pool.getConnection();
+   try{
+    const {config}=await readSkillSettings(connection);
+    const problems=await readProblemRows(connection),tags=await readAbilityRows(connection);
+    const days=await readAcceptedDays(connection),today=shanghaiDay();
+    const snapshots=Array.from({length:53},(_,index)=>{
+     const day=today-(52-index)*7;
+     return {at:new Date(day*86400000+16*3600000-1).toISOString(),...snapshotMetrics(problems,tags,config,{days,day})};
+    });
+    return res.set('Cache-Control','no-store').json({snapshots,historyLimit});
+   }finally{connection.release();}
+  }
   let rows;
   try{
    [rows]=await pool.query(`SELECT snapshot_id,observed_at,origin,metrics FROM ability_snapshot

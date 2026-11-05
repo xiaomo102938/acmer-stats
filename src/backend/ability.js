@@ -31,18 +31,48 @@ export function ratedProblems(rows){
   return {...row,...e,canonical_key:key,method:exact&&row.platform_name!=='Codeforces'?'同源 CF 题目官方 rating':e.method,rating_version:ratingVersion};
  });
 }
-export function abilityProfiles(rows,platform='全部平台',tagId=null,limit=25){
+const dayMs=86400000;
+export const shanghaiDay=(now=Date.now())=>Math.floor((now+8*3600000)/dayMs);
+
+export async function readAcceptedDays(connection){
+ const [rows]=await connection.query(`SELECT problem_id,DATEDIFF(DATE(submitted_at),'1970-01-01') AS day
+  FROM synced_submission WHERE passed=1 AND user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)
+  GROUP BY problem_id,day ORDER BY day DESC`);
+ const days=new Map();
+ for(const row of rows){
+  if(!days.has(row.problem_id))days.set(row.problem_id,[]);
+  days.get(row.problem_id).push(row.day);
+ }
+ return days;
+}
+
+function currentProfile(problems,limit,day){
+ const scores=problems.filter(row=>row.lastAcceptedDay!=null)
+  .map(row=>800+(row.rating-800)*2**(-(day-row.lastAcceptedDay)/183))
+  .sort((a,b)=>b-a);
+ const sample=scores.slice(0,limit);
+ return {
+  current_value:sample.length?Math.round(10*sample.reduce((sum,score)=>sum+score,0)/sample.length)/10:null,
+  current_sample_count:sample.length,current_dated_count:scores.length
+ };
+}
+
+export function abilityProfiles(rows,platform='全部平台',tagId=null,limit=25,recency){
  const rated=ratedProblems(rows);
  const filtered=rated.filter(r=>(platform==='全部平台'||r.platform_name===platform)&&(!tagId||r.tag_id===tagId));
  const groups=new Map();
  for(const row of filtered){
   if(!groups.has(row.tag_id))groups.set(row.tag_id,{tag_id:row.tag_id,tag_name:row.tag_name,display_name:row.display_name,platform_name:platform,items:new Map()});
   const map=groups.get(row.tag_id).items,old=map.get(row.canonical_key);
-  if(!old)map.set(row.canonical_key,{...row});
+  const acceptedDay=recency?.days.get(row.problem_id)?.find(day=>day<=recency.day);
+  if(!old)map.set(row.canonical_key,recency?{...row,lastAcceptedDay:acceptedDay}:{...row});
   else{
    // Merge completion; prefer official evidence and then a rated representative.
    const passed=Math.max(old.passed,row.passed);
-   if((old.estimated&&!row.estimated)||(old.rating==null&&row.rating!=null))map.set(row.canonical_key,{...row,passed});else old.passed=passed;
+   const representative=(old.estimated&&!row.estimated)||(old.rating==null&&row.rating!=null)?{...row}:old;
+   representative.passed=passed;
+   if(recency)representative.lastAcceptedDay=acceptedDay==null?old.lastAcceptedDay:Math.max(acceptedDay,old.lastAcceptedDay??acceptedDay);
+   map.set(row.canonical_key,representative);
   }
  }
  return [...groups.values()].map(g=>{
@@ -51,12 +81,13 @@ export function abilityProfiles(rows,platform='全部平台',tagId=null,limit=25
   const problems=valid.slice(0,limit),n=problems.length;
   return {tag_id:g.tag_id,tag_name:g.tag_name,display_name:g.display_name,platform_name:platform,total_count:all.length,passed_count:passed.length,rated_count:valid.length,
    sample_count:n,ability_value:n?Math.round(problems.reduce((s,p)=>s+p.rating,0)/n*10)/10:null,
+   ...(recency?currentProfile(valid,limit,recency.day):{}),
    min_difficulty:n?problems[n-1].rating:null,max_difficulty:n?problems[0].rating:null,
    estimated_count:problems.filter(r=>r.estimated).length,sample_limit:limit,sample_status:n===limit?'满'+limit+'题':n?'样本不足':'暂无有效评分',problems};
  }).sort((a,b)=>(b.sample_count===limit)-(a.sample_count===limit)||(b.ability_value??-1)-(a.ability_value??-1)||b.sample_count-a.sample_count||a.display_name.localeCompare(b.display_name));
 }
-export function overallAbility(rows){
- const profile=abilityProfiles(rows.map(r=>({...r,tag_id:'overall',tag_name:'overall',display_name:'综合能力参考'})),'全部平台',null,150)[0];
+export function overallAbility(rows,recency){
+ const profile=abilityProfiles(rows.map(r=>({...r,tag_id:'overall',tag_name:'overall',display_name:'综合能力参考'})),'全部平台',null,150,recency)[0];
  return profile||{sample_count:0,sample_limit:150,ability_value:null,estimated_count:0,rated_count:0,passed_count:0,total_count:0,min_difficulty:null,max_difficulty:null,sample_status:'暂无有效评分',problems:[]};
 }
 export async function readProblemRows(connection){

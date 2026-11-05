@@ -32,7 +32,7 @@ export function abilityTrendPoints(snapshots,scope){
 export default{
  props:{refreshKey:Number},
  setup(props){
-  const snapshots=ref([]),historyLimit=ref(null),scope=ref(''),chartEl=ref(null),loading=ref(false),error=ref('');
+  const snapshots=ref([]),historyLimit=ref(null),scope=ref(''),mode=ref('current'),chartEl=ref(null),loading=ref(false),error=ref('');
   const latest=computed(()=>snapshots.value.at(-1));
   const topics=computed(()=>[...new Map(snapshots.value.flatMap(row=>row.topics.map(topic=>[topic.key,topic.name])))].sort((a,b)=>a[1].localeCompare(b[1],'zh-CN')));
   const points=computed(()=>abilityTrendPoints(snapshots.value,scope.value));
@@ -65,7 +65,7 @@ export default{
    request?.abort();
    const active=new AbortController();request=active;loading.value=true;error.value='';
    try{
-    const response=await apiFetch('/api/ability/trends',{signal:active.signal}),body=await response.json();
+    const response=await apiFetch('/api/ability/trends?mode='+mode.value,{signal:active.signal}),body=await response.json();
     if(!response.ok)throw new Error(body.message);
     if(active.signal.aborted)return;
     snapshots.value=body.snapshots;historyLimit.value=body.historyLimit;
@@ -74,8 +74,10 @@ export default{
    finally{if(request===active)loading.value=false;}
   }
   const formatTime=value=>timestamp.format(new Date(value));
+  const formatDay=value=>new Date(value).toLocaleDateString('zh-CN',{timeZone:'Asia/Shanghai'});
   watch(points,draw,{flush:'post'});
   watch(()=>props.refreshKey,load);
+  watch(mode,()=>{snapshots.value=[];load();});
   onMounted(()=>{
    load();
    resize=new ResizeObserver(()=>chart?.resize());resize.observe(chartEl.value);
@@ -83,11 +85,12 @@ export default{
    themeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
   });
   onBeforeUnmount(()=>{request?.abort();resize?.disconnect();themeObserver?.disconnect();chart?.dispose();});
-  return {snapshots,historyLimit,scope,chartEl,loading,error,latest,topics,current,count,hasBreak,load,formatTime};
+  return {snapshots,historyLimit,scope,mode,chartEl,loading,error,latest,topics,current,count,hasBreak,load,formatTime,formatDay};
  },
  template:`<article class="panel practice-trends" aria-label="能力变化趋势">
-  <div class="panel-head"><h2>能力变化趋势</h2><span>按能力快照记录</span></div>
+  <div class="panel-head"><h2>能力变化趋势</h2><span>{{mode==='current'?'过去 52 周 · 按周取样':'按能力快照记录'}}</span></div>
   <div class="trend-controls">
+   <label>评分口径<select v-model="mode"><option value="current">当前能力（随时间衰减）</option><option value="history">历史能力快照</option></select></label>
    <label>参考范围<select v-model="scope" aria-label="能力趋势参考范围">
     <option value="specialty">专职综合能力</option>
     <option value="all">全部题目综合能力</option>
@@ -97,7 +100,7 @@ export default{
   <p v-if="error" class="error" role="alert">{{error}} <button @click="load">重试</button></p>
   <p v-if="loading" class="muted" role="status">正在读取能力快照…</p>
   <p v-else-if="latest" class="trend-summary" aria-live="polite">
-   最近快照 {{formatTime(latest.at)}} ·
+   {{mode==='current'?'评估日期 '+formatDay(latest.at): '最近快照 '+formatTime(latest.at)}} ·
    <template v-if="current?.score!=null">CF 尺度 {{current.score}} 分 · 计分样本 {{current.count}} / {{current.limit}} 道{{current.count<current.limit?'（暂定）':''}}</template>
    <template v-else>当前范围暂无计分样本。</template>
   </p>
@@ -106,6 +109,6 @@ export default{
   <p v-if="hasBreak" class="muted">折线断开处表示计分范围或版本改变，或期间缺少可计分样本。</p>
   <p v-if="!loading&&!error&&count===1" class="muted">目前只有一个计分点，后续记录到变化时会显示趋势。</p>
   <p v-if="!loading&&!error&&!count" class="muted">当前范围暂无可绘制的能力快照。</p>
-  <ModuleHelp><p class="footnote">从功能启用时开始记录。服务启动、同步成功或保存题型设置后，数值、样本或计分范围有变化才保存快照。综合能力最多取 150 道，单题型最多取 25 道；样本不足的分数为暂定值。计分范围或评分版本改变时，折线会断开。图表最多显示最近 {{historyLimit||500}} 条快照，时间为北京时间。</p></ModuleHelp>
+  <ModuleHelp><p v-if="mode==='current'" class="footnote">以当前题型配置和难度资料回算过去 52 周。每个点只使用当天及之前的 AC 记录，重复 AC 刷新日期，同源题只算一次。没有逐题 AC 日期的题仅计入历史分。</p><p v-else class="footnote">从功能启用时开始记录。服务启动、同步成功或保存题型设置后，数值、样本或计分范围有变化才保存快照。综合能力最多取 150 道，单题型最多取 25 道；样本不足的分数为暂定值。计分范围或评分版本改变时，折线会断开。图表最多显示最近 {{historyLimit||500}} 条快照，时间为北京时间。</p></ModuleHelp>
  </article>`
 };

@@ -5,7 +5,7 @@ import {trendRouter} from './trends.js';
 import {abilityTrendsRouter,captureAbilitySnapshot} from './ability-trends.js';
 import {submissionRouter} from './submissions.js';
 import {practiceRouter} from './practice.js';
-import {abilityProfiles,skillSubtreeCounts,readAbilityRows,ratedProblems,ratingVersion,overallAbility,readProblemRows} from './ability.js';
+import {abilityProfiles,skillSubtreeCounts,readAbilityRows,ratedProblems,ratingVersion,overallAbility,readProblemRows,readAcceptedDays,shanghaiDay} from './ability.js';
 import express from 'express';
 import {accountRouter} from './accounts.js';
 import mysql from 'mysql2/promise';
@@ -72,14 +72,15 @@ app.get('/api/dashboard', async (_req, res) => {
     const skillSettings=await readSkillSettings(connection);
     const abilityRows=mergeSkillRows(await readAbilityRows(connection),skillSettings.config);
     const abilityPlatforms=['全部平台',...new Set(abilityRows.map(r=>r.platform_name))];
-    const tagAbility=abilityPlatforms.flatMap(p=>abilityProfiles(abilityRows,p).map(({problems,...row})=>row));
+    const recency={days:await readAcceptedDays(connection),day:shanghaiDay()};
+    const tagAbility=abilityPlatforms.flatMap(p=>abilityProfiles(abilityRows,p,null,25,recency).map(({problems,...row})=>row));
     const difficulty = await read('SELECT * FROM v_difficulty_stats');
     const nativeDifficulty = await read(`SELECT p.platform_name,pr.difficulty,pr.native_difficulty,COUNT(r.record_id) AS total_count
       FROM v_problem_progress r JOIN problem pr ON pr.problem_id=r.problem_id
       JOIN platform p ON p.platform_id=pr.platform_id
       GROUP BY p.platform_name,pr.difficulty,pr.native_difficulty`);
     const ratingRows=await readProblemRows(connection);
-    const {problems:overallProblems,...overall}=specialtyAbility(ratingRows,abilityRows,skillSettings.config);
+    const {problems:overallProblems,...overall}=specialtyAbility(ratingRows,abilityRows,skillSettings.config,'specialty',recency);
     const unifiedDifficulty=ratedProblems(ratingRows).map(r=>({platform_name:r.platform_name,cf_rating:r.rating,estimated:r.estimated,total_count:1}));
     const monthly = await read('SELECT * FROM v_monthly_trend ORDER BY solve_month');
     const daily = await read(`SELECT DATE(submitted_at) AS day,COUNT(*) AS submission_count,
@@ -104,7 +105,7 @@ app.get('/api/dashboard', async (_req, res) => {
 });
 app.get('/api/ability/overall',async(req,res)=>{
  const connection=await pool.getConnection();
- try{const state=await readSkillSettings(connection);res.set('Cache-Control','no-store').json({...specialtyAbility(await readProblemRows(connection),await readAbilityRows(connection),state.config,req.query.scope==='all'?'all':'specialty'),ratingVersion});}
+ try{const state=await readSkillSettings(connection);res.set('Cache-Control','no-store').json({...specialtyAbility(await readProblemRows(connection),await readAbilityRows(connection),state.config,req.query.scope==='all'?'all':'specialty',{days:await readAcceptedDays(connection),day:shanghaiDay()}),ratingVersion});}
  finally{connection.release();}
 });
 app.get('/api/tags/:id/ability',async(req,res)=>{

@@ -10,10 +10,10 @@ export async function readSkillSettings(c){
  for(const t of skillCatalog(tags))if(!config.names[t.key]&&!Object.hasOwn(config.aliases,t.key))config.names[t.key]=t.name;
  return {userId:u.user_id,config,revision:row?.revision||0,topologyDraft:row?.topology_draft?(typeof row.topology_draft==='string'?JSON.parse(row.topology_draft):row.topology_draft):null,draftRevision:row?.draft_revision||0,catalog:skillCatalog(tags)};
 }
-export function specialtyAbility(problemRows,tagRows,config,scope='specialty'){
- if(scope==='all')return {...overallAbility(problemRows),scope:'all',configured:true};
+export function specialtyAbility(problemRows,tagRows,config,scope='specialty',recency){
+ if(scope==='all')return {...overallAbility(problemRows,recency),scope:'all',configured:true};
  const keys=specialtyKeys(config),matches=new Set(tagRows.filter(r=>keys.has(resolveTag(r.tag_name,config))).map(canonicalProblem));
- return {...overallAbility(problemRows.filter(r=>matches.has(canonicalProblem(r)))),scope:'specialty',configured:config.specialties.length>0,specialties:config.specialties,specialtyNames:config.specialties.map(id=>config.names[id]||id),includeDescendants:config.includeDescendants};
+ return {...overallAbility(problemRows.filter(r=>matches.has(canonicalProblem(r))),recency),scope:'specialty',configured:config.specialties.length>0,specialties:config.specialties,specialtyNames:config.specialties.map(id=>config.names[id]||id),includeDescendants:config.includeDescendants};
 }
 export {mergeSkillRows};
 export function skillSettingsRouter(pool,captureSnapshot){
