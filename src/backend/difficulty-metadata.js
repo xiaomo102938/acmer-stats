@@ -30,7 +30,8 @@ async function download(platform){
   for(const p of payload.result.problems){
    if(p.contestId==null||!p.index)continue;
    const key=p.contestId+p.index;
-   map.set(key,{native:Number.isFinite(p.rating)?String(p.rating):null,source:'codeforces',title:'Codeforces '+key+' '+p.name});
+   map.set(key,{native:Number.isFinite(p.rating)?String(p.rating):null,source:'codeforces',title:'Codeforces '+key+' '+p.name,
+    tags:Array.isArray(p.tags)?p.tags:[],url:'https://codeforces.com/problemset/problem/'+p.contestId+'/'+p.index});
   }
  }else if(platform==='AtCoder'){
   const models=await json('https://kenkoooo.com/atcoder/resources/problem-models.json');
