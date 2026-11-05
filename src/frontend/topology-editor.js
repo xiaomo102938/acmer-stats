@@ -21,7 +21,7 @@ export default{
   function commit(next){history.value=[...history.value.slice(-39),clone(props.modelValue)];emit('update:modelValue',next);}
   function update(fn){const next=clone(props.modelValue);next.positions=clone(positions.value);fn(next);commit(next);}
   function undo(){const last=history.value.pop();if(last)emit('update:modelValue',last);from.value='';message.value='已撤销上一步。';}
-  function point(e){const p=svg.value.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.value.getScreenCTM().inverse());}
+  function point(e,inverse=svg.value.getScreenCTM().inverse()){const p=svg.value.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(inverse);}
   function down(e,n){if(e.button!==0)return;
    if(mode.value!=='move'&&from.value){activate(n);return;}
    activate(n);message.value='';e.preventDefault();const p=point(e);gesture={id:n.id,start:p,origin:{...positions.value[n.id]},moved:false};svg.value.setPointerCapture(e.pointerId);
@@ -32,8 +32,24 @@ export default{
   function activate(n){if(mode.value!=='move'&&from.value){connect(from.value,n.id);from.value='';mode.value='move';}selected.value=n.id;selectedEdge.value='';showCreate.value=false;}
   function reforest(){update(c=>c.positions=forestPositions(c.nodes));zoom.value=100;pan.value={x:0,y:0};message.value='已按主树重新排列为森林，可撤销。';}
   function changeZoom(next){const previous=zoom.value,value=Math.max(25,Math.min(1000,Number(next)||100));pan.value={x:pan.value.x+bounds.value.width*(100/previous-100/value)/2,y:pan.value.y+bounds.value.height*(100/previous-100/value)/2};zoom.value=value;}
-  function background(e){if(e.button!==0||e.target!==svg.value)return;clearSelection();const p=point(e);gesture={pan:true,start:p,origin:{...pan.value}};svg.value.setPointerCapture(e.pointerId);}
-  function move(e){if(!gesture)return;const p=point(e);if(gesture.pan){pan.value={x:gesture.origin.x-(p.x-gesture.start.x),y:gesture.origin.y-(p.y-gesture.start.y)};gesture.start=point(e);gesture.origin={...pan.value};return;}
+  function background(e){
+   if(e.button!==0||e.target!==svg.value)return;
+   clearSelection();
+   // The viewBox moves during panning, so measure the entire gesture in its starting coordinates.
+   const inverse=svg.value.getScreenCTM().inverse();
+   gesture={pan:true,inverse,start:point(e,inverse),origin:{...pan.value}};
+   svg.value.setPointerCapture(e.pointerId);
+  }
+  function move(e){
+   if(!gesture)return;
+   const p=point(e,gesture.inverse);
+   if(gesture.pan){
+    pan.value={
+     x:gesture.origin.x-(p.x-gesture.start.x),
+     y:gesture.origin.y-(p.y-gesture.start.y)
+    };
+    return;
+   }
    const next={x:Math.max(90,Math.min(10000,gesture.origin.x+p.x-gesture.start.x)),y:Math.max(50,Math.min(10000,gesture.origin.y+p.y-gesture.start.y))};
    if(canPlace(gesture.id,next,positions.value)){positions.value={...positions.value,[gesture.id]:next};gesture.moved=true;}else message.value='此位置与其他节点重叠，已保留最近合法位置。';
   }
