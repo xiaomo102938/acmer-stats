@@ -25,7 +25,7 @@ aside nav{display:flex;flex-direction:column}
 .overview-pie{height:320px}
 .text-link{color:var(--accent);font-size:11px}
 .appearance-row p{font-size:12px;color:var(--muted);line-height:1.8;margin:10px 0 0}
-.platform-analysis,.tag-analysis,.appearance-panel{margin-bottom:22px}
+.platform-analysis,.tag-analysis,.appearance-panel,.skill-layout-panel{margin-bottom:22px}
 .platform-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 36px}
 .appearance-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 0}
 .appearance-row h3{font-size:14px;font-weight:500;margin:0}
