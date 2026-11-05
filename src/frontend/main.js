@@ -188,16 +188,16 @@ createApp({
 
    <section v-if="page==='overview'&&data" key="overview" aria-label="数据简览">
     <div class="metrics">
-     <article><span>累计题数</span><strong>{{data.overview?.total_problems??0}}<small> 道</small></strong><p>按题去重，含平台公开累计汇总</p></article>
-     <article><span>AC 题数</span><strong>{{data.overview?.passed_problems??0}}<small> 道</small></strong><p>同一道题多次通过只计一次</p></article>
+     <article><span>累计题数</span><strong>{{data.overview?.total_problems??0}}<small> 道</small></strong><ModuleHelp><p>按题去重，含平台公开累计汇总。洛谷公开练习清单也计入题目总量。</p></ModuleHelp></article>
+     <article><span>AC 题数</span><strong>{{data.overview?.passed_problems??0}}<small> 道</small></strong><ModuleHelp><p>同一道题多次通过只计一次。</p></ModuleHelp></article>
     </div>
-    <Activity :refresh-key="dataVersion" /><p v-if="data.platformSnapshots?.length" class="footnote inventory-note">洛谷公开练习清单已计入题目总量；因没有逐题日期，不计入提交趋势。洛谷每日活动请在热力图选择“站点活动”。原有示例记录仍保留。</p>
+    <Activity :refresh-key="dataVersion" />
     <div class="chart-grid">
      <article class="panel">
       <div class="panel-head"><h2>最近 7 天的表现</h2><span>{{days[0]?.day}} — {{days[6]?.day}}</span></div>
       <div class="week-summary"><div><strong>{{week.submissions}}</strong><span>提交次数</span></div><div><strong>{{week.accepted}}</strong><span>AC 次数</span></div><div><strong>{{week.problems}}</strong><span>尝试题目</span></div><div><strong>{{week.activeDays}} / 7</strong><span>活跃天数</span></div></div>
       <div ref="weekEl" class="chart" role="img" aria-label="最近七天提交与 AC 次数趋势"></div>
-      <p class="footnote">根据已同步的提交明细统计；部分平台仅有 AC 数据，不包含手工和示例记录。</p>
+      <ModuleHelp><p class="footnote">根据已同步的提交明细统计。部分平台仅同步 AC。洛谷公开练习清单、手工记录和示例记录不计入提交趋势。</p></ModuleHelp>
      </article>
      <article class="panel"><div class="panel-head"><h2>难度一览</h2><a class="text-link" href="#analysis">查看分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
     </div>
@@ -219,7 +219,7 @@ createApp({
    <section v-else-if="page==='records'" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>
 
    <section v-else-if="page==='settings'" key="settings" aria-label="设置">
-    <article class="panel appearance-panel"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><div><p>可手动选择主题或跟随系统。</p></div><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div>
+    <article class="panel appearance-panel"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div>
      <div class="display-controls">
       <div v-for="control in displayControls" :key="control.key" class="range-control">
        <div><label :for="'display-'+control.key">{{control.label}}</label><output :for="'display-'+control.key">{{display[control.key]}}{{control.unit}}</output></div>
@@ -228,6 +228,7 @@ createApp({
       </div>
       <button type="button" :disabled="displayIsDefault" @click="resetDisplay">恢复默认字号和间距</button>
      </div>
+     <ModuleHelp><p class="footnote">主题可手动选择，也可以跟随系统。主题、字号和卡片间距保存在当前浏览器。</p></ModuleHelp>
     </article>
     <SkillLayoutSettings />
     <SkillSettings @saved="load" />

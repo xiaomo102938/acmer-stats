@@ -33,14 +33,13 @@ export default {
    <button @click="reset">恢复默认值</button>
    <button class="module-save" :class="{dirty}" :disabled="!dirty" @click="save">保存布局偏好</button>
   </div></div>
-  <p class="footnote">偏好保存在当前浏览器，打开详细分析时应用。</p>
   <div v-for="control in layoutControls" :key="control.key" class="skill-layout-control">
    <label>
     <span>{{control.label}} <output>{{values[control.key]}}%</output></span>
     <input type="range" v-model.number="values[control.key]" :min="control.min" :max="control.max" :step="control.step" :aria-label="control.label">
    </label>
-   <p class="footnote">{{control.hint}}</p>
   </div>
   <p v-if="message" :role="error?'alert':'status'" :class="{error}">{{message}}</p>
+  <ModuleHelp><p class="footnote">偏好保存在当前浏览器，打开详细分析时应用。</p><dl class="footnote"><template v-for="control in layoutControls" :key="control.key"><dt>{{control.label}}</dt><dd>{{control.hint}}</dd></template></dl></ModuleHelp>
  </article>`
 };
