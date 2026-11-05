@@ -23,7 +23,8 @@ export function accountRouter(pool,captureSnapshot) {
   const [accounts]=await pool.execute(`SELECT a.account_id,a.login_name,a.remote_uid,a.platform_id,
    a.last_sync,a.last_attempt,a.sync_status,a.sync_message,(a.login_pwd IS NOT NULL) AS has_secret,p.platform_name
    FROM platform_account a JOIN platform p ON p.platform_id=a.platform_id WHERE a.user_id=? ORDER BY p.platform_name,a.login_name`,[user]);
-  res.set('Cache-Control','no-store').json({platforms:platforms.map(p=>({...p,...capabilities[p.platform_name]})),accounts});
+  res.set('Cache-Control','no-store').json({platforms:platforms.map(p=>({...p,...capabilities[p.platform_name]})),accounts:accounts.map(account=>account.sync_status==='success'&&busy.has(account.account_id)?
+   {...account,sync_status:'running',sync_message:'正在完成同步…'}:account)});
  });
  function input(body) {
   const login=String(body.login_name||'').trim(),cookie=String(body.cookie||'').trim(),rawUid=String(body.remote_uid||'').trim();
@@ -78,19 +79,21 @@ export function accountRouter(pool,captureSnapshot) {
     const [[lock]]=await connection.execute('SELECT GET_LOCK(?,0) AS acquired',[lockName]);
     if(lock.acquired!==1) throw new SourceError('同平台的另一个账号正在同步，请稍后重试。');
     locked=true;
+    let message;
     if(account.platform_name==='洛谷'){
      const snapshot=await collectLuogu(account.login_name,decrypt(account.login_pwd));
      const saved=await saveLuoguSnapshot(connection,account,snapshot);
      const meta=await enrichLuoguProblems(connection,account.platform_id,decrypt(account.login_pwd),async(n,total)=>{
       await connection.execute("UPDATE platform_account SET sync_status='running',sync_message=? WHERE account_id=?",['题数已同步，正在补充题型标签 '+n+' / '+total+'（限速请求，首次可能需要数分钟）',account.account_id]);
      });
-     await connection.execute("UPDATE platform_account SET sync_status='success',sync_message=? WHERE account_id=?",[saved.message+' 本次补充 '+meta.updated+' 道题的题型元数据。',account.account_id]);
+     message=saved.message+' 本次补充 '+meta.updated+' 道题的题型元数据。';
     }else{
      const result=await collect(account,decrypt(account.login_pwd));
-     await saveSubmissions(connection,account,result);
+     ({message}=await saveSubmissions(connection,account,result));
     }
     await captureSnapshot?.(connection,'sync');
     await refreshAccountRating(connection,account,decrypt(account.login_pwd));
+    await connection.execute("UPDATE platform_account SET sync_status='success',sync_message=? WHERE account_id=?",[message.slice(0,1000),account.account_id]);
    }catch(error){
     const message=(error instanceof SourceError||error instanceof LuoguError)?error.message:'同步未完成，已有数据未被清空。请检查网络或稍后重试。';
     await pool.execute("UPDATE platform_account SET sync_status='error',sync_message=? WHERE account_id=?",[message,account.account_id]).catch(()=>{});

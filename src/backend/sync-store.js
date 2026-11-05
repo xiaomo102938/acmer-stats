@@ -58,7 +58,7 @@ export async function saveSubmissions(connection,account,result) {
   }
   if(result.metadata)await applyDifficultyMetadata(connection,account.platform_id,account.platform_name,result.metadata);
   const message='新增 '+summary.newSubmissions+' 条提交、更新 '+summary.updatedSubmissions+' 条判定、新增 '+summary.newProblems+' 道题。'+result.note;
-  await connection.execute("UPDATE platform_account SET sync_status='success',sync_message=?,last_sync=NOW(),sync_cursor=? WHERE account_id=?",[message.slice(0,1000),result.cursor,account.account_id]);
+  await connection.execute("UPDATE platform_account SET last_sync=NOW(),sync_cursor=? WHERE account_id=?",[result.cursor,account.account_id]);
   await connection.commit();
   return {...summary,message};
  } catch(error){await connection.rollback();throw error;}
