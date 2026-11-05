@@ -54,7 +54,7 @@ function currentProfile(problems,minimum,day){
  const dated=problems.filter(row=>row.lastAcceptedDay!=null);
  const limit=sampleTarget(dated.length,minimum);
  const scores=dated.map(row=>{
-  const daysAfterGrace=Math.max(0,day-row.lastAcceptedDay-60);
+  const daysAfterGrace=Math.max(0,day-row.lastAcceptedDay-20);
   const penalty=250*(1-2**(-daysAfterGrace/365));
   return {age:day-row.lastAcceptedDay,score:Math.max(800,row.rating-penalty)};
  })
