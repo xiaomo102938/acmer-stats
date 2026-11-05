@@ -9,57 +9,22 @@ import Submissions from './submissions.js';
 import Practice from './practice.js';
 import SiteStatus from './site-status.js';
 import {createApp,onMounted,onBeforeUnmount,ref,computed,watch,nextTick} from 'vue';
-import * as echarts from 'echarts/core';
-import {BarChart,LineChart,PieChart} from 'echarts/charts';
-import {GridComponent,TooltipComponent,LegendComponent} from 'echarts/components';
-import {CanvasRenderer} from 'echarts/renderers';
 import Accounts from './accounts.js';
 import TagAnalysis from './tag-analysis.js';
 import OverallAbility from './overall-ability.js';
 import AbilityTrends from './ability-trends.js';
 import Activity from './activity.js';
 import {useTheme} from './theme.js';
-import {formatDifficulty,cfDifficultyBuckets} from './difficulty.js';
+import {useCardOrder} from './page-card-order.js';
+import {useDisplayPreferences} from './display-preferences.js';
+import {useDashboardCharts} from './dashboard-charts.js';
 import './style.css';
-echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendComponent,CanvasRenderer]);
-
-const displayDefaults={fontSize:100,cardGap:22};
-const displayControls=[
- {key:'fontSize',label:'字体大小',min:85,max:125,step:5,unit:'%'},
- {key:'cardGap',label:'卡片间距',min:8,max:40,step:1,unit:' px'}
-];
-const displayStorageKey='acmer-display-preferences';
-
 const pages=[
  {id:'overview',icon:'◫',name:'数据简览'},
  {id:'analysis',icon:'↗',name:'详细分析'},
  {id:'records',icon:'≡',name:'提交记录'},
  {id:'settings',icon:'⚙',name:'设置'}
 ];
-const cardOrderKey='acmer-page-card-order';
-const cardCatalog={
- analysis:[
-  {id:'overall',title:'综合能力参考'},{id:'ability-trend',title:'能力变化趋势'},
-  {id:'practice-trend',title:'练习趋势'},{id:'difficulty',title:'难度分布'},
-  {id:'platforms',title:'各平台练习情况'},{id:'topics',title:'题型能力参考'},
-  {id:'recommendation',title:'推荐练习'},{id:'graph',title:'技能图谱'}
- ],
- records:[{id:'submissions',title:'提交记录'}],
- settings:[
-  {id:'appearance',title:'外观'},{id:'layout',title:'技能图谱布局偏好'},
-  {id:'specialty',title:'专职题型'},{id:'aliases',title:'标签类型归并'},
-  {id:'topology',title:'技能图谱客制化'},{id:'accounts',title:'平台账号与同步'}
- ]
-};
-function readCardOrder(){
- let saved;
- try{saved=JSON.parse(localStorage.getItem(cardOrderKey));}catch{}
- return Object.fromEntries(Object.entries(cardCatalog).map(([page,cards])=>{
-  const defaults=cards.map(card=>card.id);
-  const previous=Array.isArray(saved?.[page])?saved[page].filter(id=>defaults.includes(id)):[];
-  return [page,[...new Set([...previous,...defaults])]];
- }));
-}
 const aliases={practice:'analysis',trends:'analysis',tags:'analysis',recent:'records',accounts:'settings'};
 function recommendationRoute(){
  const [page,query]=location.hash.slice(1).split('?');
@@ -82,90 +47,15 @@ createApp({
   }
 
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
-  const editingCards=ref(false),cardOrder=ref(readCardOrder()),cardOrderError=ref('');
-  const cardPositions=computed(()=>Object.fromEntries((cardOrder.value[page.value]??[]).map((id,index)=>[id,index])));
-  const editableCards=computed(()=>(cardOrder.value[page.value]??[]).map(id=>cardCatalog[page.value].find(card=>card.id===id)));
-  const cardStyle=id=>({order:cardPositions.value[id]});
-  function moveCard(from,to){
-   const order=cardOrder.value[page.value];
-   if(!editingCards.value||!order?.includes(from)||!order.includes(to)||from===to)return;
-   const next=order.filter(id=>id!==from);
-   next.splice(order.indexOf(to),0,from);
-   const updated={...cardOrder.value,[page.value]:next};
-   cardOrder.value=updated;
-   try{localStorage.setItem(cardOrderKey,JSON.stringify(updated));cardOrderError.value='';}
-   catch{cardOrderError.value='当前浏览器无法保存卡片顺序。';}
-  }
+  const cardOrder=useCardOrder(page);
+  const {editingCards}=cardOrder;
+  const displayPreferences=useDisplayPreferences();
   const recommendation=ref(recommendationRoute()),recommendationEl=ref(null);
   const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
-  const difficultyEl=ref(null),weekEl=ref(null);
-  const charts=new Map();
-  const difficultyPlatform=ref('全部平台');
-  const difficultyPlatforms=computed(()=>[{platform_name:'全部平台'},...(data.value?.platforms.filter(p=>p.total_count>0)||[])]);
-  const difficultyNote=computed(()=>'统一按 CF 尺度分段。CF 为官方题目 rating；AT 和洛谷为低置信估分，缺少依据的题目单列。原始难度保留在入选题单中。');
+  const dashboardCharts=useDashboardCharts(data,editingCards,()=>isDark.value);
+  const {draw,disposeCharts,resize,difficultyPlatform}=dashboardCharts;
   const {theme,isDark}=useTheme(draw);
-  const display=ref({...displayDefaults});
-  try {
-   const saved=JSON.parse(localStorage.getItem(displayStorageKey));
-   for(const {key,min,max,step} of displayControls){
-    const value=saved?.[key];
-    if(Number.isInteger(value)&&value>=min&&value<=max&&(value-min)%step===0)display.value[key]=value;
-   }
-  } catch {}
-  function applyDisplay(){
-   const style=document.documentElement.style;
-   style.setProperty('--font-scale',display.value.fontSize/100);
-   style.setProperty('--card-gap',display.value.cardGap+'px');
-  }
-  applyDisplay();
-  watch(display,()=>{
-   applyDisplay();
-   try {localStorage.setItem(displayStorageKey,JSON.stringify(display.value));} catch {}
-  },{deep:true});
-  const displayIsDefault=computed(()=>displayControls.every(({key})=>display.value[key]===displayDefaults[key]));
-  const resetDisplay=()=>{display.value={...displayDefaults};};
   let requestNumber=0;
-  const days=computed(()=>{
-   const today=data.value?.serverDate;if(!today)return [];
-   return Array.from({length:7},(_,i)=>{
-    const date=new Date(today+'T00:00:00Z');date.setUTCDate(date.getUTCDate()-6+i);
-    const day=date.toISOString().slice(0,10);
-    return {day,submission_count:0,accepted_count:0,problem_count:0,...data.value.daily?.find(row=>row.day===day)};
-   });
-  });
-  const week=computed(()=>({
-   submissions:days.value.reduce((n,d)=>n+Number(d.submission_count),0),
-   accepted:days.value.reduce((n,d)=>n+Number(d.accepted_count),0),
-   activeDays:days.value.filter(d=>d.submission_count>0).length,
-   problems:data.value?.weekProblems??0
-  }));
-  function disposeCharts(){charts.forEach(c=>c.dispose());charts.clear();}
-  function render(element,option){
-   if(!element)return;
-   let chart=charts.get(element);
-   if(!chart){chart=echarts.init(element);charts.set(element,chart);}
-   chart.setOption(option,true);
-  }
-  function draw(){
-   charts.forEach((chart,element)=>{if(!element.isConnected){chart.dispose();charts.delete(element);}});
-   if(!data.value||editingCards.value)return;
-   const dark=isDark.value;
-   const colors=dark?['#83bc9c','#9faedb','#c4ce93','#d9b77f','#7d9289']:['#376c58','#86a895','#c4d5b8','#dfbf82','#b0b9aa'];
-   const css=getComputedStyle(document.documentElement),token=name=>css.getPropertyValue(name).trim();
-   const text=token('--muted'),line=token('--border'),gridLine=token('--rowBorder');
-   const tooltip={backgroundColor:token('--panel'),borderColor:line,textStyle:{color:token('--text')}};
-   const base={animation:false,color:colors,tooltip:{...tooltip,trigger:'axis'},legend:{bottom:0,textStyle:{color:text}},
-    grid:{left:42,right:20,top:18,bottom:55},
-    yAxis:{type:'value',minInterval:1,axisLabel:{color:text},splitLine:{lineStyle:{color:gridLine}}}};
-   const axis=labels=>({type:'category',data:labels,axisLabel:{color:text},axisLine:{lineStyle:{color:line}}});
-   render(weekEl.value,{...base,xAxis:axis(days.value.map(x=>x.day.slice(5))),
-    series:[{name:'提交次数',type:'bar',barMaxWidth:30,itemStyle:{borderRadius:[5,5,0,0]},data:days.value.map(x=>x.submission_count)},
-     {name:'AC 次数',type:'line',symbolSize:6,data:days.value.map(x=>x.accepted_count)}]});
-   const buckets=cfDifficultyBuckets(data.value.unifiedDifficulty||[],difficultyPlatform.value);
-   render(difficultyEl.value,{animation:false,color:colors,tooltip:{...tooltip,trigger:'item'},legend:{bottom:0,textStyle:{color:text}},
-    series:[{type:'pie',radius:['43%','65%'],center:['50%','36%'],label:{show:false},
-     data:buckets}]});
-  }
   async function load(){
    if(page.value==='records'){dataVersion.value++;return;}
    const request=++requestNumber;loading.value=true;error.value='';
@@ -209,11 +99,14 @@ createApp({
    recommendation.value=recommendationRoute();
    nextTick(()=>document.getElementById('tag-analysis')?.scrollIntoView({block:'start'}));
   }
-  const resize=()=>charts.forEach(c=>c.resize());
   watch(sidebarCollapsed,()=>nextTick(resize));
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
-  return {editingCards,editableCards,cardPositions,cardStyle,moveCard,cardOrderError,recommendation,recommendationEl,closeRecommendation,display,displayControls,displayIsDefault,resetDisplay,sidebarCollapsed,sidebarInteracted,toggleSidebar,pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
+  return {
+   ...cardOrder,...displayPreferences,...dashboardCharts,
+   recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
+   pages,page,current,data,dataVersion,loading,error,load,theme
+  };
  },
  template:`
  <div class="layout" :class="{'sidebar-collapsed':sidebarCollapsed,'sidebar-interacted':sidebarInteracted}">
