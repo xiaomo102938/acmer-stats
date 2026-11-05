@@ -73,3 +73,22 @@ export async function readAbilityRows(connection){
   WHERE r.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)`);
  return rows;
 }
+export function skillSubtreeCounts(rows, nodes) {
+ const parents = new Map(nodes.map(node => [node.id, node.parent]));
+ const byPlatform = new Map();
+ for (const row of rows) {
+  if (row.passed !== 1 || !parents.has(row.tag_name)) continue;
+  const key = canonicalProblem(row);
+  for (const platform of ['全部平台', row.platform_name]) {
+   if (!byPlatform.has(platform)) byPlatform.set(platform, new Map());
+   const counts = byPlatform.get(platform);
+   for (let tag = row.tag_name; parents.has(tag); tag = parents.get(tag)) {
+    if (!counts.has(tag)) counts.set(tag, new Set());
+    counts.get(tag).add(key);
+   }
+  }
+ }
+ return Object.fromEntries([...byPlatform].map(([platform, counts]) =>
+  [platform, Object.fromEntries([...counts].map(([tag, problems]) => [tag, problems.size]))]
+ ));
+}

@@ -145,7 +145,7 @@ createApp({
     </div>
     <PlatformAnalysis :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
     <TagAnalysis :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
-    <TagAnalysis :skill-config="data.skillConfig" graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
+    <TagAnalysis :skill-config="data.skillConfig" :skill-counts="data.skillCounts" graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
 
    <section v-else-if="page==='records'" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>

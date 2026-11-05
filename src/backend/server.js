@@ -3,7 +3,7 @@ import {applyLeetcodeTotals} from './leetcode.js';
 import {ratingRouter} from './ratings.js';
 import {trendRouter} from './trends.js';
 import {submissionRouter} from './submissions.js';
-import {abilityProfiles,readAbilityRows,ratedProblems,ratingVersion,overallAbility,readProblemRows} from './ability.js';
+import {abilityProfiles,skillSubtreeCounts,readAbilityRows,ratedProblems,ratingVersion,overallAbility,readProblemRows} from './ability.js';
 import express from 'express';
 import {accountRouter} from './accounts.js';
 import mysql from 'mysql2/promise';
@@ -79,7 +79,7 @@ app.get('/api/dashboard', async (_req, res) => {
       JOIN platform p ON p.platform_id=pr.platform_id
       ORDER BY r.solve_date DESC,r.record_id LIMIT 8`);
     await connection.commit();
-    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent:ratedProblems(recent), nativeDifficulty, unifiedDifficulty, ratingVersion, overallAbility:overall, tagAbility, skillConfig:skillSettings.config, platformSnapshots, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
+    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent:ratedProblems(recent), nativeDifficulty, unifiedDifficulty, ratingVersion, overallAbility:overall, tagAbility, skillCounts:skillSubtreeCounts(abilityRows,skillSettings.config.nodes), skillConfig:skillSettings.config, platformSnapshots, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
   } catch (error) {
     await connection.rollback();
     throw error;

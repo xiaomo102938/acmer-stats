@@ -39,3 +39,23 @@ test('overall uses top150 across all problems including untagged items, merges m
  assert.equal(overallAbility(rows.slice(0,2)).sample_status,'样本不足');
  assert.equal(overallAbility([]).ability_value,null);assert.equal(overallAbility([]).sample_count,0);
 });
+import {skillSubtreeCounts} from '../src/backend/ability.js';
+test('skill subtree counts deduplicate overlapping tags and mirrors, respecting platform and primary edges',()=>{
+ const nodes=[
+  {id:'root',parent:null},
+  {id:'branch',parent:'root'},
+  {id:'leaf',parent:'branch'},
+  {id:'related',parent:null,secondary:['root']}
+ ];
+ const cf={platform_name:'Codeforces',source_key:'123A',passed:1};
+ const rows=[
+  {...cf,tag_name:'root'},{...cf,tag_name:'leaf'},
+  {platform_name:'洛谷',source_key:'CF123A',tag_name:'leaf',passed:1},
+  {...cf,source_key:'123B',tag_name:'leaf'},
+  {...cf,source_key:'123C',tag_name:'related'},
+  {...cf,source_key:'123D',tag_name:'leaf',passed:0}
+ ];
+ const counts=skillSubtreeCounts(rows,nodes);
+ assert.deepEqual(counts['全部平台'],{root:2,branch:2,leaf:2,related:1});
+ assert.deepEqual(counts['洛谷'],{leaf:1,branch:1,root:1});
+});

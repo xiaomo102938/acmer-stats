@@ -24,11 +24,11 @@ export function skillGraph(profiles,expanded){
  return {nodes,edges,height:y-5,known:new Set(families.flatMap(f=>[f.id,...f.children.map(c=>c[0])]))};
 }
 
-export function customSkillGraph(profiles,expanded,config){
+export function customSkillGraph(profiles,expanded,config,counts){
  const byKey=new Map(profiles.map(p=>[p.tag_name,p])),byId=new Map(config.nodes.map(n=>[n.id,n])),visible=new Set();
  function show(n){if(visible.has(n.id))return;visible.add(n.id);if(expanded.includes(n.id))for(const child of config.nodes.filter(c=>c.parent===n.id))show(child);}
  for(const n of config.nodes)if(n.parent===null)show(n);
- const nodes=config.nodes.filter(n=>visible.has(n.id)).map(n=>{const row=byKey.get(n.id);let root=n;while(root.parent)root=byId.get(root.parent);return {id:n.id,name:String(config.names[n.id]||row?.display_name||n.id).split(' / ')[0],root:config.nodes.some(c=>c.parent===n.id),family:root.id,row,count:row?.passed_count||0,size:nodeSize(row?.passed_count),tone:nodeTone(row)};});
+ const nodes=config.nodes.filter(n=>visible.has(n.id)).map(n=>{const row=byKey.get(n.id);let root=n;while(root.parent)root=byId.get(root.parent);const count=counts?.[n.id]??row?.passed_count??0;return {id:n.id,name:String(config.names[n.id]||row?.display_name||n.id).split(' / ')[0],root:config.nodes.some(c=>c.parent===n.id),family:root.id,row,count,size:nodeSize(count),tone:nodeTone(row)};});
  const edges=config.nodes.flatMap(n=>[...(n.parent?[{from:n.parent,to:n.id,kind:'branch'}]:[]),...n.secondary.map(from=>({from,to:n.id,kind:'related'}))]).filter(e=>visible.has(e.from)&&visible.has(e.to));
  return {nodes,edges,height:720,known:new Set(config.nodes.map(n=>n.id))};
 }
