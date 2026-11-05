@@ -2,6 +2,7 @@ import {skillSettingsRouter,readSkillSettings,mergeSkillRows,specialtyAbility} f
 import {applyLeetcodeTotals} from './leetcode.js';
 import {ratingRouter} from './ratings.js';
 import {trendRouter} from './trends.js';
+import {abilityTrendsRouter,captureAbilitySnapshot} from './ability-trends.js';
 import {submissionRouter} from './submissions.js';
 import {practiceRouter} from './practice.js';
 import {abilityProfiles,skillSubtreeCounts,readAbilityRows,ratedProblems,ratingVersion,overallAbility,readProblemRows} from './ability.js';
@@ -35,8 +36,13 @@ app.use('/api',(req,res,next)=>{
  }
  next();
 });
-app.use('/api/skill-settings',skillSettingsRouter(pool));
-app.use('/api/accounts',accountRouter(pool));
+async function saveAbilitySnapshot(connection,origin){
+ try{await captureAbilitySnapshot(connection,origin);}
+ catch(error){console.error('Ability snapshot failed:',error.code||error.name);}
+}
+app.use('/api/skill-settings',skillSettingsRouter(pool,saveAbilitySnapshot));
+app.use('/api/accounts',accountRouter(pool,saveAbilitySnapshot));
+app.use('/api/ability/trends',abilityTrendsRouter(pool));
 app.use('/api/submissions',submissionRouter(pool));
 app.use('/api/practice',practiceRouter(pool));
 app.use('/api/trends',trendRouter(pool));
@@ -165,6 +171,8 @@ app.use((error,_req,res,_next) => {
 });
 const port=Number(process.env.PORT || 3000);
 await pool.query("UPDATE platform_account SET sync_status='error',sync_message='上次同步被服务重启中断，请重新同步。' WHERE sync_status='running'");
+const startupConnection=await pool.getConnection();
+try{await saveAbilitySnapshot(startupConnection,'startup');}finally{startupConnection.release();}
 const server=app.listen(port,'127.0.0.1',()=>console.log('Local: http://127.0.0.1:'+port));
 async function close() { server.close(async()=>{await pool.end();process.exit(0);}); }
 process.on('SIGINT',close);

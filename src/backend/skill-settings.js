@@ -16,7 +16,7 @@ export function specialtyAbility(problemRows,tagRows,config,scope='specialty'){
  return {...overallAbility(problemRows.filter(r=>matches.has(canonicalProblem(r)))),scope:'specialty',configured:config.specialties.length>0,specialties:config.specialties,specialtyNames:config.specialties.map(id=>config.names[id]||id),includeDescendants:config.includeDescendants};
 }
 export {mergeSkillRows};
-export function skillSettingsRouter(pool){
+export function skillSettingsRouter(pool,captureSnapshot){
  const router=express.Router();
  router.get('/',async(_req,res)=>{const c=await pool.getConnection();try{const {userId,...state}=await readSkillSettings(c);res.set('Cache-Control','no-store').json(state);}finally{c.release();}});
  router.patch('/',async(req,res)=>{const c=await pool.getConnection();try{
@@ -54,7 +54,9 @@ export function skillSettingsRouter(pool){
   validateSkills(config,state.catalog);
   await c.execute('INSERT INTO user_skill_settings(user_id,config,revision) VALUES(?,?,?) ON DUPLICATE KEY UPDATE config=VALUES(config),revision=VALUES(revision),updated_at=NOW()',[state.userId,JSON.stringify(config),revision+1]);
   if(module==='topology')await c.execute('UPDATE user_skill_settings SET topology_draft=NULL,draft_revision=draft_revision+1 WHERE user_id=?',[state.userId]);
-  await c.commit();res.json({config,revision:revision+1,draftRevision:draftRevision+(module==='topology'?1:0),topologyDraft:module==='topology'?null:activeDraft,message:module==='merge'?'标签与图谱已一起归并保存。':'修改已保存并应用。'});
+  await c.commit();
+  await captureSnapshot?.(c,'settings');
+  res.json({config,revision:revision+1,draftRevision:draftRevision+(module==='topology'?1:0),topologyDraft:module==='topology'?null:activeDraft,message:module==='merge'?'标签与图谱已一起归并保存。':'修改已保存并应用。'});
  }catch(e){await c.rollback();throw e;}finally{await c.rollback();c.release();}});
  router.put('/',async(req,res)=>{const c=await pool.getConnection();try{
   await c.beginTransaction();const state=await readSkillSettings(c);await c.execute('SELECT user_id FROM user WHERE user_id=? FOR UPDATE',[state.userId]);
@@ -62,6 +64,9 @@ export function skillSettingsRouter(pool){
   if(!Number.isInteger(req.body.revision)||req.body.revision!==(current?.revision||0))return res.status(409).json({message:'设置已在另一窗口修改，请重新加载后编辑。'});
   if(JSON.stringify(req.body.config?.aliases)!==JSON.stringify(state.config.aliases))throw Object.assign(new Error('请使用标签归并模块预览并保存别名变更。'),{status:400});
   const config=validateSkills(req.body.config,state.catalog),revision=(current?.revision||0)+1;
-  await c.execute('INSERT INTO user_skill_settings(user_id,config,revision,updated_at) VALUES(?,?,?,NOW()) ON DUPLICATE KEY UPDATE config=VALUES(config),revision=VALUES(revision),updated_at=NOW()',[state.userId,JSON.stringify(config),revision]);await c.commit();res.json({revision,message:'题型与技能图谱设置已保存。'});
+  await c.execute('INSERT INTO user_skill_settings(user_id,config,revision,updated_at) VALUES(?,?,?,NOW()) ON DUPLICATE KEY UPDATE config=VALUES(config),revision=VALUES(revision),updated_at=NOW()',[state.userId,JSON.stringify(config),revision]);
+  await c.commit();
+  await captureSnapshot?.(c,'settings');
+  res.json({revision,message:'题型与技能图谱设置已保存。'});
  }catch(e){await c.rollback();throw e;}finally{await c.rollback();c.release();}});return router;
 }

@@ -9,7 +9,7 @@ import {encrypt,decrypt} from './secrets.js';
 import {saveSubmissions} from './sync-store.js';
 import {nowcoderUid} from '../shared/account-config.js';
 
-export function accountRouter(pool) {
+export function accountRouter(pool,captureSnapshot) {
  const router=express.Router(), busy=new Set();
  const invalid=message=>Object.assign(new Error(message),{status:400});
  async function owner(){
@@ -89,6 +89,7 @@ export function accountRouter(pool) {
      const result=await collect(account,decrypt(account.login_pwd));
      await saveSubmissions(connection,account,result);
     }
+    await captureSnapshot?.(connection,'sync');
     await refreshAccountRating(connection,account,decrypt(account.login_pwd));
    }catch(error){
     const message=(error instanceof SourceError||error instanceof LuoguError)?error.message:'同步未完成，已有数据未被清空。请检查网络或稍后重试。';
