@@ -1,9 +1,10 @@
+import {completePositions} from './topology-editor-layout.js';
 import ChoicePicker from './choice-picker.js';
 import TopologyEditor from './topology-editor.js';
 import {ref,computed,onMounted,watch} from 'vue';
 import {validateSkills,specialtyKeys} from '../shared/skill-settings.js';
 import {mergeTopology,edgeKey} from '../shared/topology-merge.js';
-import {completePositions,topologyContentSignature} from '../shared/topology-geometry.js';
+import {topologyContentSignature} from '../shared/topology-geometry.js';
 const clone=v=>JSON.parse(JSON.stringify(v));
 const specialty=c=>({specialties:clone(c.specialties),includeDescendants:c.includeDescendants});
 const topology=c=>({nodes:clone(c.nodes),names:clone(c.names),positions:completePositions(c.nodes,c.positions)});

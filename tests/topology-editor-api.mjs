@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';import {completePositions} from '../src/shared/topology-geometry.js';
+import assert from 'node:assert/strict';import {completePositions} from '../src/frontend/topology-editor-layout.js';
 const url='http://127.0.0.1:3000/api/skill-settings';const get=async()=>{const r=await fetch(url);assert.equal(r.status,200);return r.json();};let state=await get(),before=structuredClone(state),ownRevision=state.revision,ownDraft=state.draftRevision,merged=false;
 const patch=async(module,extra={},status=200)=>{const r=await fetch(url,{method:'PATCH',headers:{'Content-Type':'application/json','X-Acmer-Request':'1'},body:JSON.stringify({module,revision:ownRevision,draftRevision:ownDraft,...extra})});const b=await r.json();assert.equal(r.status,status,JSON.stringify(b));if(status===200){ownRevision=b.revision;ownDraft=b.draftRevision;state=b;}return b;};
 const topo=c=>({nodes:structuredClone(c.nodes),names:structuredClone(c.names),positions:completePositions(c.nodes,c.positions)});

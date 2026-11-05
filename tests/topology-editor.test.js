@@ -1,5 +1,6 @@
+import {completePositions} from '../src/frontend/topology-editor-layout.js';
 import test from 'node:test';import assert from 'node:assert/strict';
-import {mergeTopology,edgeKey} from '../src/shared/topology-merge.js';import {validateSkills} from '../src/shared/skill-settings.js';import {completePositions,canPlace,overlaps} from '../src/shared/topology-geometry.js';
+import {mergeTopology,edgeKey} from '../src/shared/topology-merge.js';import {validateSkills} from '../src/shared/skill-settings.js';import {canPlace,overlaps} from '../src/shared/topology-geometry.js';
 const config=()=>({aliases:{},names:{},specialties:['four'],includeDescendants:true,nodes:[{id:'one',parent:null,secondary:[]},{id:'two',parent:'one',secondary:[]},{id:'three',parent:'two',secondary:[]},{id:'four',parent:'three',secondary:[]},{id:'five',parent:'one',secondary:[]}]});
 const catalog=['one','two','three','four','five','six'].map(key=>({key,name:key}));
 test('merge keeps shallower node, preserves outgoing edges and demotes deeper parent; source unchanged',()=>{
@@ -20,7 +21,7 @@ import {reactive} from 'vue';
 test('merge preview accepts Vue reactive config without mutating editor state',()=>{
  const original=reactive(config()),p=mergeTopology(original,'four','five',catalog);assert.equal(p.conflict,'');assert.equal(p.keep,'five');assert.equal(original.nodes.length,5);assert.deepEqual(original.aliases,{});
 });
-import {defaultSkills} from '../src/shared/skill-settings.js';import {forestPositions} from '../src/shared/topology-geometry.js';
+import {defaultSkills} from '../src/shared/skill-settings.js';import {forestPositions} from '../src/frontend/topology-editor-layout.js';
 test('forest layout separates primary trees, respects hierarchy and preserves manual coordinates',()=>{
  const c=defaultSkills(),p=forestPositions(c.nodes);assert.equal(Object.keys(p).length,c.nodes.length);validateSkills({...c,positions:p},c.nodes.map(n=>({key:n.id})));
  for(const n of c.nodes)if(n.parent)assert.ok(p[n.id].x>p[n.parent].x,'children are to the right of primary parent');
@@ -34,4 +35,20 @@ test('layout-only movement and reordering do not mark topology content as change
  moved.nodes.reverse();assert.equal(topologyContentSignature(c),topologyContentSignature(moved));
  moved.names.one='renamed';assert.notEqual(topologyContentSignature(c),topologyContentSignature(moved));delete moved.names.one;
  moved.nodes.find(n=>n.id==='four').parent='one';assert.notEqual(topologyContentSignature(c),topologyContentSignature(moved));
+});
+test('wide primary trees pack across the canvas without saving generated coordinates during merges',()=>{
+ const nodes=[];
+ for(let tree=0;tree<7;tree++){
+  const root='root'+tree;
+  nodes.push({id:root,parent:null,secondary:[]});
+  for(let i=0;i<18;i++){
+   nodes.push({id:root+'-'+i,parent:i===0?root:i<4?root+'-'+(i-1):root,secondary:[]});
+  }
+ }
+ const positions=forestPositions(nodes);
+ validateSkills({nodes,positions,names:{},aliases:{},specialties:[],includeDescendants:true},nodes.map(n=>({key:n.id})));
+ const width=Math.max(...Object.values(positions).map(p=>p.x))+110;
+ const height=Math.max(...Object.values(positions).map(p=>p.y))+80;
+ assert.ok(width/height>0.8&&width/height<2.5);
+ assert.equal(mergeTopology(config(),'four','five',catalog).config.positions,undefined);
 });

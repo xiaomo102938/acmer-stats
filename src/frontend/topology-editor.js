@@ -1,6 +1,7 @@
+import {completePositions,forestPositions} from './topology-editor-layout.js';
 import {ref,computed,watch} from 'vue';
 import ChoicePicker from './choice-picker.js';
-import {completePositions,forestPositions,canPlace,editorNode} from '../shared/topology-geometry.js';
+import {canPlace,editorNode} from '../shared/topology-geometry.js';
 import {graphEdges,edgeKey} from '../shared/topology-merge.js';
 const clone=v=>JSON.parse(JSON.stringify(v));
 export default{
@@ -9,13 +10,14 @@ export default{
   const renameText=ref(''),showCreate=ref(false);
   const zoomLevels=[25,40,50,60,70,75,80,90,100,110,125,140,150,175,200,225,250,275,300];
   const svg=ref(null),mode=ref('move'),selected=ref(''),selectedEdge=ref(''),from=ref(''),adding=ref(''),message=ref(''),positions=ref({}),zoom=ref(100),pan=ref({x:0,y:0}),history=ref([]);let gesture=null;
-  watch(()=>props.modelValue,v=>{positions.value=completePositions(v.nodes,v.positions);if(!v.nodes.some(n=>n.id===selected.value))selected.value='';},{immediate:true});
+  const committedPositions=computed(()=>completePositions(props.modelValue.nodes,props.modelValue.positions));
+  watch(committedPositions,value=>{positions.value=value;if(!props.modelValue.nodes.some(n=>n.id===selected.value))selected.value='';},{immediate:true});
   const nodes=computed(()=>props.modelValue.nodes),edges=computed(()=>graphEdges(nodes.value));
   const name=id=>props.modelValue.names[id]||props.catalog.find(t=>t.key===id)?.name||id;
   const candidates=computed(()=>props.catalog.filter(t=>!nodes.value.some(n=>n.id===t.key)).map(t=>({key:t.key,label:name(t.key),hint:t.key})));
   watch(selected,id=>{renameText.value=id?name(id):'';});
   const options=computed(()=>nodes.value.map(n=>({key:n.id,label:name(n.id),hint:n.id})));
-  const bounds=computed(()=>({width:Math.max(900,...Object.values(completePositions(props.modelValue.nodes,props.modelValue.positions)).map(p=>p.x+110)),height:Math.max(560,...Object.values(completePositions(props.modelValue.nodes,props.modelValue.positions)).map(p=>p.y+80))}));
+  const bounds=computed(()=>({width:Math.max(900,...Object.values(committedPositions.value).map(p=>p.x+110)),height:Math.max(560,...Object.values(committedPositions.value).map(p=>p.y+80))}));
   const viewBox=computed(()=>{const scale=100/zoom.value;return [pan.value.x,pan.value.y,bounds.value.width*scale,bounds.value.height*scale].join(' ');});
   function commit(next){history.value=[...history.value.slice(-39),clone(props.modelValue)];emit('update:modelValue',next);}
   function update(fn){const next=clone(props.modelValue);next.positions=clone(positions.value);fn(next);commit(next);}
@@ -29,7 +31,7 @@ export default{
   function selectEdge(e){selectedEdge.value=edgeKey(e);selected.value='';from.value='';mode.value='move';showCreate.value=false;}
   function startConnection(kind){mode.value=kind;from.value=selected.value;message.value='请点击后继节点，空白处可取消连线。';}
   function activate(n){if(mode.value!=='move'&&from.value){connect(from.value,n.id);from.value='';mode.value='move';}selected.value=n.id;selectedEdge.value='';showCreate.value=false;}
-  function reforest(){update(c=>c.positions=forestPositions(c.nodes));zoom.value=100;pan.value={x:0,y:0};message.value='已按主树重新排列为森林，可撤销或保存。';}
+  function reforest(){update(c=>c.positions=forestPositions(c.nodes));zoom.value=100;pan.value={x:0,y:0};message.value='已按主树重新排列为森林，可撤销。';}
   function changeZoom(next){const previous=zoom.value,value=Math.max(25,Math.min(300,Number(next)||100));pan.value={x:pan.value.x+bounds.value.width*(100/previous-100/value)/2,y:pan.value.y+bounds.value.height*(100/previous-100/value)/2};zoom.value=value;}
   function stepZoom(delta){const next=delta>0?zoomLevels.find(v=>v>zoom.value):[...zoomLevels].reverse().find(v=>v<zoom.value);if(next)changeZoom(next);}
   function background(e){if(e.button!==0||e.target!==svg.value)return;clearSelection();const p=point(e);gesture={pan:true,start:p,origin:{...pan.value}};svg.value.setPointerCapture(e.pointerId);}
