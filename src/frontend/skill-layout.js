@@ -7,7 +7,8 @@ export function createSkillLayout(graph,previous=new Map(),options={}){
   const old=previous.get(n.id),parent=previous.get(n.family),angle=(rootIndex.get(n.family)||0)*Math.PI*2/Math.max(1,roots.length)-Math.PI/2;
   const jitter=(hash(n.id)%6283)/1000;
   const center=parent||{x:width/2+Math.cos(angle)*235,y:height/2+Math.sin(angle)*210};
-  return {id:n.id,radius:(n.size||24)/2,x:old?.x??center.x+(n.root?0:Math.cos(jitter)*85),y:old?.y??center.y+(n.root?0:Math.sin(jitter)*85),vx:0,vy:0,fx:0,fy:0};
+  const radius=(n.size||24)/2;
+  return {id:n.id,family:n.family,radius,charge:1+radius/60,x:old?.x??center.x+(n.root?0:Math.cos(jitter)*85),y:old?.y??center.y+(n.root?0:Math.sin(jitter)*85),vx:0,vy:0,fx:0,fy:0};
  });
  const byId=new Map(nodes.map(n=>[n.id,n])),edges=graph.edges.map(e=>({...e,a:byId.get(e.from),b:byId.get(e.to)})).filter(e=>e.a&&e.b);
  let steps=0,stable=0,done=nodes.length===0,reason=done?'stable':null,lastMovement=Infinity;
@@ -17,7 +18,12 @@ export function createSkillLayout(graph,previous=new Map(),options={}){
    for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
     const a=nodes[i],b=nodes[j];let dx=b.x-a.x,dy=b.y-a.y;
     if(Math.abs(dx)+Math.abs(dy)<.001){const angle=(hash(a.id+'>'+b.id)%6283)/1000;dx=Math.cos(angle)*.1;dy=Math.sin(angle)*.1;}
-    const d=Math.max(.1,Math.hypot(dx,dy)),force=Math.min(8,1250/(d*d)+Math.max(0,Math.max(125,a.radius+b.radius+36)-d)*.075),fx=dx/d*force,fy=dy/d*force;
+    const d=Math.max(.1,Math.hypot(dx,dy));
+    const separateTrees=a.family!==b.family;
+    const spacing=Math.max(125,a.radius+b.radius+36)+(separateTrees?24:0);
+    const repulsion=1250*a.charge*b.charge*(separateTrees?2.5:1)/(d*d);
+    const force=Math.min(12,repulsion+Math.max(0,spacing-d)*.075);
+    const fx=dx/d*force,fy=dy/d*force;
     a.fx-=fx;a.fy-=fy;b.fx+=fx;b.fy+=fy;
    }
    for(const {a,b,kind}of edges){
