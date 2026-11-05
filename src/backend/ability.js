@@ -49,7 +49,7 @@ export async function readAcceptedDays(connection){
 function currentProfile(problems,limit,day){
  const dated=problems.filter(row=>row.lastAcceptedDay!=null);
  const scores=dated.map(row=>{
-  const daysAfterGrace=Math.max(0,day-row.lastAcceptedDay-30);
+  const daysAfterGrace=Math.max(0,day-row.lastAcceptedDay-60);
   const penalty=250*(1-2**(-daysAfterGrace/365));
   return {age:day-row.lastAcceptedDay,score:Math.max(800,row.rating-penalty)};
  })
