@@ -69,10 +69,10 @@ function currentProfile(problems,minimum,day){
   weightedScore+=row.score*weight;
  }
  return {
-  current_value:sample.length?roundScore(weightedScore/weightTotal*sample.length/limit):0,
-  current_equal_weight_value:roundScore(sample.reduce((sum,row)=>sum+row.score,0)/limit),
+  current_value:sample.length?roundScore(weightedScore/weightTotal*sample.length/limit):null,
+  current_equal_weight_value:sample.length?roundScore(sample.reduce((sum,row)=>sum+row.score,0)/limit):null,
   current_sample_count:sample.length,current_sample_limit:limit,current_dated_count:dated.length,
-  current_unadjusted_value:roundScore(dated.slice(0,limit).reduce((sum,row)=>sum+row.rating,0)/limit)
+  current_unadjusted_value:sample.length?roundScore(dated.slice(0,limit).reduce((sum,row)=>sum+row.rating,0)/limit):null
  };
 }
 

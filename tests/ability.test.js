@@ -47,6 +47,10 @@ test('the 15% sample rounds up and current ability pads a single dated AC with z
  assert.equal(profile.current_sample_count,1);
  assert.equal(profile.current_sample_limit,10);
  assert.equal(profile.current_value,150);
+ const undated=abilityProfiles(rows,'全部平台',null,undefined,{day:183,days:new Map()})[0];
+ assert.equal(undated.ability_value,1500);
+ assert.equal(undated.current_sample_count,0);
+ assert.equal(undated.current_value,null);
 });
 
 import {skillSubtreeCounts} from '../src/backend/ability.js';
