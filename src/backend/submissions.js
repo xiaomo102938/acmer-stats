@@ -1,5 +1,6 @@
 import express from 'express';
-import {ratedProblems,readProblemRows,readAbilityRows} from './ability.js';
+import {ratedProblems} from './ability-difficulty.js';
+import {readProblemRows,readAbilityRows} from './ability-store.js';
 import {retryProblems} from './practice.js';
 import {readSkillSettings} from './skill-settings.js';
 import {mergeSkillRows,specialtyKeys,resolveTag} from '../shared/skill-settings.js';

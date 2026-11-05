@@ -1,7 +1,8 @@
 import {mergeTopology,unmergeTopology} from '../shared/topology-merge.js';
 import express from 'express';
 import {defaultSkills,skillCatalog,validateSkills,mergeSkillRows,specialtyKeys,resolveTag} from '../shared/skill-settings.js';
-import {overallAbility,canonicalProblem,abilityMinimums} from './ability.js';
+import {overallAbility,abilityMinimums} from './ability.js';
+import {canonicalProblem} from './ability-difficulty.js';
 export async function readSkillSettings(c){
  const [[u]]=await c.query('SELECT user_id FROM user ORDER BY user_id LIMIT 1');
  const [[row]]=await c.execute('SELECT config,revision,topology_draft,draft_revision FROM user_skill_settings WHERE user_id=?',[u.user_id]);

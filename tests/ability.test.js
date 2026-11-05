@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {estimateCF,abilityProfiles,overallAbility} from '../src/backend/ability.js';
+import {abilityProfiles,overallAbility} from '../src/backend/ability.js';
+import {estimateCF} from '../src/backend/ability-difficulty.js';
 import {problemMetadata} from '../src/backend/luogu-metadata.js';
 const base={tag_id:'dp',tag_name:'dp',display_name:'动态规划 / Dynamic Programming',passed:1};
 function cf(i,rating){return {...base,problem_id:'cf'+i,platform_name:'Codeforces',source_key:i+'A',native_difficulty:String(rating),difficulty_source:'codeforces'};}

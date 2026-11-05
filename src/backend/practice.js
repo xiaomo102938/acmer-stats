@@ -1,5 +1,6 @@
 import express from 'express';
-import {abilityProfiles,canonicalProblem} from './ability.js';
+import {abilityProfiles} from './ability.js';
+import {canonicalProblem} from './ability-difficulty.js';
 import {getDifficultyMetadata,inferProblemKey} from './difficulty-metadata.js';
 import {readSkillSettings} from './skill-settings.js';
 import {mergeSkillRows,resolveTag,specialtyKeys} from '../shared/skill-settings.js';

@@ -1,50 +1,7 @@
-// acmer-cf-v1: transparent training heuristic, not an official rating prediction.
-// AtCoder projection references Silver_Fox's user-rating converter, not a problem calibration.
-export const ratingVersion='acmer-cf-v1';
-export const luoguCF=[null,800,1000,1400,1800,2000,2200,2700,3200];
-export function canonicalProblem(row){
- const key=row.source_key;
- if(key&&row.platform_name==='Codeforces')return 'cf:'+key.toUpperCase();
- if(key&&row.platform_name==='AtCoder')return 'at:'+key.toLowerCase();
- if(key&&row.platform_name==='洛谷'){
-  if(/^CF\d+[A-Z]\d?$/i.test(key))return 'cf:'+key.slice(2).toUpperCase();
-  if(/^AT_/i.test(key))return 'at:'+key.slice(3).toLowerCase();
- }
- return row.platform_name+':'+(key||row.problem_id);
-}
-export function estimateCF(row){
- const value=row.native_difficulty,valid=value!=null&&value!==''&&/^\d+(\.\d+)?$/.test(String(value));
- const n=valid?Number(value):null;
- if(row.platform_name==='Codeforces'&&row.difficulty_source==='codeforces'&&n>=800&&n<=4000)return {rating:n,method:'CF 官方题目 rating',confidence:'官方',estimated:false};
- if(row.platform_name==='AtCoder'&&/^atcoder_problems(?:_experimental)?$/.test(row.difficulty_source||'')&&valid&&n<=5000){
-  return {rating:Math.round(Math.min(3900,Math.max(800,3900*(n+940)/5155))/100)*100,method:'AT 社区难度 → CF 实验换算 v1',confidence:'低',estimated:true};
- }
- if(row.platform_name==='洛谷'&&row.difficulty_source==='luogu'&&valid&&Number.isInteger(n)&&luoguCF[n]!=null)return {rating:luoguCF[n],method:'洛谷八档难度映射 v1',confidence:'低',estimated:true};
- // No numerical rating is invented from a platform name, solve count, or missing metadata.
- return {rating:null,method:'暂无可靠换算依据',confidence:'无',estimated:true};
-}
-export function ratedProblems(rows){
- const official=new Map();
- for(const r of rows){const e=estimateCF(r);if(!e.estimated&&e.rating!=null)official.set(canonicalProblem(r),e);}
- return rows.map(row=>{
-  const key=canonicalProblem(row),exact=official.get(key),e=exact||estimateCF(row);
-  return {...row,...e,canonical_key:key,method:exact&&row.platform_name!=='Codeforces'?'同源 CF 题目官方 rating':e.method,rating_version:ratingVersion};
- });
-}
+import {canonicalProblem,ratedProblems} from './ability-difficulty.js';
+
 const dayMs=86400000;
 export const shanghaiDay=(now=Date.now())=>Math.floor((now+8*3600000)/dayMs);
-
-export async function readAcceptedDays(connection){
- const [rows]=await connection.query(`SELECT problem_id,DATEDIFF(DATE(submitted_at),'1970-01-01') AS day
-  FROM synced_submission WHERE passed=1 AND user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)
-  GROUP BY problem_id,day ORDER BY day DESC`);
- const days=new Map();
- for(const row of rows){
-  if(!days.has(row.problem_id))days.set(row.problem_id,[]);
-  days.get(row.problem_id).push(row.day);
- }
- return days;
-}
 
 export const abilityMinimums={topic:20,specialty:125,all:250};
 const sampleTarget=(count,minimum)=>Math.max(minimum,Math.ceil(count*15/100));
@@ -69,6 +26,7 @@ function currentProfile(problems,minimum,day){
   weightedScore+=row.score*weight;
  }
  return {
+  // Normalize the weights over real problems, then count missing slots as zero.
   current_value:sample.length?roundScore(weightedScore/weightTotal*sample.length/limit):null,
   current_equal_weight_value:sample.length?roundScore(sample.reduce((sum,row)=>sum+row.score,0)/limit):null,
   current_sample_count:sample.length,current_sample_limit:limit,current_dated_count:dated.length,
@@ -110,20 +68,7 @@ export function overallAbility(rows,recency,minimum=abilityMinimums.all){
  const profile=abilityProfiles(rows.map(r=>({...r,tag_id:'overall',tag_name:'overall',display_name:'综合能力参考'})),'全部平台',null,minimum,recency)[0];
  return profile||{sample_count:0,sample_limit:minimum,ability_value:0,...(recency?currentProfile([],minimum,recency.day):{}),estimated_count:0,rated_count:0,passed_count:0,total_count:0,min_difficulty:null,max_difficulty:null,sample_status:'补 '+minimum+' 道零分',problems:[]};
 }
-export async function readProblemRows(connection){
- const [rows]=await connection.query(`SELECT pr.*,r.passed,r.solve_date,p.platform_name FROM v_problem_progress r
- JOIN problem pr ON pr.problem_id=r.problem_id JOIN platform p ON p.platform_id=pr.platform_id
- WHERE r.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)`);
- return rows;
-}
-export async function readAbilityRows(connection){
- const [rows]=await connection.query(`SELECT r.user_id,r.passed,r.solve_date,pr.problem_id,pr.problem_name,pr.problem_url,pr.source_key,pr.native_difficulty,pr.difficulty_source,
-  p.platform_name,pt.tag_id,t.tag_name,COALESCE(t.display_name,t.tag_name) AS display_name
-  FROM v_problem_progress r JOIN problem pr ON pr.problem_id=r.problem_id JOIN platform p ON p.platform_id=pr.platform_id
-  JOIN problem_tag pt ON pt.problem_id=pr.problem_id JOIN tag t ON t.tag_id=pt.tag_id
-  WHERE r.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)`);
- return rows;
-}
+
 export function skillSubtreeCounts(rows, nodes) {
  const parents = new Map(nodes.map(node => [node.id, node.parent]));
  const byPlatform = new Map();

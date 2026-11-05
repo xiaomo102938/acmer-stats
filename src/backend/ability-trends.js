@@ -1,7 +1,9 @@
 import {createHash} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
 import express from 'express';
-import {abilityProfiles,overallAbility,ratingVersion,readAbilityRows,readProblemRows,readAcceptedDays,shanghaiDay,abilityMinimums} from './ability.js';
+import {abilityProfiles,overallAbility,shanghaiDay,abilityMinimums} from './ability.js';
+import {ratingVersion} from './ability-difficulty.js';
+import {readAbilityRows,readProblemRows,readAcceptedDays} from './ability-store.js';
 import {readSkillSettings,specialtyAbility} from './skill-settings.js';
 import {mergeSkillRows,specialtyKeys} from '../shared/skill-settings.js';
 
