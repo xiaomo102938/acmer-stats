@@ -1,5 +1,5 @@
 import {ref,computed,onMounted,onBeforeUnmount,watch} from 'vue';
-const verdicts={AC:'AC · 通过',WA:'WA · 答案错误',WRONG_ANSWER:'WA · 答案错误',TLE:'TLE · 超时',TL:'TLE · 超时',TIME_LIMIT_EXCEEDED:'TLE · 超时',MLE:'MLE · 超内存',ML:'MLE · 超内存',MEMORY_LIMIT_EXCEEDED:'MLE · 超内存',RE:'RE · 运行错误',RTE:'RE · 运行错误',RUNTIME_ERROR:'RE · 运行错误',CE:'CE · 编译错误',COMPILATION_ERROR:'CE · 编译错误',PARTIAL:'部分得分'};
+import {submissionLabel as label,problemLink as link} from './submission-display.js';
 export default{
  props:{refreshKey:Number},
  setup(props){
@@ -11,8 +11,6 @@ export default{
     if(id!==serial)return;items.value=body.items;page.value=body.page;pages.value=body.pages;total.value=body.total;jump.value=body.page;
    }catch(e){if(id===serial&&e.name!=='AbortError')error.value=e.message||'读取提交记录失败';}finally{if(id===serial)loading.value=false;}
   }
-  const label=r=>r.passed===1?'AC · 通过':verdicts[r.verdict]||(r.verdict?'非 AC · '+r.verdict:'非 AC · 历史判定未保存');
-  const link=r=>/^https?:\/\//i.test(r.problem_url||'')?r.problem_url:null;
   const go=()=>{if(Number.isInteger(Number(jump.value))&&jump.value>=1&&jump.value<=pages.value)load(Number(jump.value));};
   watch(()=>props.refreshKey,()=>load());onMounted(()=>load());onBeforeUnmount(()=>{serial++;request?.abort();});
   return {items,page,pageSize,pages,total,loading,error,jump,buttons,load,label,link,go};

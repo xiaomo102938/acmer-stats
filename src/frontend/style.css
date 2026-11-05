@@ -122,3 +122,8 @@ main>header{margin-bottom:22px}main>header h1{font-size:calc(24px * var(--font-s
 .range-control>div{display:flex;justify-content:space-between;gap:12px}
 .range-control output{color:var(--accent);font-variant-numeric:tabular-nums}
 .range-control input{width:100%;margin:0;accent-color:var(--accent)}
+
+.practice-panel .panel-head,.practice-tabs{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.practice-tabs [aria-pressed="true"]{background:var(--selected);font-weight:600}
+.practice-filters{margin-bottom:12px}
+.practice-panel .table-wrap{margin-top:16px}

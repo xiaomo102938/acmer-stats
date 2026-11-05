@@ -4,6 +4,7 @@ import SkillSettings from './skill-settings.js';
 import PlatformAnalysis from './platform-analysis.js';
 import PracticeTrends from './practice-trends.js';
 import Submissions from './submissions.js';
+import Practice from './practice.js';
 import {createApp,onMounted,onBeforeUnmount,ref,computed,watch,nextTick} from 'vue';
 import * as echarts from 'echarts/core';
 import {BarChart,LineChart,PieChart} from 'echarts/charts';
@@ -28,16 +29,18 @@ const displayStorageKey='acmer-display-preferences';
 const pages=[
  {id:'overview',icon:'◫',name:'数据简览'},
  {id:'analysis',icon:'↗',name:'详细分析'},
+ {id:'practice',icon:'◎',name:'练习提升'},
  {id:'records',icon:'≡',name:'提交记录'},
  {id:'settings',icon:'⚙',name:'设置'}
 ];
 const aliases={trends:'analysis',tags:'analysis',recent:'records',accounts:'settings'};
+const readPracticeTag=()=>new URLSearchParams(location.hash.split("?")[1]).get("tag")||"";
 function resolvePage(){
- const key=location.hash.slice(1);
+ const key=location.hash.slice(1).split('?')[0];
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Accounts,Activity,TagAnalysis,OverallAbility},
+ components:{SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,Accounts,Activity,TagAnalysis,OverallAbility},
  setup(){
   const sidebarCollapsed=ref(false),sidebarInteracted=ref(false);
   try { sidebarCollapsed.value=localStorage.getItem('acmer-sidebar-collapsed')==='1'; } catch {}
@@ -48,6 +51,7 @@ createApp({
   }
 
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
+  const practiceTag=ref(page.value==='practice'?readPracticeTag():'');
   const data=ref(null),loading=ref(false),error=ref(''),dataVersion=ref(0);
   const difficultyEl=ref(null),weekEl=ref(null);
   const charts=new Map();
@@ -118,7 +122,7 @@ createApp({
      data:buckets}]});
   }
   async function load(){
-   if(page.value==='records'){dataVersion.value++;return;}
+   if(page.value==='records'||page.value==='practice'){dataVersion.value++;return;}
    const request=++requestNumber;loading.value=true;error.value='';
    try{
     const response=await fetch('/api/dashboard');const body=await response.json();
@@ -130,19 +134,20 @@ createApp({
   }
   function hashChanged(){
    const next=resolvePage();page.value=next;
+   if(next==='practice'){practiceTag.value=readPracticeTag();return;}
    if(location.hash!=='#'+next)history.replaceState(null,'','#'+next);
   }
   watch(difficultyPlatform,()=>nextTick(draw));
   watch(page,async()=>{
    disposeCharts();await nextTick();draw();
    window.scrollTo({top:0,behavior:'instant'});
-   if(page.value!=='settings')load();
+   if(!['settings','practice'].includes(page.value))load();
   });
   const resize=()=>charts.forEach(c=>c.resize());
   watch(sidebarCollapsed,()=>nextTick(resize));
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
-  return {display,displayControls,displayIsDefault,resetDisplay,sidebarCollapsed,sidebarInteracted,toggleSidebar,pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
+  return {practiceTag,display,displayControls,displayIsDefault,resetDisplay,sidebarCollapsed,sidebarInteracted,toggleSidebar,pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
  },
  template:`
  <div class="layout" :class="{'sidebar-collapsed':sidebarCollapsed,'sidebar-interacted':sidebarInteracted}">
@@ -157,8 +162,8 @@ createApp({
   </aside>
   <main>
    <header><h1>{{current.name}}</h1><button v-if="page!=='settings'" @click="load" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
-   <div v-if="error&&page!=='settings'" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
-   <p v-if="loading&&!data&&page!=='settings'&&page!=='records'" role="status">正在读取数据库…</p>
+   <div v-if="error&&!['settings','practice'].includes(page)" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
+   <p v-if="loading&&!data&&!['settings','records','practice'].includes(page)" role="status">正在读取数据库…</p>
 
    <section v-if="page==='overview'&&data" key="overview" aria-label="数据简览">
     <div class="metrics">
@@ -187,6 +192,8 @@ createApp({
     <TagAnalysis :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
     <TagAnalysis :skill-config="data.skillConfig" :skill-counts="data.skillCounts" graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
+
+   <section v-else-if="page==='practice'" key="practice" aria-label="练习提升"><Practice :key="practiceTag" :initial-tag="practiceTag" :refresh-key="dataVersion" /></section>
 
    <section v-else-if="page==='records'" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>
 
