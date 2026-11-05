@@ -66,7 +66,7 @@ export default{
   <nav v-if="rows.length" class="submission-pagination" aria-label="题型能力分页"><button :disabled="page<=1" @click="changePage(page-1)">上一页</button><template v-for="(n,i) in pageButtons" :key="n"><span v-if="i&&n>pageButtons[i-1]+1">…</span><button :aria-current="n===page?'page':undefined" @click="changePage(n)">{{n}}</button></template><button :disabled="page>=pages" @click="changePage(page+1)">下一页</button><span aria-live="polite">第 {{page}} / {{pages}} 页</span></nav>
   <p v-if="!rows.length" class="muted">{{query.trim()?'没有匹配的题型。':'该平台暂无题型记录。'}}</p>
   </template>
-  <SkillGraph v-else :config="skillConfig" :counts="skillCounts[platform]" :profiles="rows" @inspect="show" />
+  <SkillGraph v-else :config="skillConfig" :counts="skillCounts[platform]" :profiles="rows" @inspect="show" @clear-inspection="close" />
   <section v-if="selected" ref="detailEl" class="ability-detail" :aria-label="graphOnly?'图谱入选题单':'能力参考入选题单'">
    <div class="panel-head"><h3>{{selected.display_name}} · {{platform}} · {{currentSample?'当前能力':'历史能力'}}</h3><div class="practice-tabs"><a :href="practiceHref(selected.tag_id)" class="problem">练习这个题型 ↗</a><button @click="close">收起题单</button></div></div>
    <p class="footnote">入选 {{currentSample?selected.current_sample_count:selected.sample_count}} / {{currentSample?selected.current_sample_limit:selected.sample_limit}} 道，参考分 {{currentSample?selected.current_value:selected.ability_value}}。</p>
