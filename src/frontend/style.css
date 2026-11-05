@@ -110,3 +110,6 @@ html[data-theme="black"] button.primary,html[data-theme="gray"] button.primary{b
 }
 
 main>header{margin-bottom:22px}main>header h1{font-size:24px;line-height:1.25;margin:0}
+@media(prefers-reduced-motion:no-preference){
+ .skill-node circle,.skill-edge path{transition:stroke 150ms ease-out,stroke-width 150ms ease-out}
+}
