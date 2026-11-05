@@ -1,21 +1,36 @@
 import {apiFetch} from './api-fetch.js';
 import SkillGraph from './skill-graph.js';
+import {searchChoices} from './choice-picker.js';
 import {ref,computed,watch,nextTick} from 'vue';
+const sortOptions=[
+ ['ability_value','历史能力'],['current_value','当前能力'],['passed_count','通过题数'],
+ ['rated_count','有效评分题数'],['total_count','尝试题数'],['sample_count','入选题数']
+];
+const compareNames=(a,b)=>a.display_name.localeCompare(b.display_name,'zh-CN')||String(a.tag_id).localeCompare(String(b.tag_id));
+
 export default{
  components:{SkillGraph},
  props:{skillCounts:{type:Object,default:()=>({})},skillConfig:{type:Object,default:null},graphOnly:{type:Boolean,default:false},profiles:{type:Array,default:()=>[]},refreshKey:{type:Number,default:0}},
  setup(props){
   const detailEl=ref(null),panelEl=ref(null),page=ref(1),pageSize=ref(15);
   const platform=ref('全部平台'),selected=ref(null),problems=ref([]),loading=ref(false),error=ref('');
+  const query=ref(''),sortKey=ref('ability_value');
   let serial=0;
   const platforms=computed(()=>[...new Set(props.profiles.map(p=>p.platform_name))]);
-  const rows=computed(()=>props.profiles.filter(p=>p.platform_name===platform.value));
+  const platformRows=computed(()=>props.profiles.filter(p=>p.platform_name===platform.value));
+  const choices=computed(()=>platformRows.value.map(row=>({label:row.display_name,hint:row.tag_name,key:row.tag_id,row})));
+  const rows=computed(()=>{
+   if(props.graphOnly)return platformRows.value;
+   const key=sortKey.value;
+   return searchChoices(choices.value,query.value).map(choice=>choice.row)
+    .sort((a,b)=>(b[key]??-Infinity)-(a[key]??-Infinity)||compareNames(a,b));
+  });
   const pages=computed(()=>Math.max(1,Math.ceil(rows.value.length/pageSize.value)));
   const visible=computed(()=>rows.value.slice((page.value-1)*pageSize.value,page.value*pageSize.value));
   const pageButtons=computed(()=>[...new Set([1,...Array.from({length:5},(_,i)=>page.value-2+i).filter(n=>n>1&&n<pages.value),pages.value])].sort((a,b)=>a-b));
   async function changePage(n){close();page.value=Math.max(1,Math.min(pages.value,n));await nextTick();panelEl.value?.scrollIntoView({behavior:'instant',block:'start'});}
   watch(pages,n=>{if(page.value>n){page.value=n;close();}});
-  watch(pageSize,()=>{page.value=1;close();});
+  watch([pageSize,query,sortKey],()=>{page.value=1;close();});
   watch(platforms,list=>{if(list.length&&!list.includes(platform.value))platform.value=list[0];},{immediate:true});
   function close(){serial++;selected.value=null;problems.value=[];error.value='';loading.value=false;}
   watch(platform,()=>{page.value=1;close();});
@@ -30,19 +45,23 @@ export default{
    finally{if(id===serial)loading.value=false;}
   }
   const practiceHref=tag=>'#analysis?'+new URLSearchParams({recommend:'1',tag});
-  return {practiceHref,panelEl,page,pageSize,pages,visible,pageButtons,changePage,detailEl,platform,platforms,rows,selected,problems,loading,error,show,close};
+  return {query,sortKey,sortOptions,practiceHref,panelEl,page,pageSize,pages,visible,pageButtons,changePage,detailEl,platform,platforms,rows,selected,problems,loading,error,show,close};
  },
  template:`
  <article :id="graphOnly?undefined:'tag-analysis'" ref="panelEl" class="panel tag-analysis" :aria-label="graphOnly?'技能图谱':'题型能力参考'">
   <div class="panel-head"><h2>{{graphOnly?'技能图谱':'题型能力参考'}}</h2><span v-if="graphOnly">节点大小表示去重通过题数</span><a v-else href="#analysis?recommend=1" class="problem">推荐练习 ↗</a></div>
   <label class="difficulty-filter"><span>{{graphOnly?'平台':'能力尺度'}}</span><select v-model="platform" :aria-label="graphOnly?'技能图谱平台':'题型能力平台'"><option v-for="p in platforms" :key="p" :value="p">{{p}} · CF 尺度</option></select></label>
   <template v-if="!graphOnly">
+  <div class="trend-controls submission-filters">
+   <label>搜索题型<input v-model="query" type="search" placeholder="中文名、英文名或标签"></label>
+   <label>排序优先级<select v-model="sortKey"><option v-for="[key,label] in sortOptions" :key="key" :value="key">{{label}}从高到低</option></select></label>
+  </div>
   <div class="submission-controls"><label>共 {{rows.length}} 个题型 · 每页 <select v-model.number="pageSize" aria-label="每页题型数量"><option :value="10">10 个</option><option :value="15">15 个</option><option :value="25">25 个</option><option :value="50">50 个</option></select></label></div>
   <div class="table-wrap"><table><thead><tr><th>题型</th><th>历史能力</th><th>当前能力</th><th>入选题数</th><th>样本状态</th><th>入选估分题</th><th>有效评分题</th><th>尝试 / 通过</th><th>入选难度范围</th><th>练习</th></tr></thead>
    <tbody><tr v-for="t in visible" :key="t.tag_id"><td class="tag-name">{{t.display_name}}</td><td><button v-if="t.sample_count>0" class="ability-score" @click="show(t)" :aria-label="'查看'+t.display_name+'的入选题单'">{{t.ability_value}}</button><span v-else class="muted">{{t.ability_value}}</span></td><td>{{t.current_value ?? '—'}}<small v-if="t.current_sample_limit"> · {{t.current_sample_count}} / {{t.current_sample_limit}} 道</small></td><td>{{t.sample_count}} / {{t.sample_limit}}</td><td><span class="badge" :class="{good:t.sample_count===t.sample_limit}">{{t.sample_status}}</span></td><td>{{t.estimated_count}} / {{t.sample_count}}</td><td>{{t.rated_count}}</td><td>{{t.total_count}} / {{t.passed_count}}</td><td>{{t.sample_count>0?t.min_difficulty+'–'+t.max_difficulty:'—'}}</td><td><a :href="practiceHref(t.tag_id)" class="problem" :aria-label="'练习 '+t.display_name">练习 ↗</a></td></tr></tbody>
   </table></div>
   <nav v-if="rows.length" class="submission-pagination" aria-label="题型能力分页"><button :disabled="page<=1" @click="changePage(page-1)">上一页</button><template v-for="(n,i) in pageButtons" :key="n"><span v-if="i&&n>pageButtons[i-1]+1">…</span><button :aria-current="n===page?'page':undefined" @click="changePage(n)">{{n}}</button></template><button :disabled="page>=pages" @click="changePage(page+1)">下一页</button><span aria-live="polite">第 {{page}} / {{pages}} 页</span></nav>
-  <p v-if="!rows.length" class="muted">该平台暂无题型记录。</p>
+  <p v-if="!rows.length" class="muted">{{query.trim()?'没有匹配的题型。':'该平台暂无题型记录。'}}</p>
   </template>
   <SkillGraph v-else :config="skillConfig" :counts="skillCounts[platform]" :profiles="rows" @inspect="show" />
   <section v-if="selected" ref="detailEl" class="ability-detail" :aria-label="graphOnly?'图谱入选题单':'能力参考入选题单'">
