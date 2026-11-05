@@ -1,0 +1,8 @@
+export const verdictGroups={
+ WA:['WA','WRONG_ANSWER'],
+ TLE:['TLE','TL','TIME_LIMIT_EXCEEDED'],
+ MLE:['MLE','ML','MEMORY_LIMIT_EXCEEDED'],
+ RE:['RE','RTE','RUNTIME_ERROR'],
+ CE:['CE','COMPILATION_ERROR'],
+ PARTIAL:['PARTIAL']
+};

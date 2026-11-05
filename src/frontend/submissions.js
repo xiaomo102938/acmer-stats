@@ -1,27 +1,68 @@
+import {apiFetch} from './api-fetch.js';
 import {ref,computed,onMounted,onBeforeUnmount,watch} from 'vue';
 import {submissionLabel as label,problemLink as link} from './submission-display.js';
 export default{
  props:{refreshKey:Number},
  setup(props){
   const items=ref([]),page=ref(1),pageSize=ref(25),pages=ref(1),total=ref(0),loading=ref(false),error=ref(''),jump=ref(1);let request,serial=0;
+  const q=ref(''),search=ref(''),status=ref('all'),sort=ref('time'),platform=ref(''),tag=ref(''),from=ref(''),to=ref(''),unique=ref(false);
+  const platforms=ref([]),tags=ref([]);
+  const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'首次 AC',retry:'待攻克',
+   WA:'WA · 答案错误',TLE:'TLE · 超时',MLE:'MLE · 超内存',RE:'RE · 运行错误',CE:'CE · 编译错误',PARTIAL:'部分得分'};
+  const editing=ref(null),draft=ref(''),saving=ref(false),noteError=ref('');
+  const noteLength=computed(()=>[...draft.value.trim()].length);
+  function editNote(row){editing.value=row.submission_id;draft.value=row.note||'';noteError.value='';}
+  async function saveNote(row){
+   saving.value=true;noteError.value='';
+   try{
+    const response=await apiFetch('/api/submissions/notes/'+encodeURIComponent(row.problem_id),{
+     method:'PUT',headers:{'Content-Type':'application/json','X-Acmer-Request':'1'},body:JSON.stringify({note:draft.value})});
+    const body=await response.json();if(!response.ok)throw new Error(body.message);
+    for(const item of items.value)if(item.problem_id===row.problem_id)item.note=body.note;
+    editing.value=null;
+    if(search.value)await load();
+   }catch(e){noteError.value=e.message||'备注保存失败。';}
+   finally{saving.value=false;}
+  }
+  function applySearch(){search.value=q.value.trim();load(1);}
+  function changeStatus(){tag.value='';load(1);}
   const buttons=computed(()=>[...new Set([1,...Array.from({length:5},(_,i)=>page.value-2+i).filter(n=>n>1&&n<pages.value),pages.value])].sort((a,b)=>a-b));
   async function load(target=page.value){
    request?.abort();request=new AbortController();const id=++serial;loading.value=true;error.value='';items.value=[];
-   try{const r=await fetch('/api/submissions?'+new URLSearchParams({page:String(target),pageSize:String(pageSize.value)}),{signal:request.signal});const body=await r.json();if(!r.ok)throw new Error(body.message);
-    if(id!==serial)return;items.value=body.items;page.value=body.page;pages.value=body.pages;total.value=body.total;jump.value=body.page;
+   editing.value=null;
+   const params=new URLSearchParams({page:String(target),pageSize:String(pageSize.value),q:search.value,status:status.value,sort:sort.value,platform:platform.value,tag:tag.value,from:from.value,to:to.value,unique:unique.value?'1':'0'});
+   try{const r=await apiFetch('/api/submissions?'+params,{signal:request.signal});const body=await r.json();if(!r.ok)throw new Error(body.message);
+    if(id!==serial)return;items.value=body.items;page.value=body.page;pages.value=body.pages;total.value=body.total;jump.value=body.page;platforms.value=body.platforms;tags.value=body.tags;
    }catch(e){if(id===serial&&e.name!=='AbortError')error.value=e.message||'读取提交记录失败';}finally{if(id===serial)loading.value=false;}
   }
   const go=()=>{if(Number.isInteger(Number(jump.value))&&jump.value>=1&&jump.value<=pages.value)load(Number(jump.value));};
   watch(()=>props.refreshKey,()=>load());onMounted(()=>load());onBeforeUnmount(()=>{serial++;request?.abort();});
-  return {items,page,pageSize,pages,total,loading,error,jump,buttons,load,label,link,go};
+  return {q,status,sort,platform,tag,from,to,unique,platforms,tags,statusOptions,editing,draft,saving,noteError,noteLength,editNote,saveNote,applySearch,changeStatus,items,page,pageSize,pages,total,loading,error,jump,buttons,load,label,link,go};
  },
  template:`<article class="panel recent" aria-label="提交记录列表">
-  <div class="panel-head"><h2>提交记录</h2><span>共 {{total}} 条已同步提交 · 时间由新到旧</span></div>
+  <div class="panel-head"><h2>提交记录</h2><span>共 {{total}} {{status==='retry'||unique?'道题':'条提交'}}</span></div>
+  <form class="trend-controls submission-filters" @submit.prevent="applySearch">
+   <label>搜索<input v-model="q" type="search" maxlength="200" placeholder="题名、题号或备注"></label>
+   <button type="submit">搜索</button>
+   <button v-if="q" type="button" @click="q='';applySearch()">清空搜索</button>
+  </form>
+  <div class="trend-controls submission-filters">
+   <label>判定<select v-model="status" @change="changeStatus"><option v-for="(name,key) in statusOptions" :key="key" :value="key">{{name}}</option></select></label>
+   <label>平台<select v-model="platform" @change="load(1)"><option value="">全部平台</option><option v-for="p in platforms" :key="p">{{p}}</option></select></label>
+   <label v-if="status==='retry'">题型<select v-model="tag" @change="load(1)"><option value="">全部题型</option><option v-for="t in tags" :key="t.key" :value="t.key">{{t.name}}</option></select></label>
+   <label>开始日期<input v-model="from" type="date" :max="to||undefined" @change="load(1)"></label>
+   <label>结束日期<input v-model="to" type="date" :min="from||undefined" @change="load(1)"></label>
+   <label>排序<select v-model="sort" @change="load(1)"><option value="time">时间从新到旧</option><option value="hard">难度从高到低</option><option value="easy">难度从低到高</option></select></label>
+   <label v-if="status!=='retry'" class="submission-unique"><input v-model="unique" type="checkbox" @change="load(1)">按题去重</label>
+  </div>
   <div class="submission-controls"><label>每页 <select v-model.number="pageSize" @change="load(1)" aria-label="每页提交数量"><option :value="10">10 条</option><option :value="25">25 条</option><option :value="50">50 条</option><option :value="100">100 条</option></select></label></div>
   <p v-if="error" class="error" role="alert">{{error}} <button @click="load()">重试</button></p>
   <p v-if="loading" role="status">正在读取当前页…</p>
-  <div v-else class="table-wrap"><table><thead><tr><th>提交时间（UTC+8）</th><th>题目</th><th>状态</th><th>平台</th><th>账号</th><th>平台提交编号</th></tr></thead><tbody><tr v-for="r in items" :key="r.submission_id"><td class="submission-time"><span>{{r.submitted_at.slice(0,10)}}</span><span>{{r.submitted_at.slice(11)}}</span></td><td class="submission-problem"><a v-if="link(r)" class="problem" :href="link(r)" target="_blank" rel="noopener noreferrer">{{r.problem_name}} ↗</a><span v-else>{{r.problem_name}}</span></td><td><span class="badge" :class="{good:r.passed===1,weak:r.passed!==1}">{{label(r)}}</span></td><td>{{r.platform_name}}</td><td>{{r.account_login}}</td><td>{{r.source_id}}</td></tr></tbody></table><p v-if="!error&&!items.length" class="muted">暂无已同步的提交记录。</p></div>
+  <div v-else class="table-wrap"><table><thead><tr><th>提交时间（UTC+8）</th><th>题目</th><th>状态</th><th>CF 尺度</th><th>题目备注</th><th>平台</th><th>账号</th><th>平台提交编号</th></tr></thead><tbody><tr v-for="r in items" :key="r.submission_id"><td class="submission-time"><span>{{r.submitted_at.slice(0,10)}}</span><span>{{r.submitted_at.slice(11)}}</span></td><td class="submission-problem"><a v-if="link(r)" class="problem" :href="link(r)" target="_blank" rel="noopener noreferrer">{{r.problem_name}} ↗</a><span v-else>{{r.problem_name}}</span></td><td><span class="badge" :class="{good:r.passed===1,weak:r.passed!==1}">{{label(r)}}</span></td><td>{{r.rating==null?'—':(r.estimated?'≈ ':'')+r.rating}}</td><td class="submission-note">
+   <form v-if="editing===r.submission_id" @submit.prevent="saveNote(r)"><input v-model="draft" aria-label="题目备注" placeholder="最多 30 个字符" :disabled="saving"><span>{{noteLength}} / 30</span><button :disabled="saving||noteLength>30">保存</button><button type="button" :disabled="saving" @click="editing=null">取消</button><p v-if="noteError" class="muted" role="alert">{{noteError}}</p></form>
+   <button v-else type="button" class="submission-note-button" :disabled="saving" @click="editNote(r)">{{r.note||'添加备注'}}</button>
+   </td><td>{{r.platform_name}}</td><td>{{r.account_login}}</td><td>{{r.source_id}}</td></tr></tbody></table><p v-if="!error&&!items.length" class="muted">没有符合当前条件的提交记录。</p></div>
   <nav class="submission-pagination" aria-label="提交记录分页"><button :disabled="loading||page<=1" @click="load(page-1)">上一页</button><template v-for="(n,i) in buttons" :key="n"><span v-if="i&&n>buttons[i-1]+1">…</span><button :disabled="loading" :aria-current="n===page?'page':undefined" @click="load(n)">{{n}}</button></template><button :disabled="loading||page>=pages" @click="load(page+1)">下一页</button><span aria-live="polite">第 {{page}} / {{pages}} 页</span><form @submit.prevent="go"><label>跳至 <input v-model.number="jump" type="number" min="1" :max="pages" required aria-label="跳转页码"> 页</label><button :disabled="loading">跳转</button></form></nav>
-  <p class="footnote">按真实提交逐条展示，同题多次提交分别保留。仅含已同步数据：CF、AT 和 QOJ 可包含非 AC；牛客、力扣当前主要提供 AC，洛谷清单及手工汇总没有逐次提交信息，不在此虚构记录。旧数据若未保存具体判定，仅标记“非 AC”，后续重新同步可补充。时间相同时使用固定编号排序。</p>
+  <p class="footnote">同一平台的同一道题共用一条备注，清空后保存即可删除。首次 AC 按完整已同步历史判定。待攻克只显示没有已知 AC 的题，每题取最近一次非 AC。未评级放在难度排序末尾。仅含已同步数据：CF、AT 和 QOJ 可包含非 AC；牛客、力扣当前主要提供 AC，洛谷清单及手工汇总没有逐次提交信息，不在此虚构记录。旧数据若未保存具体判定，仅标记“非 AC”，后续重新同步可补充。时间相同时使用固定编号排序。</p>
  </article>`
 };

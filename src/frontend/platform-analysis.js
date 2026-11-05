@@ -1,10 +1,11 @@
+import {apiFetch} from './api-fetch.js';
 import {ref,onMounted,watch} from 'vue';
 export default{
  props:{platforms:{type:Array,default:()=>[]},snapshots:{type:Array,default:()=>[]},refreshKey:Number},
  setup(props){
   const ratings=ref([]),loading=ref(false),message=ref(''),error=ref('');
-  async function load(){try{const r=await fetch('/api/ratings');const b=await r.json();if(!r.ok)throw new Error(b.message);ratings.value=b.ratings;}catch(e){error.value=e.message||'Rating 缓存读取失败';}}
-  async function refresh(){loading.value=true;error.value='';message.value='';try{const r=await fetch('/api/ratings/refresh',{method:'POST',headers:{'X-Acmer-Request':'1','Content-Type':'application/json'},body:'{}'});const b=await r.json();if(!r.ok)throw new Error(b.message);message.value=b.message;await load();}catch(e){error.value=e.message||'Rating 更新失败';}finally{loading.value=false;}}
+  async function load(){try{const r=await apiFetch('/api/ratings');const b=await r.json();if(!r.ok)throw new Error(b.message);ratings.value=b.ratings;}catch(e){error.value=e.message||'Rating 缓存读取失败';}}
+  async function refresh(){loading.value=true;error.value='';message.value='';try{const r=await apiFetch('/api/ratings/refresh',{method:'POST',headers:{'X-Acmer-Request':'1','Content-Type':'application/json'},body:'{}'});const b=await r.json();if(!r.ok)throw new Error(b.message);message.value=b.message;await load();}catch(e){error.value=e.message||'Rating 更新失败';}finally{loading.value=false;}}
   const own=name=>ratings.value.filter(r=>r.platform_name===name);
   const label=r=>r.rating!=null?Number(r.rating).toLocaleString('zh-CN',{maximumFractionDigits:2}):({not_synced:'尚未同步',unrated:'暂无评级',unavailable:'暂无公开分数',unsupported:'暂未接入',error:'暂时无法获取'})[r.status]||'暂无数据';
   onMounted(load);watch(()=>props.refreshKey,load);

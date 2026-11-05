@@ -1,3 +1,4 @@
+import {apiFetch} from './api-fetch.js';
 import {completePositions} from './topology-editor-layout.js';
 import ChoicePicker from './choice-picker.js';
 import TopologyEditor from './topology-editor.js';
@@ -25,7 +26,7 @@ export default{
   const plan=computed(()=>{if(!preview.value)return null;try{return mergeTopology(base.value,first.value,second.value,catalog.value,drop.value);}catch(e){return {conflict:e.message};}});
   const mergeBlocked=computed(()=>sDirty.value||tDirty.value||!!storedDraft.value);
   watch([first,second],()=>{preview.value=false;drop.value=[];undoSource.value='';});
-  async function load(){busy.value=true;error.value='';needsReload.value=false;try{const r=await fetch('/api/skill-settings');const b=await r.json();if(!r.ok)throw Error(b.message);base.value=b.config;catalog.value=b.catalog;revision.value=b.revision;draftRevision.value=b.draftRevision;storedDraft.value=b.topologyDraft;sDraft.value=specialty(b.config);tDraft.value=b.topologyDraft?clone(b.topologyDraft):topology(b.config);editorKey.value++;preview.value=false;undoSource.value='';}catch(e){error.value=e.message;}finally{busy.value=false;}}
+  async function load(){busy.value=true;error.value='';needsReload.value=false;try{const r=await apiFetch('/api/skill-settings');const b=await r.json();if(!r.ok)throw Error(b.message);base.value=b.config;catalog.value=b.catalog;revision.value=b.revision;draftRevision.value=b.draftRevision;storedDraft.value=b.topologyDraft;sDraft.value=specialty(b.config);tDraft.value=b.topologyDraft?clone(b.topologyDraft):topology(b.config);editorKey.value++;preview.value=false;undoSource.value='';}catch(e){error.value=e.message;}finally{busy.value=false;}}
   async function save(module){busy.value=true;error.value='';message.value='';try{
    if(['merge','unmerge'].includes(module)&&mergeBlocked.value)throw Error('请先保存或撤销专职修改，并应用或放弃拓扑草稿，再归并标签。');
    const body={module,revision:revision.value,draftRevision:draftRevision.value};
@@ -33,7 +34,7 @@ export default{
    if(module==='topology'||module==='draft')body.value=clone(tDraft.value);
    if(module==='merge'){if(!plan.value?.config||plan.value.conflict)throw Error(plan.value?.conflict||'请先预览归并结果。');Object.assign(body,{first:first.value,second:second.value,drop:drop.value,name:mergeName.value});}
    if(module==='unmerge')body.source=undoSource.value;
-   const r=await fetch('/api/skill-settings',{method:'PATCH',headers:{'Content-Type':'application/json','X-Acmer-Request':'1'},body:JSON.stringify(body)});const b=await r.json();if(!r.ok){needsReload.value=r.status===409;throw Error(b.message);}
+   const r=await apiFetch('/api/skill-settings',{method:'PATCH',headers:{'Content-Type':'application/json','X-Acmer-Request':'1'},body:JSON.stringify(body)});const b=await r.json();if(!r.ok){needsReload.value=r.status===409;throw Error(b.message);}
    base.value=b.config;revision.value=b.revision;draftRevision.value=b.draftRevision;storedDraft.value=b.topologyDraft;
    if(module==='specialty')sDraft.value=specialty(b.config);
    if(module==='topology'||module==='discardDraft'){tDraft.value=topology(b.config);editorKey.value++;}

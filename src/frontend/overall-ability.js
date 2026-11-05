@@ -1,10 +1,11 @@
+import {apiFetch} from './api-fetch.js';
 import {ref,computed,watch} from 'vue';
 export default{
  props:{profile:{type:Object,default:()=>({})},refreshKey:{type:Number,default:0}},
  setup(props){
   const scope=ref('specialty'),alternate=ref(null);
   const effective=computed(()=>scope.value==='specialty'?props.profile:(alternate.value||{}));
-  async function changeScope(){const id=++serial;open.value=false;problems.value=[];error.value='';if(scope.value==='all'){loading.value=true;try{const r=await fetch('/api/ability/overall?scope=all');const b=await r.json();if(!r.ok)throw Error(b.message);if(id===serial)alternate.value=b;}catch(e){if(id===serial)error.value=e.message;}finally{if(id===serial)loading.value=false;}}}
+  async function changeScope(){const id=++serial;open.value=false;problems.value=[];error.value='';if(scope.value==='all'){loading.value=true;try{const r=await apiFetch('/api/ability/overall?scope=all');const b=await r.json();if(!r.ok)throw Error(b.message);if(id===serial)alternate.value=b;}catch(e){if(id===serial)error.value=e.message;}finally{if(id===serial)loading.value=false;}}}
   const open=ref(false),loading=ref(false),error=ref(''),problems=ref([]),page=ref(1);let serial=0;
   const pages=computed(()=>Math.max(1,Math.ceil(problems.value.length/25)));
   const visible=computed(()=>problems.value.slice((page.value-1)*25,page.value*25));
@@ -12,7 +13,7 @@ export default{
   async function toggle(){
    if(open.value){serial++;open.value=false;loading.value=false;return;}
    open.value=true;loading.value=true;error.value='';page.value=1;const id=++serial;
-   try{const response=await fetch('/api/ability/overall?scope='+scope.value);const body=await response.json();if(!response.ok)throw new Error(body.message);
+   try{const response=await apiFetch('/api/ability/overall?scope='+scope.value);const body=await response.json();if(!response.ok)throw new Error(body.message);
     if(id===serial)problems.value=body.problems;
    }catch(e){if(id===serial)error.value=e.message||'题单读取失败';}
    finally{if(id===serial)loading.value=false;}

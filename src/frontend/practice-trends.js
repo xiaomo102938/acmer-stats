@@ -1,3 +1,4 @@
+import {apiFetch} from './api-fetch.js';
 import {ref,computed,onMounted,onBeforeUnmount,nextTick,watch} from 'vue';
 import * as echarts from 'echarts/core';
 import {BarChart} from 'echarts/charts';
@@ -29,7 +30,7 @@ export default{
    request?.abort();request=new AbortController();const id=++serial;loading.value=true;error.value='';
    const params=new URLSearchParams({mode:mode.value,grain:grain.value,platform:platform.value});
    if(mode.value==='month'&&month.value)params.set('month',month.value);if(mode.value==='year'&&year.value)params.set('year',year.value);
-   try{const r=await fetch('/api/trends?'+params,{signal:request.signal});const body=await r.json();if(!r.ok)throw new Error(body.message);if(id!==serial)return;
+   try{const r=await apiFetch('/api/trends?'+params,{signal:request.signal});const body=await r.json();if(!r.ok)throw new Error(body.message);if(id!==serial)return;
     data.value=body;if(!month.value)month.value=body.serverDate.slice(0,7);if(!year.value)year.value=body.serverDate.slice(0,4);await nextTick();draw();
    }catch(e){if(id===serial&&e.name!=='AbortError')error.value=e.message||'趋势读取失败';}finally{if(id===serial)loading.value=false;}
   }

@@ -1,3 +1,4 @@
+import {apiFetch} from './api-fetch.js';
 import {syncSetup} from '../shared/account-config.js';
 import {ref,computed,onMounted,onBeforeUnmount,nextTick} from 'vue';
 export default {
@@ -11,7 +12,7 @@ export default {
   const canSyncAll=computed(()=>accounts.value.some(a=>syncSetup(a).ready&&platforms.value.find(p=>p.platform_id===a.platform_id)?.mode!=='暂未接入'));
   let timer,loading=false,wasRunning=false;
   async function api(url,options={}){
-   const response=await fetch('/api/accounts'+url,{...options,headers:{'Content-Type':'application/json','X-Acmer-Request':'1',...options.headers}});
+   const response=await apiFetch('/api/accounts'+url,{...options,headers:{'Content-Type':'application/json','X-Acmer-Request':'1',...options.headers}});
    const body=await response.json();if(!response.ok) throw new Error(body.message||'请求失败');return body;
   }
   async function refresh(){

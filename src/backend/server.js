@@ -40,6 +40,15 @@ async function saveAbilitySnapshot(connection,origin){
  try{await captureAbilitySnapshot(connection,origin);}
  catch(error){console.error('Ability snapshot failed:',error.code||error.name);}
 }
+app.get('/api/health',async(_req,res)=>{
+ res.set('Cache-Control','no-store');
+ try{
+  await pool.query({sql:'SELECT 1',timeout:2500});
+  res.json({database:'ok'});
+ }catch{
+  res.status(503).json({database:'error'});
+ }
+});
 app.use('/api/skill-settings',skillSettingsRouter(pool,saveAbilitySnapshot));
 app.use('/api/accounts',accountRouter(pool,saveAbilitySnapshot));
 app.use('/api/ability/trends',abilityTrendsRouter(pool));

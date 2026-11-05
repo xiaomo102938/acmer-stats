@@ -1,3 +1,4 @@
+import {apiFetch} from './api-fetch.js';
 import SkillGraph from './skill-graph.js';
 import {ref,computed,watch,nextTick} from 'vue';
 export default{
@@ -22,18 +23,18 @@ export default{
   async function show(row){
    const id=++serial;selected.value=row;loading.value=true;error.value='';problems.value=[];
    try{
-    const response=await fetch('/api/tags/'+encodeURIComponent(row.tag_id)+'/ability?platform='+encodeURIComponent(platform.value));
+    const response=await apiFetch('/api/tags/'+encodeURIComponent(row.tag_id)+'/ability?platform='+encodeURIComponent(platform.value));
     const body=await response.json();if(!response.ok)throw new Error(body.message);
     if(id===serial){problems.value=body.problems;loading.value=false;await nextTick();detailEl.value?.scrollIntoView({behavior:'instant',block:'start'});}
    }catch(e){if(id===serial)error.value=e.message||'题单加载失败';}
    finally{if(id===serial)loading.value=false;}
   }
-  const practiceHref=tag=>'#practice?'+new URLSearchParams({tag});
+  const practiceHref=tag=>'#analysis?'+new URLSearchParams({recommend:'1',tag});
   return {practiceHref,panelEl,page,pageSize,pages,visible,pageButtons,changePage,detailEl,platform,platforms,rows,selected,problems,loading,error,show,close};
  },
  template:`
- <article ref="panelEl" class="panel tag-analysis" :aria-label="graphOnly?'技能图谱':'题型能力参考'">
-  <div class="panel-head"><h2>{{graphOnly?'技能图谱':'题型能力参考'}}</h2><span>{{graphOnly?'节点大小表示去重通过题数':'已通过 · 最高难度 25 题均值'}}</span></div>
+ <article :id="graphOnly?undefined:'tag-analysis'" ref="panelEl" class="panel tag-analysis" :aria-label="graphOnly?'技能图谱':'题型能力参考'">
+  <div class="panel-head"><h2>{{graphOnly?'技能图谱':'题型能力参考'}}</h2><span v-if="graphOnly">节点大小表示去重通过题数</span><a v-else href="#analysis?recommend=1" class="problem">推荐练习 ↗</a></div>
   <label class="difficulty-filter"><span>{{graphOnly?'平台':'能力尺度'}}</span><select v-model="platform" :aria-label="graphOnly?'技能图谱平台':'题型能力平台'"><option v-for="p in platforms" :key="p" :value="p">{{p}} · CF 尺度</option></select></label>
   <template v-if="!graphOnly">
   <div class="submission-controls"><label>共 {{rows.length}} 个题型 · 每页 <select v-model.number="pageSize" aria-label="每页题型数量"><option :value="10">10 个</option><option :value="15">15 个</option><option :value="25">25 个</option><option :value="50">50 个</option></select></label></div>
