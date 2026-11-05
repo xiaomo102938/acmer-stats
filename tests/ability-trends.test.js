@@ -9,9 +9,9 @@ test('snapshots reuse scored problem samples and distinguish changed specialty s
  const cf={problem_id:'1',source_key:'1A',platform_name:'Codeforces',passed:1,native_difficulty:1900,difficulty_source:'codeforces'};
  const tagged={...cf,tag_id:'tree dp',tag_name:'tree dp',display_name:'树形动态规划'};
  const first=snapshotMetrics([cf],[tagged],config);
- assert.deepEqual(first.all,{score:15.8,count:1,limit:120});
- assert.equal(first.specialty.score,27.1);
- assert.deepEqual(first.topics.map(({key,score,count,limit})=>({key,score,count,limit})),[{key:'dp',score:null,count:0,limit:10}]);
+ assert.deepEqual(first.all,{score:9.5,count:1,limit:200});
+ assert.equal(first.specialty.score,19);
+ assert.deepEqual(first.topics.map(({key,score,count,limit})=>({key,score,count,limit})),[{key:'dp',score:null,count:0,limit:15}]);
  config.includeDescendants=false;
  const changed=snapshotMetrics([cf],[tagged],config);
  assert.equal(changed.specialty.score,0);
@@ -19,7 +19,7 @@ test('snapshots reuse scored problem samples and distinguish changed specialty s
  assert.equal(first.topics[0].scope,changed.topics[0].scope);
  config.aliases={'tree dp':'dp'};
  const merged=snapshotMetrics([cf],[tagged],config);
- assert.equal(merged.topics[0].score,190);
+ assert.equal(merged.topics[0].score,126.7);
  assert.notEqual(changed.topics[0].scope,merged.topics[0].scope);
 });
 

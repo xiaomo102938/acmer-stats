@@ -46,7 +46,7 @@ export async function readAcceptedDays(connection){
  return days;
 }
 
-export const abilityMinimums={topic:10,specialty:70,all:120};
+export const abilityMinimums={topic:15,specialty:100,all:200};
 const sampleTarget=(count,minimum)=>Math.max(minimum,Math.ceil(count*15/100));
 const roundScore=score=>Math.round(score*10)/10;
 

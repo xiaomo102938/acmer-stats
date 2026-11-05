@@ -12,13 +12,13 @@ for(const profile of d.tagAbility.filter(p=>p.sample_count>0)){
  assert.equal(Math.min(...problems.map(p=>p.rating)),profile.min_difficulty);
  assert.equal(Math.max(...problems.map(p=>p.rating)),profile.max_difficulty);
 }
-assert.ok(d.tagAbility.some(p=>p.platform_name==='全部平台'&&p.sample_count>=10));
+assert.ok(d.tagAbility.some(p=>p.platform_name==='全部平台'&&p.sample_count>=15));
 assert.ok(d.tagAbility.some(p=>p.platform_name==='洛谷'&&p.sample_count>0));
 assert.ok(d.tags.some(p=>p.tag_name==='dp'&&p.display_name==='动态规划 / Dynamic Programming'));
 assert.ok(!d.tags.some(p=>p.tag_name==='动态规划 dp'));
 console.log('PASS: every CF-scale profile matches its dynamic sample, canonical deduplication, source evidence, estimate count and Luogu coverage');
 const overall=await(await fetch(base+'/api/ability/overall')).json();
-assert.equal(overall.sample_limit,Math.max(70,Math.ceil(overall.rated_count*15/100)));assert.equal(overall.sample_count,Math.min(overall.sample_limit,overall.rated_count));
+assert.equal(overall.sample_limit,Math.max(100,Math.ceil(overall.rated_count*15/100)));assert.equal(overall.sample_count,Math.min(overall.sample_limit,overall.rated_count));
 assert.equal(new Set(overall.problems.map(p=>p.canonical_key)).size,overall.problems.length);
 assert.equal(overall.problems.length,d.overallAbility.sample_count);
 assert.equal(Math.round(overall.problems.reduce((n,p)=>n+p.rating,0)/overall.sample_limit*10)/10,d.overallAbility.ability_value);

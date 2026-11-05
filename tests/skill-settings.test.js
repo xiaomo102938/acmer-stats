@@ -14,13 +14,13 @@ test('aliases reversible without changing raw rows; union deduplicates same prob
  delete c.aliases['new dp'];assert.equal(abilityProfiles(mergeSkillRows(rows,c)).length,2);
  c.aliases={'new dp':'dp',dp:'graphs'};assert.throws(()=>validateSkills(c,catalog));assert.throws(()=>mergeDraft(defaultSkills(),'dp','graphs'));
 });
-test('specialty closure follows only primary descendants and top 70 deduplicates aliases and mirrors',()=>{
+test('specialty closure follows only primary descendants and top 100 deduplicates aliases and mirrors',()=>{
  const c=defaultSkills();c.specialties=['graphs'];const keys=specialtyKeys(c);assert.ok(keys.has('trees'));assert.ok(!keys.has('tree dp'));
  c.specialties=['dp'];const problems=Array.from({length:170},(_,i)=>({problem_id:String(i),platform_name:'Codeforces',source_key:i+'A',passed:1,native_difficulty:800+i*10,difficulty_source:'codeforces'}));
  const rows=problems.map(p=>({...p,tag_name:'tree dp'}));rows.push({...problems[0],tag_name:'dp'});
- let result=specialtyAbility(problems,rows,c);assert.equal(result.sample_count,70);assert.equal(result.min_difficulty,1800);assert.equal(result.passed_count,170);
+ let result=specialtyAbility(problems,rows,c);assert.equal(result.sample_count,100);assert.equal(result.min_difficulty,1500);assert.equal(result.passed_count,170);
  c.includeDescendants=false;result=specialtyAbility(problems,rows,c);assert.equal(result.sample_count,1);
- c.specialties=[];assert.equal(specialtyAbility(problems,rows,c).configured,false);assert.equal(specialtyAbility(problems,rows,c).sample_count,0);assert.equal(specialtyAbility(problems,rows,c,'all').sample_count,120);
+ c.specialties=[];assert.equal(specialtyAbility(problems,rows,c).configured,false);assert.equal(specialtyAbility(problems,rows,c).sample_count,0);assert.equal(specialtyAbility(problems,rows,c,'all').sample_count,170);
 });
 
 test('custom graph folds arbitrary depth and renders secondary edges only between visible nodes',async()=>{

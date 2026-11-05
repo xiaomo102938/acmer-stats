@@ -24,7 +24,7 @@ export function snapshotMetrics(problems,tags,config,recency){
  const profiles=new Map(abilityProfiles(mergeSkillRows(tags,config),'全部平台',null,abilityMinimums.topic,recency).map(row=>[row.tag_id,row]));
  const name=key=>config.names[key]||key;
  return {
-  version:ratingVersion+(recency?'-recency-v8':'-top15-v1'),
+  version:ratingVersion+(recency?'-recency-v9':'-top15-v2'),
   all:metric(overallAbility(problems,recency),abilityMinimums.all,recency),
   specialty:{...metric(specialties.length?specialtyAbility(problems,tags,config,'specialty',recency):null,abilityMinimums.specialty,recency),
    scope:scopeId(keys,config),names:specialties.map(name),includeDescendants:config.includeDescendants},

@@ -71,7 +71,7 @@ export default{
    <div v-if="!loading&&!error" class="table-wrap"><table><thead><tr><th>题目</th><th>平台</th><th>CF 尺度</th><th>原始难度</th><th>评分依据</th><th>记录日期</th></tr></thead><tbody><tr v-for="p in problems" :key="p.problem_id"><td><a v-if="p.problem_url" :href="p.problem_url" target="_blank" rel="noopener noreferrer">{{p.problem_name}} ↗</a><span v-else>{{p.problem_name}}</span></td><td>{{p.platform_name}}</td><td>{{p.estimated?'≈ ':''}}{{p.rating}}</td><td>{{p.native_difficulty ?? '—'}}</td><td>{{p.method}} · {{p.confidence}}</td><td>{{p.solve_date || '未提供逐题日期'}}</td></tr></tbody></table></div>
   </section>
   <ModuleHelp v-if="!graphOnly">
-  <p v-if="!graphOnly" class="ability-description">将所选平台同一题型已通过且有评分依据的题目换算到 CF 尺度，合并可识别的同源题目后去重，取难度最高的 15%（向上取整），至少 10 道，缺额按零分计入。</p>
+  <p v-if="!graphOnly" class="ability-description">将所选平台同一题型已通过且有评分依据的题目换算到 CF 尺度，合并可识别的同源题目后去重，取难度最高的 15%（向上取整），至少 15 道，缺额按零分计入。</p>
   <p v-if="!graphOnly" class="footnote">当前分只使用有 AC 日期的题，最近一次 AC 后前 20 天不扣分，第 21 天起开始扣分，之后每 365 天，距离扣满 250 分的差额减半，最低为 800 分。调整后按同样规则选题，再按最近一次 AC 加权平均，并按实际题数占目标题数的比例折算。AC 日期每早 183 天，权重减半。点击历史分查看入选题单、平台、原始难度及评分依据。CF 使用官方题目 rating；AT 换算和洛谷档位映射均为低置信估计。QOJ、牛客、力扣缺少可靠换算依据的题目暂不计分。此值不是个人 CF rating。</p>
   <h3>换算规则与来源</h3><p>版本 acmer-cf-v1。AT：round100(clamp(3900 × (AT难度 + 940) / 5155, 800, 3900))。这是将选手 rating 相关关系用于题目尺度的实验性外推，尚未经过题目配对校准。</p><p>洛谷八档由低到高：800 / 1000 / 1400 / 1800 / 2000 / 2200 / 2700 / 3200。新增“提高”档 2000 为本项目插值，其余参考旧七档社区映射，全部属于粗估；未评定不计分。</p><p><a href="https://silverfoxxxy.github.io/rating-converter" target="_blank" rel="noopener noreferrer">AT–CF Rating Converter</a> · <a href="https://github.com/EndeavourChiu/Luogu-Rating-Predictor" target="_blank" rel="noopener noreferrer">洛谷映射参考</a></p>
   </ModuleHelp>
