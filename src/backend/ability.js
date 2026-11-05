@@ -51,12 +51,21 @@ function currentProfile(problems,limit,day){
  const scores=dated.map(row=>{
   const daysAfterGrace=Math.max(0,day-row.lastAcceptedDay-30);
   const penalty=250*(1-2**(-daysAfterGrace/365));
-  return Math.max(800,row.rating-penalty);
+  return {age:day-row.lastAcceptedDay,score:Math.max(800,row.rating-penalty)};
  })
-  .sort((a,b)=>b-a);
+  .sort((a,b)=>b.score-a.score);
  const sample=scores.slice(0,limit);
+ // A common weight factor cancels out in the average. Start at the newest age for numerical stability.
+ const newestAge=Math.min(...sample.map(row=>row.age));
+ let weightTotal=0,weightedScore=0;
+ for(const row of sample){
+  const weight=2**(-(row.age-newestAge)/183);
+  weightTotal+=weight;
+  weightedScore+=row.score*weight;
+ }
  return {
-  current_value:sample.length?Math.round(10*sample.reduce((sum,score)=>sum+score,0)/sample.length)/10:null,
+  current_value:sample.length?Math.round(10*weightedScore/weightTotal)/10:null,
+  current_equal_weight_value:sample.length?Math.round(10*sample.reduce((sum,row)=>sum+row.score,0)/sample.length)/10:null,
   current_sample_count:sample.length,current_dated_count:dated.length,
   current_unadjusted_value:sample.length?Math.round(10*dated.slice(0,limit).reduce((sum,row)=>sum+row.rating,0)/sample.length)/10:null
  };

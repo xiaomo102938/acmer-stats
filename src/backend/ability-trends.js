@@ -24,7 +24,7 @@ export function snapshotMetrics(problems,tags,config,recency){
  const profiles=new Map(abilityProfiles(mergeSkillRows(tags,config),'全部平台',null,25,recency).map(row=>[row.tag_id,row]));
  const name=key=>config.names[key]||key;
  return {
-  version:recency?ratingVersion+'-recency-v3':ratingVersion,
+  version:recency?ratingVersion+'-recency-v4':ratingVersion,
   all:metric(overallAbility(problems,recency),150,recency),
   specialty:{...metric(specialtyAbility(problems,tags,config,'specialty',recency),150,recency),
    scope:scopeId(keys,config),names:specialties.map(name),includeDescendants:config.includeDescendants},
