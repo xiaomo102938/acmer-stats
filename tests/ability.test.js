@@ -13,15 +13,15 @@ test('CF preserves official scores; AT projection and current eight Luogu levels
 });
 test('topic sample is unique, excludes failures, combines sources and does not fall after easy additions',()=>{
  const rows=Array.from({length:30},(_,i)=>cf(i,800+i*100));
- let p=abilityProfiles(rows)[0];assert.equal(p.sample_count,15);assert.equal(p.ability_value,3000);
- p=abilityProfiles([...rows,{...cf(100,4000),passed:0},cf(101,800)])[0];assert.equal(p.ability_value,3000);
+ let p=abilityProfiles(rows)[0];assert.equal(p.sample_count,20);assert.equal(p.ability_value,2750);
+ p=abilityProfiles([...rows,{...cf(100,4000),passed:0},cf(101,800)])[0];assert.equal(p.ability_value,2750);
  const mirror={...base,problem_id:'luogu',platform_name:'洛谷',source_key:'CF29A',native_difficulty:'8',difficulty_source:'luogu'};
- p=abilityProfiles([...rows,mirror])[0];assert.equal(p.rated_count,30);assert.equal(p.ability_value,3000);
- const lg=abilityProfiles([...rows,mirror],'洛谷')[0];assert.equal(lg.ability_value,246.7);assert.equal(lg.estimated_count,0);
+ p=abilityProfiles([...rows,mirror])[0];assert.equal(p.rated_count,30);assert.equal(p.ability_value,2750);
+ const lg=abilityProfiles([...rows,mirror],'洛谷')[0];assert.equal(lg.ability_value,185);assert.equal(lg.estimated_count,0);
  assert.equal(lg.problems[0].method,'同源 CF 题目官方 rating');
  const unknown={...base,problem_id:'qoj',platform_name:'QOJ'};
- assert.equal(abilityProfiles([unknown])[0].sample_status,'补 15 道零分');
- const part=abilityProfiles([cf(1,1800)])[0];assert.equal(part.sample_status,'补 14 道零分');assert.equal(part.ability_value,120);
+ assert.equal(abilityProfiles([unknown])[0].sample_status,'补 20 道零分');
+ const part=abilityProfiles([cf(1,1800)])[0];assert.equal(part.sample_status,'补 19 道零分');assert.equal(part.ability_value,90);
 });
 test('Luogu tags follow explicit algorithm ancestry and exclude source labels; malformed metadata fails',()=>{
  const tags=new Map([[3,{id:3,name:'动态规划 DP',type:2,parent:null}],[139,{id:139,name:'背包 DP',type:2,parent:3}],[20,{id:20,name:'NOIP',type:1}]]);
@@ -29,24 +29,24 @@ test('Luogu tags follow explicit algorithm ancestry and exclude source labels; m
  assert.deepEqual(p.tags,['背包 DP','动态规划 DP']);assert.equal(p.native,'4');assert.ok(!('time' in p));
  assert.throws(()=>problemMetadata({data:{problem:{pid:'P2',tags:[]}}},'P1',tags));
 });
-test('overall uses pads to 200 across all problems and deduplicates untagged items and mirrors',()=>{
+test('overall pads to 250 across all problems and deduplicates untagged items and mirrors',()=>{
  const rows=Array.from({length:160},(_,i)=>({...cf(i,800+i*10),tag_id:undefined}));
- const profile=overallAbility(rows);assert.equal(profile.sample_count,160);assert.equal(profile.ability_value,1276);assert.equal(profile.min_difficulty,800);
- assert.equal(profile.sample_status,'补 40 道零分');
+ const profile=overallAbility(rows);assert.equal(profile.sample_count,160);assert.equal(profile.ability_value,1020.8);assert.equal(profile.min_difficulty,800);
+ assert.equal(profile.sample_status,'补 90 道零分');
  const mirror={...base,problem_id:'lg',platform_name:'洛谷',source_key:'CF159A',native_difficulty:'8',difficulty_source:'luogu'};
  const extra=[...rows,rows[159],mirror,{...cf(999,4000),passed:0},cf(888,800)];
- assert.equal(overallAbility(extra).ability_value,1280);assert.equal(overallAbility(extra).rated_count,161);
- assert.equal(overallAbility(rows.slice(0,2)).sample_status,'补 198 道零分');
+ assert.equal(overallAbility(extra).ability_value,1024);assert.equal(overallAbility(extra).rated_count,161);
+ assert.equal(overallAbility(rows.slice(0,2)).sample_status,'补 248 道零分');
  assert.equal(overallAbility([]).ability_value,0);assert.equal(overallAbility([]).sample_count,0);
 });
 test('the 15% sample rounds up and current ability pads a single dated AC with zeros',()=>{
- const rows=Array.from({length:101},(_,i)=>cf(i,1500));
- assert.equal(abilityProfiles(rows)[0].sample_count,16);
- assert.equal(abilityProfiles(rows.slice(0,100))[0].sample_count,15);
+ const rows=Array.from({length:134},(_,i)=>cf(i,1500));
+ assert.equal(abilityProfiles(rows)[0].sample_count,21);
+ assert.equal(abilityProfiles(rows.slice(0,133))[0].sample_count,20);
  const profile=abilityProfiles(rows,'全部平台',null,undefined,{day:183,days:new Map([['cf0',[183]]])})[0];
  assert.equal(profile.current_sample_count,1);
- assert.equal(profile.current_sample_limit,15);
- assert.equal(profile.current_value,100);
+ assert.equal(profile.current_sample_limit,20);
+ assert.equal(profile.current_value,75);
  const undated=abilityProfiles(rows,'全部平台',null,undefined,{day:183,days:new Map()})[0];
  assert.equal(undated.ability_value,1500);
  assert.equal(undated.current_sample_count,0);

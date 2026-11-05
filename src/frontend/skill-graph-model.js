@@ -7,7 +7,7 @@ export function nodeFontSize(count,size=nodeSize(count)){
 }
 export function nodeTone(row){
  if(!row||!row.sample_count||row.ability_value==null)return 'unrated';
- if(row.sample_count<(row.sample_limit??15))return 'provisional';
+ if(row.sample_count<(row.sample_limit??20))return 'provisional';
  return row.ability_value>=2400?'advanced':row.ability_value>=1800?'strong':'rated';
 }
 export function skillGraph(profiles,expanded){
