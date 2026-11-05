@@ -18,10 +18,10 @@ import './style.css';
 echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendComponent,CanvasRenderer]);
 
 const pages=[
- {id:'overview',icon:'◫',name:'数据简览',eyebrow:'YOUR PRACTICE, AT A GLANCE',title:'看看最近，又进步了多少。',description:'用几个关键数字，快速回顾你的积累和最近 7 天的练习。'},
- {id:'analysis',icon:'↗',name:'详细分析',eyebrow:'EXPLORE YOUR PRACTICE',title:'从数据里，找到下一步。',description:'结合练习趋势、平台分布和题型能力参考，了解你的训练方向。'},
- {id:'records',icon:'≡',name:'提交记录',eyebrow:'YOUR SUBMISSION HISTORY',title:'每一次尝试，都有迹可循。',description:'按时间查看已同步的每次提交，包括通过与未通过记录。'},
- {id:'settings',icon:'⚙',name:'设置',eyebrow:'MAKE IT YOURS',title:'把练习空间，调成你的样子。',description:'在这里管理平台账号、同步数据，以及调整页面外观。'}
+ {id:'overview',icon:'◫',name:'数据简览'},
+ {id:'analysis',icon:'↗',name:'详细分析'},
+ {id:'records',icon:'≡',name:'提交记录'},
+ {id:'settings',icon:'⚙',name:'设置'}
 ];
 const aliases={trends:'analysis',tags:'analysis',recent:'records',accounts:'settings'};
 function resolvePage(){
@@ -125,18 +125,17 @@ createApp({
    </div>
    <p class="nav-label">我的练习空间</p>
    <nav id="main-navigation" aria-label="主导航"><a v-for="item in pages" :key="item.id" :href="'#'+item.id" class="nav" :class="{active:page===item.id}" :aria-current="page===item.id?'page':undefined" :aria-label="item.name" :title="item.name"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></a></nav>
-   <div class="aside-note"><span class="dot"></span> 本机数据库<p>每一道题，都留下进步的痕迹。</p></div>
+   <div class="aside-note"><span class="dot"></span> 本机数据库</div>
   </aside>
   <main>
-   <header><span class="breadcrumb">个人工作台 / {{current.name}}</span><button v-if="page!=='settings'" @click="load" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button><span v-else class="header-hint">你的账号与偏好</span></header>
-   <section class="intro"><p class="eyebrow">{{current.eyebrow}}</p><h1>{{current.title}}</h1><p>{{current.description}}</p></section>
+   <header><h1>{{current.name}}</h1><button v-if="page!=='settings'" @click="load" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
    <div v-if="error&&page!=='settings'" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
    <p v-if="loading&&!data&&page!=='settings'&&page!=='records'" role="status">正在读取数据库…</p>
 
    <section v-if="page==='overview'&&data" key="overview" aria-label="数据简览">
     <div class="metrics">
      <article><span>累计题数</span><strong>{{data.overview?.total_problems??0}}<small> 道</small></strong><p>按题去重，含平台公开累计汇总</p></article>
-     <article><span>AC 题数</span><strong>{{data.overview?.passed_problems??0}}<small> 道</small></strong><p>每一步积累都算数</p></article>
+     <article><span>AC 题数</span><strong>{{data.overview?.passed_problems??0}}<small> 道</small></strong><p>同一道题多次通过只计一次</p></article>
     </div>
     <Activity :refresh-key="dataVersion" /><p v-if="data.platformSnapshots?.length" class="footnote inventory-note">洛谷公开练习清单已计入题目总量；因没有逐题日期，不计入提交趋势。洛谷每日活动请在热力图选择“站点活动”。原有示例记录仍保留。</p>
     <div class="chart-grid">
@@ -164,12 +163,12 @@ createApp({
    <section v-else-if="page==='records'" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>
 
    <section v-else-if="page==='settings'" key="settings" aria-label="设置">
-    <article class="panel appearance-panel"><div class="panel-head"><h2>外观主题</h2><span>偏好自动保存</span></div><div class="appearance-row"><div><h3>选择你舒服的阅读方式</h3><p>白色、深绿、纯黑与灰色可选，支持跟随系统和轻量渐变。</p></div><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div></article>
+    <article class="panel appearance-panel"><div class="panel-head"><h2>外观主题</h2><span>偏好自动保存</span></div><div class="appearance-row"><div><p>可手动选择主题或跟随系统。</p></div><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div></article>
     <SkillLayoutSettings />
     <SkillSettings @saved="load" />
     <Accounts @synced="load" />
    </section>
-   <footer>刷题手记 · 数据来自本机 MySQL <span>每一次练习，都在积累。</span></footer>
+   <footer>刷题手记 · 数据来自本机 MySQL</footer>
   </main>
  </div>`
 }).mount('#app');
