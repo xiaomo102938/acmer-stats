@@ -18,6 +18,13 @@ import {formatDifficulty,cfDifficultyBuckets} from './difficulty.js';
 import './style.css';
 echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendComponent,CanvasRenderer]);
 
+const displayDefaults={fontSize:100,cardGap:22};
+const displayControls=[
+ {key:'fontSize',label:'字体大小',min:85,max:125,step:5,unit:'%'},
+ {key:'cardGap',label:'卡片间距',min:8,max:40,step:1,unit:' px'}
+];
+const displayStorageKey='acmer-display-preferences';
+
 const pages=[
  {id:'overview',icon:'◫',name:'数据简览'},
  {id:'analysis',icon:'↗',name:'详细分析'},
@@ -48,6 +55,26 @@ createApp({
   const difficultyPlatforms=computed(()=>[{platform_name:'全部平台'},...(data.value?.platforms.filter(p=>p.total_count>0)||[])]);
   const difficultyNote=computed(()=>'统一按 CF 尺度分段。CF 为官方题目 rating；AT 和洛谷为低置信估分，缺少依据的题目单列。原始难度保留在入选题单中。');
   const {theme,isDark}=useTheme(draw);
+  const display=ref({...displayDefaults});
+  try {
+   const saved=JSON.parse(localStorage.getItem(displayStorageKey));
+   for(const {key,min,max,step} of displayControls){
+    const value=saved?.[key];
+    if(Number.isInteger(value)&&value>=min&&value<=max&&(value-min)%step===0)display.value[key]=value;
+   }
+  } catch {}
+  function applyDisplay(){
+   const style=document.documentElement.style;
+   style.setProperty('--font-scale',display.value.fontSize/100);
+   style.setProperty('--card-gap',display.value.cardGap+'px');
+  }
+  applyDisplay();
+  watch(display,()=>{
+   applyDisplay();
+   try {localStorage.setItem(displayStorageKey,JSON.stringify(display.value));} catch {}
+  },{deep:true});
+  const displayIsDefault=computed(()=>displayControls.every(({key})=>display.value[key]===displayDefaults[key]));
+  const resetDisplay=()=>{display.value={...displayDefaults};};
   let requestNumber=0;
   const days=computed(()=>{
    const today=data.value?.serverDate;if(!today)return [];
@@ -115,7 +142,7 @@ createApp({
   watch(sidebarCollapsed,()=>nextTick(resize));
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
-  return {sidebarCollapsed,sidebarInteracted,toggleSidebar,pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
+  return {display,displayControls,displayIsDefault,resetDisplay,sidebarCollapsed,sidebarInteracted,toggleSidebar,pages,page,current,data,dataVersion,loading,error,difficultyEl,weekEl,load,theme,days,week,difficultyPlatform,difficultyPlatforms,difficultyNote,formatDifficulty};
  },
  template:`
  <div class="layout" :class="{'sidebar-collapsed':sidebarCollapsed,'sidebar-interacted':sidebarInteracted}">
@@ -164,7 +191,16 @@ createApp({
    <section v-else-if="page==='records'" key="records" aria-label="提交记录"><Submissions :refresh-key="dataVersion" /></section>
 
    <section v-else-if="page==='settings'" key="settings" aria-label="设置">
-    <article class="panel appearance-panel"><div class="panel-head"><h2>外观主题</h2><span>偏好自动保存</span></div><div class="appearance-row"><div><p>可手动选择主题或跟随系统。</p></div><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div></article>
+    <article class="panel appearance-panel"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><div><p>可手动选择主题或跟随系统。</p></div><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div>
+     <div class="display-controls">
+      <div v-for="control in displayControls" :key="control.key" class="range-control">
+       <div><label :for="'display-'+control.key">{{control.label}}</label><output :for="'display-'+control.key">{{display[control.key]}}{{control.unit}}</output></div>
+       <input :id="'display-'+control.key" type="range" :min="control.min" :max="control.max" :step="control.step"
+        :aria-valuetext="display[control.key]+control.unit" v-model.number="display[control.key]">
+      </div>
+      <button type="button" :disabled="displayIsDefault" @click="resetDisplay">恢复默认字号和间距</button>
+     </div>
+    </article>
     <SkillLayoutSettings />
     <SkillSettings @saved="load" />
     <Accounts @synced="load" />
