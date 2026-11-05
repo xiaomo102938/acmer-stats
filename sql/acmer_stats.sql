@@ -19,7 +19,7 @@
 DROP DATABASE IF EXISTS acmer_stats;
 CREATE DATABASE acmer_stats
   DEFAULT CHARACTER SET utf8mb4
-  COLLATE utf8mb4_general_ci;
+  COLLATE utf8mb4_0900_ai_ci;
 USE acmer_stats;
 
 -- <<<sec_t_user>>>
@@ -32,7 +32,7 @@ CREATE TABLE `user` (
   bio        VARCHAR(500) DEFAULT NULL            COMMENT '个人简介',
   avatar     VARCHAR(255) DEFAULT NULL            COMMENT '头像图片路径',
   PRIMARY KEY (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户表';
 
 -- <<<sec_t_platform>>>
 -- ----------------------------------------------------------------------------
@@ -44,7 +44,7 @@ CREATE TABLE `platform` (
   platform_url  VARCHAR(255) DEFAULT NULL         COMMENT '平台网址',
   PRIMARY KEY (platform_id),
   UNIQUE KEY uk_platform_name (platform_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='刷题平台表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='刷题平台表';
 
 -- <<<sec_t_problem>>>
 -- ----------------------------------------------------------------------------
@@ -60,7 +60,7 @@ CREATE TABLE `problem` (
   CONSTRAINT fk_problem_platform FOREIGN KEY (platform_id)
     REFERENCES platform (platform_id)
     ON UPDATE CASCADE ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='题目表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='题目表';
 
 -- <<<sec_t_tag>>>
 -- ----------------------------------------------------------------------------
@@ -71,7 +71,7 @@ CREATE TABLE `tag` (
   tag_name VARCHAR(30) NOT NULL                   COMMENT '标签名称',
   PRIMARY KEY (tag_id),
   UNIQUE KEY uk_tag_name (tag_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='题型标签表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='题型标签表';
 
 -- <<<sec_t_pt>>>
 -- ----------------------------------------------------------------------------
@@ -87,7 +87,7 @@ CREATE TABLE `problem_tag` (
   CONSTRAINT fk_pt_tag FOREIGN KEY (tag_id)
     REFERENCES tag (tag_id)
     ON UPDATE CASCADE ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='题目-标签联系表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='题目-标签联系表';
 
 -- <<<sec_t_record>>>
 -- ----------------------------------------------------------------------------
@@ -109,7 +109,7 @@ CREATE TABLE `record` (
   CONSTRAINT fk_record_problem FOREIGN KEY (problem_id)
     REFERENCES problem (problem_id)
     ON UPDATE CASCADE ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='刷题记录表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='刷题记录表';
 
 -- <<<sec_t_acct>>>
 -- ----------------------------------------------------------------------------
@@ -131,7 +131,7 @@ CREATE TABLE `platform_account` (
   CONSTRAINT fk_acct_platform FOREIGN KEY (platform_id)
     REFERENCES platform (platform_id)
     ON UPDATE CASCADE ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='平台账号表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='平台账号表';
 
 -- <<<sec_v_platform>>>
 -- ----------------------------------------------------------------------------
@@ -594,7 +594,7 @@ CREATE TABLE synced_submission (
  FOREIGN KEY (user_id) REFERENCES `user`(user_id),
  FOREIGN KEY (platform_id) REFERENCES platform(platform_id),
  FOREIGN KEY (problem_id) REFERENCES problem(problem_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 INSERT INTO platform(platform_id,platform_name,platform_url)
 SELECT UUID(),'牛客','https://ac.nowcoder.com'
 WHERE NOT EXISTS(SELECT 1 FROM platform WHERE platform_name='牛客');
@@ -762,18 +762,18 @@ CREATE TABLE platform_problem_inventory(
  account_uid VARCHAR(30) NOT NULL,passed TINYINT NOT NULL,observed_at DATETIME NOT NULL,
  PRIMARY KEY(user_id,problem_id),
  FOREIGN KEY(user_id) REFERENCES user(user_id),FOREIGN KEY(platform_id) REFERENCES platform(platform_id),FOREIGN KEY(problem_id) REFERENCES problem(problem_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE platform_daily_activity(
  user_id CHAR(36) NOT NULL,platform_id CHAR(36) NOT NULL,account_uid VARCHAR(30) NOT NULL,
  activity_day DATE NOT NULL,activity_count INT UNSIGNED NOT NULL,
  PRIMARY KEY(user_id,platform_id,account_uid,activity_day),KEY idx_activity_day(activity_day),
  FOREIGN KEY(user_id) REFERENCES user(user_id),FOREIGN KEY(platform_id) REFERENCES platform(platform_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE platform_snapshot(
  account_id CHAR(36) PRIMARY KEY,passed_count INT NOT NULL,attempted_count INT NOT NULL,activity_days INT NOT NULL,
  profile_passed_count INT NULL,profile_attempted_count INT NULL,
  observed_at DATETIME NOT NULL,FOREIGN KEY(account_id) REFERENCES platform_account(account_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE OR REPLACE VIEW v_problem_progress AS
 SELECT user_id,problem_id,CONCAT(user_id,':',problem_id) AS record_id,MAX(passed) AS passed,MAX(solve_date) AS solve_date
 FROM (SELECT user_id,problem_id,passed,solve_date FROM record
@@ -807,7 +807,7 @@ CREATE TABLE account_rating (
  fetched_at DATETIME NULL,
  last_attempt DATETIME NOT NULL,
  FOREIGN KEY(account_id) REFERENCES platform_account(account_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE user_skill_settings (
  user_id CHAR(36) PRIMARY KEY,
  config JSON NOT NULL,
@@ -816,7 +816,7 @@ CREATE TABLE user_skill_settings (
  draft_revision INT UNSIGNED NOT NULL DEFAULT 0,
  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
  FOREIGN KEY(user_id) REFERENCES user(user_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS ability_snapshot (
  snapshot_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -826,4 +826,4 @@ CREATE TABLE IF NOT EXISTS ability_snapshot (
  metrics JSON NOT NULL,
  INDEX idx_ability_snapshot_user (user_id, snapshot_id),
  FOREIGN KEY(user_id) REFERENCES user(user_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
