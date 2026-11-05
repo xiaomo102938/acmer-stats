@@ -132,8 +132,10 @@ app.get('/api/tags/:id/ability',async(req,res)=>{
   const tag=rows.find(r=>r.tag_id===req.params.id);
   if(!tag)return res.status(404).json({message:'题型不存在。'});
   if(platform!=='全部平台'&&!rows.some(r=>r.platform_name===platform))return res.status(400).json({message:'该平台暂无题型数据。'});
-  const profile=abilityProfiles(rows,platform,tag.tag_id)[0];
-  res.set('Cache-Control','no-store').json({tag,platform,ratingVersion,problems:profile?.problems||[]});
+  const current=req.query.sample==='current';
+  const recency=current?{days:await readAcceptedDays(connection),day:shanghaiDay(),includeSamples:true}:undefined;
+  const profile=abilityProfiles(rows,platform,tag.tag_id,undefined,recency)[0];
+  res.set('Cache-Control','no-store').json({tag,platform,ratingVersion,problems:(current?profile?.currentProblems:profile?.problems)||[]});
  }finally{connection.release();}
 });
 

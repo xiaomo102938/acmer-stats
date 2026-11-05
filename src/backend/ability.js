@@ -7,13 +7,13 @@ export const abilityMinimums={topic:20,specialty:125,all:250};
 const sampleTarget=(count,minimum)=>Math.max(minimum,Math.ceil(count*15/100));
 const roundScore=score=>Math.round(score*10)/10;
 
-function currentProfile(problems,minimum,day){
+function currentProfile(problems,minimum,day,includeSamples=false){
  const dated=problems.filter(row=>row.lastAcceptedDay!=null);
  const limit=sampleTarget(dated.length,minimum);
  const scores=dated.map(row=>{
   const daysAfterGrace=Math.max(0,day-row.lastAcceptedDay-20);
   const penalty=250*(1-2**(-daysAfterGrace/365));
-  return {age:day-row.lastAcceptedDay,score:Math.max(800,row.rating-penalty)};
+  return {problem:row,age:day-row.lastAcceptedDay,score:Math.max(800,row.rating-penalty)};
  })
   .sort((a,b)=>b.score-a.score);
  const sample=scores.slice(0,limit);
@@ -29,6 +29,11 @@ function currentProfile(problems,minimum,day){
   // Normalize the weights over real problems, then count missing slots as zero.
   current_value:sample.length?roundScore(weightedScore/weightTotal*sample.length/limit):null,
   current_equal_weight_value:sample.length?roundScore(sample.reduce((sum,row)=>sum+row.score,0)/limit):null,
+  ...(includeSamples?{currentProblems:sample.map(({problem,score,age})=>({
+   ...problem,adjusted_rating:roundScore(score),
+   last_accepted_date:new Date(problem.lastAcceptedDay*dayMs).toISOString().slice(0,10),
+   relative_weight:2**(-(age-newestAge)/183)
+  }))}:{}),
   current_sample_count:sample.length,current_sample_limit:limit,current_dated_count:dated.length,
   current_unadjusted_value:sample.length?roundScore(dated.slice(0,limit).reduce((sum,row)=>sum+row.rating,0)/limit):null
  };
@@ -75,7 +80,7 @@ function profilesFromRatedRows(rows,platform,minimum,recency){
   const problems=valid.slice(0,limit),n=problems.length;
   return {tag_id:g.tag_id,tag_name:g.tag_name,display_name:g.display_name,platform_name:platform,total_count:all.length,passed_count:passed.length,rated_count:valid.length,
    sample_count:n,ability_value:roundScore(problems.reduce((s,p)=>s+p.rating,0)/limit),
-   ...(recency?currentProfile(valid,minimum,recency.day):{}),
+   ...(recency?currentProfile(valid,minimum,recency.day,recency.includeSamples):{}),
    min_difficulty:n?problems[n-1].rating:null,max_difficulty:n?problems[0].rating:null,
    estimated_count:problems.filter(r=>r.estimated).length,sample_limit:limit,sample_status:n===limit?'满'+limit+'题':'补 '+(limit-n)+' 道零分',problems};
  }).sort((a,b)=>(b.ability_value??-1)-(a.ability_value??-1)||b.sample_count-a.sample_count||a.display_name.localeCompare(b.display_name));
