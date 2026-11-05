@@ -8,7 +8,6 @@ export default{
  components:{ChoicePicker},props:{modelValue:{type:Object,required:true},catalog:Array},emits:['update:modelValue'],
  setup(props,{emit}){
   const renameText=ref(''),showCreate=ref(false);
-  const zoomLevels=[25,40,50,60,70,75,80,90,100,110,125,140,150,175,200,225,250,275,300];
   const svg=ref(null),mode=ref('move'),selected=ref(''),selectedEdge=ref(''),from=ref(''),adding=ref(''),message=ref(''),positions=ref({}),zoom=ref(100),pan=ref({x:0,y:0}),history=ref([]);let gesture=null;
   const committedPositions=computed(()=>completePositions(props.modelValue.nodes,props.modelValue.positions));
   watch(committedPositions,value=>{positions.value=value;if(!props.modelValue.nodes.some(n=>n.id===selected.value))selected.value='';},{immediate:true});
@@ -32,8 +31,7 @@ export default{
   function startConnection(kind){mode.value=kind;from.value=selected.value;message.value='请点击后继节点，空白处可取消连线。';}
   function activate(n){if(mode.value!=='move'&&from.value){connect(from.value,n.id);from.value='';mode.value='move';}selected.value=n.id;selectedEdge.value='';showCreate.value=false;}
   function reforest(){update(c=>c.positions=forestPositions(c.nodes));zoom.value=100;pan.value={x:0,y:0};message.value='已按主树重新排列为森林，可撤销。';}
-  function changeZoom(next){const previous=zoom.value,value=Math.max(25,Math.min(300,Number(next)||100));pan.value={x:pan.value.x+bounds.value.width*(100/previous-100/value)/2,y:pan.value.y+bounds.value.height*(100/previous-100/value)/2};zoom.value=value;}
-  function stepZoom(delta){const next=delta>0?zoomLevels.find(v=>v>zoom.value):[...zoomLevels].reverse().find(v=>v<zoom.value);if(next)changeZoom(next);}
+  function changeZoom(next){const previous=zoom.value,value=Math.max(25,Math.min(1000,Number(next)||100));pan.value={x:pan.value.x+bounds.value.width*(100/previous-100/value)/2,y:pan.value.y+bounds.value.height*(100/previous-100/value)/2};zoom.value=value;}
   function background(e){if(e.button!==0||e.target!==svg.value)return;clearSelection();const p=point(e);gesture={pan:true,start:p,origin:{...pan.value}};svg.value.setPointerCapture(e.pointerId);}
   function move(e){if(!gesture)return;const p=point(e);if(gesture.pan){pan.value={x:gesture.origin.x-(p.x-gesture.start.x),y:gesture.origin.y-(p.y-gesture.start.y)};gesture.start=point(e);gesture.origin={...pan.value};return;}
    const next={x:Math.max(90,Math.min(10000,gesture.origin.x+p.x-gesture.start.x)),y:Math.max(50,Math.min(10000,gesture.origin.y+p.y-gesture.start.y))};
@@ -55,14 +53,14 @@ export default{
   function locate(id){selected.value=id;selectedEdge.value='';from.value='';mode.value='move';showCreate.value=false;const p=positions.value[id];if(p){zoom.value=150;pan.value={x:Math.max(0,p.x-250),y:Math.max(0,p.y-180)};}}
   const line=e=>{const a=positions.value[e.from],b=positions.value[e.to],dx=b.x-a.x,dy=b.y-a.y,bend=Math.min(120,Math.max(35,Math.abs(dx)*.2));const c={x:(a.x+b.x)/2+(Math.abs(dx)<20?bend:0),y:(a.y+b.y)/2+(e.kind==='secondary'?bend:-bend)};
    function clip(p){const vx=c.x-p.x,vy=c.y-p.y,t=Math.min(80/Math.max(.001,Math.abs(vx)),32/Math.max(.001,Math.abs(vy)));return {x:p.x+vx*t,y:p.y+vy*t};}const start=clip(a),end=clip(b);return 'M '+start.x+','+start.y+' Q '+c.x+','+c.y+' '+end.x+','+end.y;};
-  return {zoomLevels,showCreate,clearSelection,selectEdge,startConnection,activate,reforest,changeZoom,stepZoom,renameText,svg,mode,selected,selectedEdge,from,adding,message,positions,zoom,pan,history,nodes,edges,name,candidates,options,viewBox,editorNode,edgeKey,down,background,move,up,connect,addNode,removeNode,removeEdge,rename,locate,line,undo};
+  return {showCreate,clearSelection,selectEdge,startConnection,activate,reforest,changeZoom,renameText,svg,mode,selected,selectedEdge,from,adding,message,positions,zoom,pan,history,nodes,edges,name,candidates,options,viewBox,editorNode,edgeKey,down,background,move,up,connect,addNode,removeNode,removeEdge,rename,locate,line,undo};
  },
  template:`<section class="topology-editor" aria-label="交互式拓扑编辑器" @keydown.esc.prevent="clearSelection">
  <div class="topology-toolbar"><div class="context-actions" aria-label="选中对象操作">
  <button v-if="!selected&&!selectedEdge" @click="showCreate=!showCreate" :aria-expanded="showCreate">创建新节点</button>
  <template v-if="selected"><span class="footnote">节点：{{name(selected)}}</span><button @click="removeNode">删除节点</button><button :aria-pressed="mode==='primary'" @click="startConnection('primary')">连接主前驱</button><button :aria-pressed="mode==='secondary'" @click="startConnection('secondary')">连接副前驱</button><button @click="clearSelection">取消选择</button></template>
  <template v-if="selectedEdge"><span class="footnote">已选中边</span><button @click="removeEdge">删除边</button><button @click="clearSelection">取消选择</button></template>
- </div><div class="view-actions"><button @click="undo" :disabled="!history.length">撤销上一步</button><button @click="reforest">重新排列为森林</button><button @click="stepZoom(-1)" :disabled="zoom<=25" aria-label="缩小编辑画布">−</button><label>缩放<select :value="zoom" @change="changeZoom($event.target.value)" aria-label="编辑画布缩放"><option v-for="v in zoomLevels" :key="v" :value="v">{{v}}%</option></select></label><button @click="stepZoom(1)" :disabled="zoom>=300" aria-label="放大编辑画布">＋</button><button @click="zoom=100;pan={x:0,y:0}">适应画布</button></div></div>
+ </div><div class="view-actions"><button @click="undo" :disabled="!history.length">撤销上一步</button><button @click="reforest">重新排列为森林</button><label class="editor-zoom">缩放<input type="range" min="25" max="1000" step="1" :value="zoom" @input="changeZoom($event.target.value)" aria-label="编辑画布缩放" :aria-valuetext="zoom+'%'"><output>{{zoom}}%</output></label><button @click="zoom=100;pan={x:0,y:0}">适应画布</button></div></div>
  <div v-if="showCreate&&!selected&&!selectedEdge" class="topology-tools"><ChoicePicker v-model="adding" :items="candidates" label="添加图谱题型" /><button :disabled="!adding" @click="addNode();showCreate=false">添加节点</button></div>
  <div class="editor-inspector"><ChoicePicker :model-value="selected" @update:model-value="locate" :items="options" label="定位编辑节点" :clearable="false" /><div v-if="selected" class="editor-selection"><label>选中节点显示名<input v-model="renameText" maxlength="100" aria-label="选中节点显示名"></label><button :disabled="!renameText.trim()||renameText.trim()===name(selected)" @click="rename">更新节点名称</button></div></div>
  <p class="footnote">各棵树按实线主前驱独立排列，虚线只表示关联。拖节点移动、拖空白处平移；点击空白或按 Esc 取消选择。选中节点后可发起连线，再点击后继节点。编辑时无物理模拟。</p><p class="editor-status" role="status">{{message||'点击节点、边或空白处切换操作。'}}{{from?' 起点：'+name(from):''}}</p>
