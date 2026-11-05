@@ -98,14 +98,14 @@ export default{
    </select></label>
   </div>
   <p v-if="error" class="error" role="alert">{{error}} <button @click="load">重试</button></p>
-  <p v-if="loading" class="muted" role="status">正在读取能力快照…</p>
-  <p v-else-if="latest" class="trend-summary" aria-live="polite">
+  <LoadingNotice v-if="loading" :skeleton="!latest">正在读取能力快照…</LoadingNotice>
+  <p v-if="latest" class="trend-summary" aria-live="polite">
    {{mode==='current'?'评估日期 '+formatDay(latest.at): '最近快照 '+formatTime(latest.at)}} ·
    <template v-if="current?.score!=null">CF 尺度 {{current.score}} 分 · 计分样本 {{current.count}} / {{current.limit}} 道{{current.count<current.limit?'（缺额计零）':''}}</template>
    <template v-else>当前范围暂无计分样本。</template>
   </p>
   <p v-if="scope==='specialty'&&latest?.specialty.names.length" class="muted">{{latest.specialty.names.join('、')}}{{latest.specialty.includeDescendants?'（含实线下级分支）':''}}</p>
-  <div v-show="count" ref="chartEl" class="chart trend-chart" role="img" aria-label="CF 尺度能力参考值随时间变化"></div>
+  <div v-show="count" :class="{'content-ready':count>0}" ref="chartEl" class="chart trend-chart" role="img" aria-label="CF 尺度能力参考值随时间变化"></div>
   <p v-if="hasBreak" class="muted">折线断开处表示计分范围或版本改变，或期间缺少可计分样本。</p>
   <p v-if="!loading&&!error&&count===1" class="muted">目前只有一个计分点，后续记录到变化时会显示趋势。</p>
   <p v-if="!loading&&!error&&!count" class="muted">当前范围暂无可绘制的能力快照。</p>

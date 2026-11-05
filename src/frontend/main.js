@@ -1,5 +1,6 @@
 import {apiFetch} from './api-fetch.js';
 import CardOrderEditor from './card-order-editor.js';
+import LoadingNotice from './loading-notice.js';
 import ModuleHelp from './module-help.js';
 import SkillLayoutSettings from './skill-layout-settings.js';
 import SkillSettings from './skill-settings.js';
@@ -127,15 +128,15 @@ createApp({
    <SiteStatus />
   </aside>
   <main>
-   <header><h1>{{current.name}}</h1><button v-if="editingCards&&page!=='settings'" @click="editingCards=false">结束卡片编辑</button><button v-else-if="page!=='settings'" @click="load" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
+   <header><h1>{{current.name}}</h1><button v-if="editingCards&&page!=='settings'" @click="editingCards=false">结束卡片编辑</button><button v-else-if="page!=='settings'" @click="load" :aria-busy="loading" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
    <div v-if="editingCards" class="card-order-info" role="status">拖动标题调整本页卡片顺序，松开后自动保存。模块只能在所属页面内移动。</div>
    <p v-if="cardOrderError" class="error" role="alert">{{cardOrderError}}</p>
    <CardOrderEditor v-if="editingCards" :key="page" :cards="editableCards" @move="moveCard"><label class="card-order-toggle"><input v-model="editingCards" type="checkbox">卡片位置编辑模式</label></CardOrderEditor>
    <div v-if="!editingCards&&error&&page!=='settings'" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
-   <p v-if="!editingCards&&loading&&!data&&!['settings','records'].includes(page)" role="status">正在读取数据库…</p>
+   <LoadingNotice v-if="!editingCards&&loading&&!data&&!['settings','records'].includes(page)" class="panel" skeleton>正在读取看板…</LoadingNotice>
 
    <section v-if="page==='overview'&&data" key="overview" aria-label="数据简览">
-    <div class="metrics">
+    <div class="metrics content-ready">
      <article><span>累计题数</span><strong>{{data.overview?.total_problems??0}}<small> 道</small></strong><ModuleHelp><p>按题去重，含平台公开累计汇总。洛谷公开练习清单也计入题目总量。</p></ModuleHelp></article>
      <article><span>AC 题数</span><strong>{{data.overview?.passed_problems??0}}<small> 道</small></strong><ModuleHelp><p>同一道题多次通过只计一次。</p></ModuleHelp></article>
     </div>
@@ -152,7 +153,7 @@ createApp({
    </section>
 
    <section v-else-if="page==='analysis'&&data" v-show="!editingCards" key="analysis" class="ordered-cards" aria-label="详细分析">
-    <OverallAbility :style="cardStyle('overall')" :profile="data.overallAbility" :refresh-key="dataVersion" />
+    <OverallAbility class="content-ready" :style="cardStyle('overall')" :profile="data.overallAbility" :refresh-key="dataVersion" />
     <AbilityTrends :style="cardStyle('ability-trend')" :refresh-key="dataVersion" />
     <PracticeTrends :style="cardStyle('practice-trend')" :refresh-key="dataVersion" />
     <div class="analysis-difficulty" :style="cardStyle('difficulty')">
@@ -186,4 +187,4 @@ createApp({
    <footer>刷题手记 · 数据来自本机 MySQL</footer>
   </main>
  </div>`
-}).component('ModuleHelp',ModuleHelp).mount('#app');
+}).component('ModuleHelp',ModuleHelp).component('LoadingNotice',LoadingNotice).mount('#app');

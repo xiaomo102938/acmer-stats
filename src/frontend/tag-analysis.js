@@ -67,8 +67,8 @@ export default{
   <section v-if="selected" ref="detailEl" class="ability-detail" :aria-label="graphOnly?'图谱入选题单':'能力参考入选题单'">
    <div class="panel-head"><h3>{{selected.display_name}} · {{platform}}</h3><div class="practice-tabs"><a :href="practiceHref(selected.tag_id)" class="problem">练习这个题型 ↗</a><button @click="close">收起题单</button></div></div>
    <p class="footnote">本次入选 {{selected.sample_count}} 道，均值 {{selected.ability_value}}。{{selected.sample_count<selected.sample_limit?selected.sample_status+'。':''}}</p>
-   <p v-if="loading" role="status" class="muted">正在加载入选题目…</p><p v-if="error" role="alert" class="error">{{error}}</p>
-   <div v-if="!loading&&!error" class="table-wrap"><table><thead><tr><th>题目</th><th>平台</th><th>CF 尺度</th><th>原始难度</th><th>评分依据</th><th>记录日期</th></tr></thead><tbody><tr v-for="p in problems" :key="p.problem_id"><td><a v-if="p.problem_url" :href="p.problem_url" target="_blank" rel="noopener noreferrer">{{p.problem_name}} ↗</a><span v-else>{{p.problem_name}}</span></td><td>{{p.platform_name}}</td><td>{{p.estimated?'≈ ':''}}{{p.rating}}</td><td>{{p.native_difficulty ?? '—'}}</td><td>{{p.method}} · {{p.confidence}}</td><td>{{p.solve_date || '未提供逐题日期'}}</td></tr></tbody></table></div>
+   <LoadingNotice v-if="loading" skeleton>正在读取入选题目…</LoadingNotice><p v-if="error" role="alert" class="error">{{error}}</p>
+   <div v-if="!loading&&!error" class="table-wrap content-ready"><table><thead><tr><th>题目</th><th>平台</th><th>CF 尺度</th><th>原始难度</th><th>评分依据</th><th>记录日期</th></tr></thead><tbody><tr v-for="p in problems" :key="p.problem_id"><td><a v-if="p.problem_url" :href="p.problem_url" target="_blank" rel="noopener noreferrer">{{p.problem_name}} ↗</a><span v-else>{{p.problem_name}}</span></td><td>{{p.platform_name}}</td><td>{{p.estimated?'≈ ':''}}{{p.rating}}</td><td>{{p.native_difficulty ?? '—'}}</td><td>{{p.method}} · {{p.confidence}}</td><td>{{p.solve_date || '未提供逐题日期'}}</td></tr></tbody></table></div>
   </section>
   <ModuleHelp v-if="!graphOnly">
   <p v-if="!graphOnly" class="ability-description">将所选平台同一题型已通过且有评分依据的题目换算到 CF 尺度，合并可识别的同源题目后去重，取难度最高的 15%（向上取整），至少 20 道，缺额按零分计入。</p>

@@ -53,7 +53,8 @@ export default{
   <p class="error" role="alert">{{error}}</p>
   <button :disabled="busy" @click="load">{{base?'重新加载题型与图谱设置（放弃未保存编辑）':'重试加载题型与图谱设置'}}</button>
  </article><p v-else-if="error" class="error" role="alert">{{error}}</p><p v-if="message" role="status">{{message}}</p>
- <fieldset v-if="base" :disabled="busy" class="skill-fields">
+ <LoadingNotice v-if="base&&busy">正在处理设置…</LoadingNotice>
+ <fieldset v-if="base" :disabled="busy" class="skill-fields content-ready">
  <article class="panel" :style="{order:cardPositions.specialty}" aria-label="专职题型设置"><div class="panel-head module-head"><h2>专职题型</h2><div><button class="module-save" :class="{dirty:sDirty}" :disabled="!sDirty" @click="save('specialty')">保存专职修改</button><button :disabled="!sDirty" @click="cancelSpecialty">撤销专职修改</button></div></div>
  <ChoicePicker v-model="sDraft.specialties" :items="choices" label="专职题型" multiple /><label class="skill-check"><input type="checkbox" v-model="sDraft.includeDescendants">包含实线下级分支（不沿虚线扩展）</label><p class="footnote">已选 {{sDraft.specialties.length}} 个专职，覆盖 {{coverage}} 个题型。</p><ModuleHelp><p class="footnote">可多选专职题型。综合能力从专职范围选最高 15% 的有效评分通过题，至少 125 道，缺额按零分计入。此模块独立保存，不应用未保存的拓扑。</p></ModuleHelp></article>
  <article class="panel" :style="{order:cardPositions.aliases}" aria-label="标签类型归并设置"><div class="panel-head module-head"><h2>标签类型归并</h2><div><button class="module-save" :class="{dirty:preview||undoSource}" :disabled="mergeBlocked||(!undoSource&&(!plan?.config||!!plan.conflict||!mergeName.trim()))" @click="save(undoSource?'unmerge':'merge')">保存归并修改</button><button :disabled="!preview&&!undoSource&&!first&&!second" @click="cancelMerge">撤销归并草稿</button></div></div>
@@ -68,5 +69,5 @@ export default{
  <article class="panel" :style="{order:cardPositions.topology}" aria-label="技能图谱客制化设置"><div class="panel-head module-head"><h2>技能图谱客制化</h2><div><button class="module-save" :class="{dirty:tDirty}" :disabled="!tDirty||!!conflict" @click="save('topology')">应用拓扑修改</button><button class="module-save" :class="{dirty:draftDirty}" :disabled="!draftDirty||!!draftConflict" @click="save('draft')">保存拓扑草稿</button><button :disabled="!draftDirty" @click="cancelTopology">撤销本次编辑</button><button v-if="storedDraft" @click="save('discardDraft')">放弃已存草稿</button></div></div>
  <p v-if="storedDraft" class="footnote">已恢复数据库中的拓扑草稿；分析页仍使用上次应用的图谱。</p><p v-if="conflict" class="error" role="alert">尚不能应用：{{conflict}}</p><p v-else class="footnote">{{tDraft.nodes.length}} 个节点，规则检查通过。右上角应用后才影响分析页。</p><TopologyEditor :key="editorKey" v-model="tDraft" :catalog="standard" />
  </article>
- </fieldset><p v-else-if="busy">正在读取设置…</p></section>`
+ </fieldset><LoadingNotice v-else-if="busy" class="panel" skeleton>正在读取设置…</LoadingNotice></section>`
 };

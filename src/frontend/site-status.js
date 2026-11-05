@@ -42,11 +42,11 @@ export default{
   return {status,checking,checkedAt,labels,details,check};
  },
  template:`<details class="site-status">
-  <summary :title="'网站状态 · '+labels[status]" :aria-label="'网站状态 · '+labels[status]"><span :class="['status-dot',status]" aria-hidden="true"></span><span class="site-status-label">网站状态 · {{checking?'检查中…':labels[status]}}</span></summary>
+  <summary :title="'网站状态 · '+labels[status]" :aria-label="'网站状态 · '+labels[status]"><span :class="['status-dot',status,{'loading-dot':checking}]" aria-hidden="true"></span><span class="site-status-label">网站状态 · {{checking?'检查中…':labels[status]}}</span></summary>
   <div class="site-status-detail">
    <p role="status">{{details[status]}}</p>
    <p class="muted">上次检查 {{checkedAt?.toLocaleTimeString('zh-CN',{hour12:false})||'—'}}</p>
-   <button type="button" :disabled="checking" @click="check">{{checking?'检查中…':'重新检查'}}</button>
+   <button type="button" :disabled="checking" :aria-busy="checking" @click="check">{{checking?'检查中…':'重新检查'}}</button>
   </div>
  </details>`
 };

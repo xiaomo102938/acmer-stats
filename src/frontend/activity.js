@@ -51,11 +51,11 @@ export default{
    <label>指标<select v-model="metric" aria-label="热力图指标"><option value="accepted_problem_count">AC 题目</option><option value="submission_count">提交次数</option><option value="problem_count">尝试题目</option><option value="activity_count">站点活动（洛谷）</option></select></label>
   </div>
   <p v-if="error" role="alert" class="error">{{error}} <button @click="load">重试</button></p>
-  <p v-if="loading" role="status" class="muted">正在读取每日记录…</p>
+  <LoadingNotice v-if="loading" :skeleton="!result">正在读取每日记录…</LoadingNotice>
   <template v-if="result">
    <p class="footnote">{{calendar.rangeStart}} — {{calendar.rangeEnd}}{{year==='rolling'?' · 截至今天，最近 365 天':' · 按年份展示'}}</p>
    <div class="activity-summary"><span><strong>{{summary.activeDays}}</strong> 个活跃日</span><span v-if="metric==='activity_count'"><strong>{{summary.activities}}</strong> 次站点活动</span><template v-else><span><strong>{{summary.submissions}}</strong> 次提交</span><span><strong>{{summary.acProblems}}</strong> 道 AC 题目<span class="muted">（按天去重合计）</span></span></template></div>
-   <div class="activity-layout">
+   <div class="activity-layout content-ready">
     <div class="weekday-labels" aria-hidden="true"><span>一</span><span>三</span><span>五</span></div>
     <div class="activity-scroll" tabindex="0" aria-label="年度活动日历，可横向滚动">
      <div class="activity-months" :style="{'--weeks':calendar.columns}" aria-hidden="true"><span v-for="m in calendar.months" :key="m.key" :style="{gridColumn:m.column}">{{m.name}}</span></div>

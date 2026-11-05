@@ -4,7 +4,7 @@ import {ref,computed,onMounted,onBeforeUnmount,nextTick} from 'vue';
 export default {
  emits:['synced'],
  setup(_props,{emit}){
-  const formEl=ref(null);
+  const formEl=ref(null),initialLoading=ref(true);
   const accounts=ref([]),platforms=ref([]),form=ref({platform_id:'',login_name:'',remote_uid:'',cookie:'',remove_cookie:false}),
    editing=ref(null),message=ref(''),failure=ref(''),saving=ref(false),confirming=ref(null);
   const batch=ref(null),startingBatch=ref(false);
@@ -23,7 +23,7 @@ export default {
     const running=anyRunning.value;
     if(wasRunning&&!running)emit('synced');
     wasRunning=running;
-   }catch(error){failure.value=error.message;}finally{loading=false;}
+   }catch(error){failure.value=error.message;}finally{loading=false;initialLoading.value=false;}
   }
   async function save(){
    saving.value=true;message.value='';failure.value='';
@@ -62,27 +62,28 @@ export default {
   const selected=()=>platforms.value.find(p=>p.platform_id===form.value.platform_id);
   onMounted(()=>{refresh();timer=setInterval(refresh,2000);});
   onBeforeUnmount(()=>clearInterval(timer));
-  return {formEl,syncSetup,batch,startingBatch,anyRunning,canSyncAll,syncAll,accounts,platforms,form,editing,message,failure,saving,confirming,save,cancel,edit,sync,remove,selected};
+  return {initialLoading,formEl,syncSetup,batch,startingBatch,anyRunning,canSyncAll,syncAll,accounts,platforms,form,editing,message,failure,saving,confirming,save,cancel,edit,sync,remove,selected};
  },
  template:`
  <section class="panel accounts-panel" id="accounts">
-  <div class="panel-head"><h2>平台账号与同步</h2><button type="button" :disabled="!canSyncAll||anyRunning||startingBatch||saving" @click="syncAll">{{batch?.running||startingBatch?'正在同步全部…':'同步全部'}}</button></div>
+  <div class="panel-head"><h2>平台账号与同步</h2><button type="button" :disabled="!canSyncAll||anyRunning||startingBatch||saving" @click="syncAll" :aria-busy="batch?.running||startingBatch">{{batch?.running||startingBatch?'正在同步全部…':'同步全部'}}</button></div>
   <p v-if="batch" class="account-message" role="status"><template v-if="batch.running">已处理 {{batch.done}} / {{batch.total}} 个账号<span v-if="batch.current"> · 正在同步 {{batch.current}}</span></template><template v-else>本轮同步完成 · 成功 {{batch.succeeded}} · 失败 {{batch.failed}}</template><span v-if="batch.skipped"> · 跳过 {{batch.skipped}} 个（配置不完整或暂未支持）</span></p>
   <div v-if="failure" class="error" role="alert">{{failure}}</div>
   <p v-if="message" class="account-message" role="status">{{message}}</p>
-  <form ref="formEl" @submit.prevent="save" class="account-form">
+  <LoadingNotice v-if="initialLoading" skeleton>正在读取平台账号…</LoadingNotice>
+  <form v-else ref="formEl" @submit.prevent="save" class="account-form">
    <label>平台<select v-model="form.platform_id" :disabled="!!editing" required><option v-for="p in platforms" :key="p.platform_id" :value="p.platform_id">{{p.platform_name}} · {{p.mode}}</option></select></label>
    <label>{{selected()?.platform_name==='洛谷'?'数字 UID':'用户名 / 用户标识'}}<input v-model.trim="form.login_name" :readonly="!!editing" maxlength="100" required placeholder="例如 xiaomo102938" autocomplete="off"></label>
    <label v-if="selected()?.platform_name==='牛客'">牛客主页链接 / 数字 UID<input name="remote_uid" v-model.trim="form.remote_uid" placeholder="https://ac.nowcoder.com/acm/contest/profile/数字UID"></label>
    <label v-if="['QOJ','牛客','LeetCode','洛谷'].includes(selected()?.platform_name)" class="cookie-field">{{selected()?.platform_name==='QOJ'?'QOJ 登录 Cookie':'登录 Cookie（可选）'}}<input name="cookie" v-model="form.cookie" type="password" autocomplete="new-password" maxlength="12000" placeholder="name=value; name2=value2"></label>
    <label v-if="editing" class="check-label"><input type="checkbox" v-model="form.remove_cookie">清除已保存的 Cookie</label>
-   <div class="form-actions"><button class="primary" :disabled="saving||(!!editing&&batch?.running)">{{saving?'保存中…':editing?'保存设置':'添加账号'}}</button><button v-if="editing" type="button" @click="cancel">取消编辑</button></div>
+   <div class="form-actions"><button class="primary" :aria-busy="saving" :disabled="saving||(!!editing&&batch?.running)">{{saving?'保存中…':editing?'保存设置':'添加账号'}}</button><button v-if="editing" type="button" @click="cancel">取消编辑</button></div>
   </form>
-  <p v-if="!accounts.length" class="muted">还没有绑定账号，请先添加。</p>
-  <div class="account-list">
+  <p v-if="!initialLoading&&!failure&&!accounts.length" class="muted">还没有绑定账号，请先添加。</p>
+  <div v-if="!initialLoading" class="account-list content-ready">
    <article class="account-card" v-for="a in accounts" :key="a.account_id">
     <div class="account-card-head"><div><b>{{a.platform_name}}</b><span class="account-login">{{a.login_name}}</span><span class="badge" :class="{good:a.sync_status==='success',weak:a.sync_status==='error'}">{{({idle:'未同步',running:'同步中',success:'已同步',error:'同步失败'})[a.sync_status]||a.sync_status}}</span></div>
-     <div class="account-actions"><button @click="sync(a)" :disabled="batch?.running||startingBatch||a.sync_status==='running'||platforms.find(p=>p.platform_id===a.platform_id)?.mode==='暂未接入'">{{a.sync_status==='running'?'同步中…':syncSetup(a).action}}</button><button @click="edit(a)" :disabled="batch?.running||startingBatch||a.sync_status==='running'">编辑</button><button @click="confirming=a.account_id" :disabled="batch?.running||startingBatch||a.sync_status==='running'">解绑</button></div></div>
+     <div class="account-actions"><button @click="sync(a)" :aria-busy="a.sync_status==='running'" :disabled="batch?.running||startingBatch||a.sync_status==='running'||platforms.find(p=>p.platform_id===a.platform_id)?.mode==='暂未接入'">{{a.sync_status==='running'?'同步中…':syncSetup(a).action}}</button><button @click="edit(a)" :disabled="batch?.running||startingBatch||a.sync_status==='running'">编辑</button><button @click="confirming=a.account_id" :disabled="batch?.running||startingBatch||a.sync_status==='running'">解绑</button></div></div>
     <p v-if="!syncSetup(a).ready" class="footnote">{{syncSetup(a).reason}}</p>
     <p class="account-detail">最近成功同步：{{a.last_sync||'尚未同步'}}<span v-if="a.has_secret"> · 已保存加密 Cookie</span><span v-if="a.remote_uid"> · UID {{a.remote_uid}}</span></p>
     <p class="account-result" :class="{failed:a.sync_status==='error'}">{{a.sync_message||platforms.find(p=>p.platform_id===a.platform_id)?.note}}</p>

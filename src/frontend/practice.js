@@ -13,7 +13,7 @@ export default{
   async function load(page=1){
    request?.abort();
    const current=new AbortController();
-   request=current;loading.value=true;error.value='';result.value=null;
+   request=current;loading.value=true;error.value='';
    const params=new URLSearchParams({mode:'recommend',tag:tag.value,page:String(page)});
    if(appliedTarget.value!=='')params.set('target',String(appliedTarget.value));
    try{
@@ -48,10 +48,10 @@ export default{
    <template v-if="result.target!==null">推荐目标 {{result.target}} 分，范围 ±{{result.radius}} 分，排除本地已有记录的题目。</template>
    <template v-else>该题型暂无可计分样本，可以手动填写目标难度。</template>
   </p>
-  <p v-if="loading" role="status" class="muted">正在读取题单…</p>
-  <p v-else-if="error||result?.sourceError" class="error" role="alert">{{error||result.sourceError}} <button @click="load()">重试</button></p>
-  <template v-else-if="result">
-   <div v-if="result.items.length" class="table-wrap">
+  <LoadingNotice v-if="loading" :skeleton="!result">正在读取题单…</LoadingNotice>
+  <p v-if="!loading&&(error||result?.sourceError)" class="error" role="alert">{{error||result.sourceError}} <button @click="load()">重试</button></p>
+  <template v-if="result&&!result.sourceError">
+   <div v-if="result.items.length" class="table-wrap content-ready">
     <table><thead><tr><th>题目</th><th>平台</th><th>CF 题目难度</th><th>推荐理由</th></tr></thead>
      <tbody><tr v-for="row in result.items" :key="row.problem_id">
       <td class="submission-problem"><a v-if="problemLink(row)" :href="problemLink(row)" class="problem" target="_blank" rel="noopener noreferrer">{{row.problem_name}} ↗</a><span v-else>{{row.problem_name}}</span></td>
@@ -63,9 +63,9 @@ export default{
    </div>
    <p v-else class="muted">{{result.target===null?'填写目标难度后可查看题单。':'该题型在当前难度范围内暂无匹配的新题。'}}</p>
    <nav v-if="result.total" class="submission-pagination" aria-label="练习题单分页">
-    <button :disabled="result.page<=1" @click="load(result.page-1)">上一页</button>
+    <button :disabled="loading||result.page<=1" @click="load(result.page-1)">上一页</button>
     <span aria-live="polite">第 {{result.page}} / {{result.pages}} 页 · 共 {{result.total}} 道</span>
-    <button :disabled="result.page>=result.pages" @click="load(result.page+1)">下一页</button>
+    <button :disabled="loading||result.page>=result.pages" @click="load(result.page+1)">下一页</button>
    </nav>
   </template>
  </article>`

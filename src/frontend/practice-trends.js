@@ -49,11 +49,12 @@ export default{
    <label>粒度<select v-model="grain" @change="load" aria-label="趋势粒度"><option v-for="g in available" :value="g">{{labels[g]}}</option></select></label>
    <label>平台<select v-model="platform" @change="load" aria-label="趋势平台"><option value="all">全部平台</option><option v-for="p in data?.platforms||[]" :value="p">{{p}}</option></select></label>
    <label>指标<select v-model="metric" @change="draw" aria-label="趋势指标"><option v-for="(label,key) in metrics" :value="key">{{label}}</option></select></label>
-   <button @click="load" :disabled="loading">{{loading?'读取中…':'刷新趋势'}}</button>
+   <button @click="load" :aria-busy="loading" :disabled="loading">{{loading?'读取中…':'刷新趋势'}}</button>
   </div>
+  <LoadingNotice v-if="loading&&!data" skeleton>正在读取练习趋势…</LoadingNotice>
   <p v-if="error" class="error" role="alert">{{error}}</p>
   <p v-if="data" class="trend-summary" aria-live="polite">{{data.start}} — {{data.end}} · {{metrics[metric]}}：{{total}} · {{data.buckets.length}} 个分组</p>
-  <div ref="chartEl" class="chart trend-chart" role="img" :aria-label="'按'+labels[grain]+'统计的'+metrics[metric]" :aria-busy="loading"></div>
+  <div ref="chartEl" v-show="data" :class="{'content-ready':data}" class="chart trend-chart" role="img" :aria-label="'按'+labels[grain]+'统计的'+metrics[metric]" :aria-busy="loading"></div>
   <p v-if="grain==='day'&&(data?.buckets.length||0)>90" class="footnote">初始显示最后 90 天，可拖动底部缩放条查看其他日期，也可在图内缩放。</p>
   <ModuleHelp><p class="footnote">周一至周日为一周，季度按自然季度；3 年分组从所选平台生涯首条已同步记录所在年份起算。边缘分组仅计入所选日期，当前月／年截至今天。首次 AC 按完整已同步历史中每题的首次通过计算，同题重复 AC 不重复计新题。仅统计已同步提交，历史缺失及仅提供 AC 的平台会影响结果；洛谷清单和手工汇总不推算逐题时间。</p></ModuleHelp>
  </article>`
