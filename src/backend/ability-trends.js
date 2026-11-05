@@ -14,8 +14,8 @@ function scopeId(keys,config){
 }
 
 function metric(profile,sampleLimit,recency){
- if(recency)return {score:profile?.current_value??null,count:profile?.current_sample_count??0,limit:sampleLimit};
- return {score:profile?.ability_value??null,count:profile?.sample_count??0,limit:sampleLimit};
+ if(recency)return {score:profile?.current_value??null,count:profile?.current_sample_count??0,limit:profile?.sample_limit??sampleLimit};
+ return {score:profile?.ability_value??null,count:profile?.sample_count??0,limit:profile?.sample_limit??sampleLimit};
 }
 
 export function snapshotMetrics(problems,tags,config,recency){
@@ -26,7 +26,7 @@ export function snapshotMetrics(problems,tags,config,recency){
  return {
   version:recency?ratingVersion+'-recency-v4':ratingVersion,
   all:metric(overallAbility(problems,recency),150,recency),
-  specialty:{...metric(specialtyAbility(problems,tags,config,'specialty',recency),150,recency),
+  specialty:{...metric(specialtyAbility(problems,tags,config,'specialty',recency),100,recency),
    scope:scopeId(keys,config),names:specialties.map(name),includeDescendants:config.includeDescendants},
   topics:specialties.map(key=>({key,name:name(key),scope:scopeId(new Set([key]),config),...metric(profiles.get(key),25,recency)}))
  };

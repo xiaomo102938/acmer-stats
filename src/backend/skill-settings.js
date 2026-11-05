@@ -13,7 +13,7 @@ export async function readSkillSettings(c){
 export function specialtyAbility(problemRows,tagRows,config,scope='specialty',recency){
  if(scope==='all')return {...overallAbility(problemRows,recency),scope:'all',configured:true};
  const keys=specialtyKeys(config),matches=new Set(tagRows.filter(r=>keys.has(resolveTag(r.tag_name,config))).map(canonicalProblem));
- return {...overallAbility(problemRows.filter(r=>matches.has(canonicalProblem(r))),recency),scope:'specialty',configured:config.specialties.length>0,specialties:config.specialties,specialtyNames:config.specialties.map(id=>config.names[id]||id),includeDescendants:config.includeDescendants};
+ return {...overallAbility(problemRows.filter(r=>matches.has(canonicalProblem(r))),recency,100),scope:'specialty',configured:config.specialties.length>0,specialties:config.specialties,specialtyNames:config.specialties.map(id=>config.names[id]||id),includeDescendants:config.includeDescendants};
 }
 export {mergeSkillRows};
 export function skillSettingsRouter(pool,captureSnapshot){

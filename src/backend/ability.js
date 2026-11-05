@@ -100,9 +100,9 @@ export function abilityProfiles(rows,platform='全部平台',tagId=null,limit=25
    estimated_count:problems.filter(r=>r.estimated).length,sample_limit:limit,sample_status:n===limit?'满'+limit+'题':n?'样本不足':'暂无有效评分',problems};
  }).sort((a,b)=>(b.sample_count===limit)-(a.sample_count===limit)||(b.ability_value??-1)-(a.ability_value??-1)||b.sample_count-a.sample_count||a.display_name.localeCompare(b.display_name));
 }
-export function overallAbility(rows,recency){
- const profile=abilityProfiles(rows.map(r=>({...r,tag_id:'overall',tag_name:'overall',display_name:'综合能力参考'})),'全部平台',null,150,recency)[0];
- return profile||{sample_count:0,sample_limit:150,ability_value:null,estimated_count:0,rated_count:0,passed_count:0,total_count:0,min_difficulty:null,max_difficulty:null,sample_status:'暂无有效评分',problems:[]};
+export function overallAbility(rows,recency,limit=150){
+ const profile=abilityProfiles(rows.map(r=>({...r,tag_id:'overall',tag_name:'overall',display_name:'综合能力参考'})),'全部平台',null,limit,recency)[0];
+ return profile||{sample_count:0,sample_limit:limit,ability_value:null,estimated_count:0,rated_count:0,passed_count:0,total_count:0,min_difficulty:null,max_difficulty:null,sample_status:'暂无有效评分',problems:[]};
 }
 export async function readProblemRows(connection){
  const [rows]=await connection.query(`SELECT pr.*,r.passed,r.solve_date,p.platform_name FROM v_problem_progress r
