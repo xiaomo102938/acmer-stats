@@ -53,7 +53,7 @@ export default{
   </section>
   <ModuleHelp v-if="!graphOnly">
   <p v-if="!graphOnly" class="ability-description">将所选平台同一题型已通过且有评分依据的题目换算到 CF 尺度，合并可识别的同源题目后去重，按难度从高到低选最多 25 道，取算术平均。满 25 道后作为较稳定的参考；不足 25 道的均值仅作暂定展示，不与满样本直接排名。</p>
-  <p v-if="!graphOnly" class="footnote">当前分只使用有 AC 日期的题，最近一次 AC 在 30 天内不扣分，之后逐渐扣分，单题最多扣 250 分，最低为 800 分。调整后重新选前 25 道。点击历史分查看入选题单、平台、原始难度及评分依据。CF 使用官方题目 rating；AT 换算和洛谷档位映射均为低置信估计，满 25 题也不代表换算误差消失。QOJ、牛客、力扣缺少可靠换算依据的题目暂不计分。此值不是个人 CF rating。</p>
+  <p v-if="!graphOnly" class="footnote">当前分只使用有 AC 日期的题，最近一次 AC 在 30 天内不扣分，之后每 365 天，距离扣满 250 分的差额减半，最低为 800 分。调整后重新选前 25 道。点击历史分查看入选题单、平台、原始难度及评分依据。CF 使用官方题目 rating；AT 换算和洛谷档位映射均为低置信估计，满 25 题也不代表换算误差消失。QOJ、牛客、力扣缺少可靠换算依据的题目暂不计分。此值不是个人 CF rating。</p>
   <h3>换算规则与来源</h3><p>版本 acmer-cf-v1。AT：round100(clamp(3900 × (AT难度 + 940) / 5155, 800, 3900))。这是将选手 rating 相关关系用于题目尺度的实验性外推，尚未经过题目配对校准。</p><p>洛谷八档由低到高：800 / 1000 / 1400 / 1800 / 2000 / 2200 / 2700 / 3200。新增“提高”档 2000 为本项目插值，其余参考旧七档社区映射，全部属于粗估；未评定不计分。</p><p><a href="https://silverfoxxxy.github.io/rating-converter" target="_blank" rel="noopener noreferrer">AT–CF Rating Converter</a> · <a href="https://github.com/EndeavourChiu/Luogu-Rating-Predictor" target="_blank" rel="noopener noreferrer">洛谷映射参考</a></p>
   </ModuleHelp>
  </article>`
