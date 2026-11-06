@@ -83,6 +83,13 @@ app.get('/api/dashboard', async (req, res) => {
       AND submitted_at<DATE_ADD(CURDATE(),INTERVAL 1 DAY)`);
     const [clock] = await read('SELECT CURRENT_DATE() AS server_date');
     const ratingRows=await readProblemRows(connection);
+    const nowcoderCounts=new Map();
+    for(const row of ratingRows){
+      if(row.platform_name!=='牛客')continue;
+      const score=row.difficulty_source==='nowcoder'?Number(row.native_difficulty):null;
+      nowcoderCounts.set(score,(nowcoderCounts.get(score)??0)+1);
+    }
+    const nowcoderDifficulty=[...nowcoderCounts].map(([score,total_count])=>({score,total_count}));
     if(req.query.view==='overview'){
       const difficultyCounts=new Map();
       for(const row of ratedProblems(ratingRows)){
@@ -93,7 +100,7 @@ app.get('/api/dashboard', async (req, res) => {
       }
       await connection.commit();
       return res.set('Cache-Control','no-store').json({
-        overview:overview[0]||null,platforms,unifiedDifficulty:[...difficultyCounts.values()],
+        overview:overview[0]||null,platforms,unifiedDifficulty:[...difficultyCounts.values()],nowcoderDifficulty,
         daily,weekProblems:weekSummary.problem_count,serverDate:clock.server_date
       });
     }
@@ -115,7 +122,7 @@ app.get('/api/dashboard', async (req, res) => {
       JOIN platform p ON p.platform_id=pr.platform_id
       ORDER BY r.solve_date DESC,r.record_id LIMIT 8`);
     await connection.commit();
-    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent:ratedProblems(recent), nativeDifficulty, unifiedDifficulty, ratingVersion, overallAbility:overall, tagAbility, skillCounts:skillSubtreeCounts(abilityRows,skillSettings.config.nodes), skillConfig:skillSettings.config, platformSnapshots, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
+    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent:ratedProblems(recent), nativeDifficulty, unifiedDifficulty, nowcoderDifficulty, ratingVersion, overallAbility:overall, tagAbility, skillCounts:skillSubtreeCounts(abilityRows,skillSettings.config.nodes), skillConfig:skillSettings.config, platformSnapshots, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
   } catch (error) {
     await connection.rollback();
     throw error;

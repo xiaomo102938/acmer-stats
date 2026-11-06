@@ -76,8 +76,8 @@ export default{
   </section>
   <ModuleHelp v-if="!graphOnly">
   <p v-if="!graphOnly" class="ability-description">将所选平台同一题型已通过且有评分依据的题目换算到 CF 尺度，合并可识别的同源题目后去重，取难度最高的 15%（向上取整），至少 20 道，缺额按零分计入。</p>
-  <p v-if="!graphOnly" class="footnote">当前分只使用有 AC 日期的题，最近一次 AC 后前 20 天不扣分，第 21 天起开始扣分，之后每 365 天，距离扣满 250 分的差额减半，最低为 800 分。调整后按同样规则选题，再按最近一次 AC 加权平均，并按实际题数占目标题数的比例折算。AC 日期每早 183 天，权重减半。点击历史分或当前分查看各自的入选题单。当前题单的权重以入选样本中最近的 AC 为 100%。CF 使用官方题目 rating；AT、洛谷和牛客均为低置信估计。缺少可用难度依据的题目暂不计分。此值不是个人 CF rating。</p>
-  <h3>换算规则与来源</h3><p>版本 acmer-cf-v2。牛客保留题库原分，在 CF 尺度上按原分近似映射并限制在 800 至 4000 分。AT：round100(clamp(3900 × (AT难度 + 940) / 5155, 800, 3900))。这是将选手 rating 相关关系用于题目尺度的实验性外推，尚未经过题目配对校准。</p><p>洛谷八档由低到高：800 / 1000 / 1400 / 1800 / 2000 / 2200 / 2700 / 3200。新增“提高”档 2000 为本项目插值，其余参考旧七档社区映射，全部属于粗估；未评定不计分。</p><p><a href="https://silverfoxxxy.github.io/rating-converter" target="_blank" rel="noopener noreferrer">AT–CF Rating Converter</a> · <a href="https://github.com/EndeavourChiu/Luogu-Rating-Predictor" target="_blank" rel="noopener noreferrer">洛谷映射参考</a></p>
+  <p v-if="!graphOnly" class="footnote">当前分只使用有 AC 日期的题，最近一次 AC 后前 20 天不扣分，第 21 天起开始扣分，之后每 365 天，距离扣满 250 分的差额减半，最低为 800 分。调整后按同样规则选题，再按最近一次 AC 加权平均，并按实际题数占目标题数的比例折算。AC 日期每早 183 天，权重减半。点击历史分或当前分查看各自的入选题单。当前题单的权重以入选样本中最近的 AC 为 100%。CF 使用官方题目 rating；AT 和洛谷为低置信估计。牛客仅展示题库原分，待校准后再纳入能力参考。缺少可用难度依据的题目暂不计分。此值不是个人 CF rating。</p>
+  <h3>换算规则与来源</h3><p>版本 acmer-cf-v1。AT：round100(clamp(3900 × (AT难度 + 940) / 5155, 800, 3900))。这是将选手 rating 相关关系用于题目尺度的实验性外推，尚未经过题目配对校准。</p><p>洛谷八档由低到高：800 / 1000 / 1400 / 1800 / 2000 / 2200 / 2700 / 3200。新增“提高”档 2000 为本项目插值，其余参考旧七档社区映射，全部属于粗估；未评定不计分。</p><p><a href="https://silverfoxxxy.github.io/rating-converter" target="_blank" rel="noopener noreferrer">AT–CF Rating Converter</a> · <a href="https://github.com/EndeavourChiu/Luogu-Rating-Predictor" target="_blank" rel="noopener noreferrer">洛谷映射参考</a></p>
   </ModuleHelp>
  </article>`
 };

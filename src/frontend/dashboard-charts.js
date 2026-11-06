@@ -13,7 +13,8 @@ export function useDashboardCharts(data,editingCards,isDark){
   const charts=new Map();
   const difficultyPlatform=ref('全部平台');
   const difficultyPlatforms=computed(()=>[{platform_name:'全部平台'},...(data.value?.platforms.filter(p=>p.total_count>0)||[])]);
-  const difficultyNote=computed(()=>'统一按 CF 尺度分段。CF 为官方题目 rating；AT、洛谷和牛客为低置信估分，每个区间按中点着色，暂无估分的题目用中性色单列。原始难度保留在入选题单中。');
+  const difficultyScale=computed(()=>difficultyPlatform.value==='牛客'?'牛客题库原始分':'CF 统一尺度');
+  const difficultyNote=computed(()=>difficultyPlatform.value==='牛客'?'展示牛客题库公布的原始难度，每 400 分一档。题库缺分的题单列。原始分等待校准，暂不计入 CF 能力参考。':'统一按 CF 尺度分段。CF 为官方题目 rating；AT 和洛谷为低置信估分，每个区间按中点着色，暂无估分的题目用中性色单列。原始难度保留在入选题单中。');
   const days=computed(()=>{
    const today=data.value?.serverDate;if(!today)return [];
    return Array.from({length:7},(_,i)=>{
@@ -50,11 +51,14 @@ export function useDashboardCharts(data,editingCards,isDark){
    render(weekEl.value,{...base,xAxis:axis(days.value.map(x=>x.day.slice(5))),
     series:[{name:'提交次数',type:'bar',barMaxWidth:30,itemStyle:{borderRadius:[5,5,0,0]},data:days.value.map(x=>x.submission_count)},
      {name:'AC 次数',type:'line',symbolSize:6,data:days.value.map(x=>x.accepted_count)}]});
-   const buckets=cfDifficultyBuckets(data.value.unifiedDifficulty||[],difficultyPlatform.value);
+   const native=difficultyPlatform.value==='牛客';
+   const source=native?(data.value.nowcoderDifficulty||[]).map(row=>({...row,platform_name:'牛客',cf_rating:row.score})):data.value.unifiedDifficulty||[];
+   const buckets=cfDifficultyBuckets(source,difficultyPlatform.value);
+   if(native)for(const bucket of buckets)if(bucket.midpoint===null)bucket.name='暂无原始分';
    render(difficultyEl.value,{animation:false,color:colors,tooltip:{...tooltip,trigger:'item'},legend:{bottom:0,textStyle:{color:text}},
     series:[{type:'pie',radius:['43%','65%'],center:['50%','36%'],label:{show:false},
-     itemStyle:{borderColor:text,borderWidth:1},data:buckets.map(bucket=>({...bucket,itemStyle:{color:scoreColor(bucket.midpoint)}}))}]});
+     itemStyle:{borderColor:text,borderWidth:1},data:buckets.map(bucket=>({...bucket,itemStyle:{color:native&&bucket.midpoint!==null?undefined:scoreColor(bucket.midpoint)}}))}]});
   }
   const resize=()=>charts.forEach(chart=>chart.resize());
-  return {difficultyEl,weekEl,difficultyPlatform,difficultyPlatforms,difficultyNote,days,week,draw,disposeCharts,resize};
+  return {difficultyEl,weekEl,difficultyPlatform,difficultyPlatforms,difficultyScale,difficultyNote,days,week,draw,disposeCharts,resize};
 }

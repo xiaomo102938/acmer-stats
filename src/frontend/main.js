@@ -233,7 +233,7 @@ createApp({
     <AbilityTrends id="bookmark-ability-trend" :style="cardStyle('ability-trend')" :refresh-key="dataVersion" />
     <PracticeTrends id="bookmark-practice-trend" :style="cardStyle('practice-trend')" :refresh-key="dataVersion" />
     <div id="bookmark-difficulty" class="analysis-difficulty" :style="cardStyle('difficulty')">
-     <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>CF 统一尺度</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
+     <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>{{difficultyScale}}</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
     </div>
     <PlatformAnalysis id="bookmark-platforms" :style="cardStyle('platforms')" :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
     <TagAnalysis :style="cardStyle('topics')" :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
