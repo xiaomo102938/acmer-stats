@@ -204,7 +204,7 @@ createApp({
    <section v-else-if="page==='records'" v-show="!editingCards" key="records" aria-label="提交记录"><Submissions id="bookmark-submissions" :route-query="recordsQuery" :refresh-key="dataVersion" /></section>
 
    <section v-else-if="page==='settings'" v-show="!editingCards" key="settings" class="ordered-cards" aria-label="设置">
-    <article id="bookmark-appearance" class="panel appearance-panel" :style="cardStyle('appearance')"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div>
+    <article id="bookmark-appearance" class="panel appearance-panel" :style="cardStyle('appearance')"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label><label class="card-order-toggle"><input type="checkbox" role="switch" :checked="editingCards" :class="{'switch-animated':animateCardSwitch}" @change="switchCardEditing" @animationend="animateCardSwitch=false">卡片位置编辑模式</label></div>
      <div class="display-controls">
       <div v-for="control in displayControls" :key="control.key" class="range-control">
        <div><label :for="'display-'+control.key">{{control.label}}</label><output :for="'display-'+control.key">{{display[control.key]}}{{control.unit}}</output></div>
@@ -212,7 +212,6 @@ createApp({
         :aria-valuetext="display[control.key]+control.unit" v-model.number="display[control.key]">
       </div>
      </div>
-     <label class="card-order-toggle"><input type="checkbox" role="switch" :checked="editingCards" :class="{'switch-animated':animateCardSwitch}" @change="switchCardEditing" @animationend="animateCardSwitch=false">卡片位置编辑模式</label>
      <ModuleHelp><p class="footnote">主题可手动选择，也可以跟随系统。主题、字号和卡片间距保存在当前浏览器。</p></ModuleHelp>
     </article>
     <SkillLayoutSettings id="bookmark-layout" :style="cardStyle('layout')" />
