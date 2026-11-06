@@ -72,7 +72,7 @@ export default{
  template:'<article class="panel">'+
   '<div class="panel-head"><h2>题型管理</h2><button :disabled="starting || job?.status===\'running\'" @click="start">一键自动判断问号题</button></div>'+
   '<p class="footnote">自动判断只检查未知题型。手动设定优先，也可以恢复自动结果。</p>'+
-  '<p v-if="job?.status===\'running\' || job?.status===\'done\'" role="status">{{job.status===\'running\'?\'正在判断\':\'本轮结束\'}} · 已处理 {{job.done}} / {{job.total}} · 新识别 {{job.identified}} 道<span v-if="job.errors"> · 读取失败 {{job.errors}} 次</span><span v-if="job.limited.length"> · {{job.limited.join(\'、\')}} 限流，余题留待下轮</span></p>'+
+  '<p v-if="job?.status===\'running\' || job?.status===\'done\'" role="status">{{job.status===\'running\'?\'正在判断\':\'本轮结束\'}} · 已处理 {{job.done}} / {{job.total}} · 新归类 {{job.identified}} 道（传统题 {{job.standard ?? 0}} 道）<span v-if="job.skipped"> · 跳过 {{job.skipped}} 道</span><span v-if="job.errors"> · 读取失败 {{job.errors}} 次</span><span v-if="job.limited.length"> · {{job.limited.join(\'、\')}} 限流，余题留待下轮</span></p>'+
   '<p v-if="job?.status===\'error\'" role="alert">自动判断中断，请稍后重试。</p>'+
   '<form class="trend-controls submission-filters" @submit.prevent="load()"><label>搜索题目<input v-model="q" type="search" maxlength="100" placeholder="题名或题号"></label><button type="submit">搜索</button><label><input v-model="unknown" type="checkbox" @change="load()">只看问号题</label></form>'+
   '<p v-if="error" class="error" role="alert">{{error}}</p>'+

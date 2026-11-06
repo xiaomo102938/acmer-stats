@@ -5,8 +5,7 @@ const statementOrigin='https://huang.lt';
 const types=[
  ['communication',/^(?:本[题題](?:[为為是]|屬於)(?:一道)?\s*(?:通信|通讯|通訊)[题題]|this is a communication (?:problem|task))(?=\s|[。.!！:：]|$)/i],
  ['interactive',/^(?:本[题題](?:[为為是]|屬於)(?:一道)?\s*交互[题題]|this is an interactive (?:problem|task))(?=\s|[。.!！:：]|$)/i],
- ['spj',/^(?:本[题題](?:采用|使用)\s*(?:SPJ|Special Judge|特殊[评評][测測]|[特][别別][评評][测測])|this (?:problem|task) uses a special judge)(?=\s|[。.!！:：]|$)/i],
- ['threaded',/^(?:本[题題](?:[为為是]|屬於)(?:一道)?\s*多[线線]程[题題]|this is a (?:multi-threaded|multithreaded) (?:problem|task))(?=\s|[。.!！:：]|$)/i]
+ ['spj',/^(?:本[题題](?:采用|使用)\s*(?:SPJ|Special Judge|特殊[评評][测測]|[特][别別][评評][测測])|this (?:problem|task) uses a special judge)(?=\s|[。.!！:：]|$)/i]
 ];
 
 function inferStatementType(lines){
@@ -39,7 +38,7 @@ export function parseQojStatement(html,key){
   const match=types.find(([,pattern])=>pattern.test(line));
   if(match)return {type:match[0],tryChinese:false};
  }
- return {type:inferStatementType(lines),tryChinese:false};
+ return {type:inferStatementType(lines)??(lines.some(Boolean)?'standard':null),tryChinese:false};
 }
 
 function readStatement(key,locale){

@@ -8,7 +8,7 @@ export function parseNowcoderType(html){
  const metadata=$('.question-intr .subject-item-wrap').first();
  const text=metadata.text();
  if(!text.includes('时间限制')||!text.includes('空间限制'))return undefined;
- return metadata.find('span').toArray().some(span=>/^Special Judge(?:\s*,|$)/i.test($(span).text().trim()))?'spj':null;
+ return metadata.find('span').toArray().some(span=>/^Special Judge(?:\s*,|$)/i.test($(span).text().trim()))?'spj':'standard';
 }
 
 export async function readNowcoderType({problem_url:url}){

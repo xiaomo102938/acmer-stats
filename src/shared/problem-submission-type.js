@@ -1,8 +1,7 @@
 export const typeTags={
- threaded:['multithreading','multithreaded','multi-threading','concurrency','多线程','多线程题'],
  communication:['communication','communication problem','通信','通信题'],
  interactive:['interactive','交互','交互题'],
- spj:['special judge','spj','special judge problem']
+ spj:['special judge','spj','special judge problem','特殊评测','特殊判题']
 };
 
 export function submissionTypeFromTags(tags){

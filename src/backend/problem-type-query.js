@@ -10,4 +10,4 @@ export function problemTypeExpression(){
  return {sql:"COALESCE(pr.manual_submission_type,pr.submission_type, CASE "+cases.join(' ')+" ELSE 'unknown' END)",args};
 }
 
-export const knownProblemType=type=>typeof type==='string'&&(type==='standard'||Object.hasOwn(typeTags,type));
+export const knownProblemType=type=>typeof type==='string'&&(['standard','threaded'].includes(type)||Object.hasOwn(typeTags,type));
