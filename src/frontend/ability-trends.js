@@ -41,11 +41,35 @@ export default{
   const count=computed(()=>points.value.filter(point=>point.metric).length);
   const hasBreak=computed(()=>points.value.slice(0,-1).some(point=>point.value[1]===null));
   let chart,request,resize,themeObserver;
+  function hover({offsetX,offsetY}){
+   const pixel=[offsetX,offsetY];
+   if(chart.containPixel({gridIndex:0},pixel)){
+    const [time,score]=chart.convertFromPixel({gridIndex:0},pixel);
+    const samples=points.value;
+    const rightIndex=samples.findIndex(point=>point.value[0]>=time);
+    const right=samples[rightIndex];
+    const left=right?.value[0]===time?right:samples[rightIndex-1];
+    if(left?.metric&&right?.metric){
+     const [leftTime,leftScore]=left.value,[rightTime,rightScore]=right.value;
+     const fraction=leftTime===rightTime?0:(time-leftTime)/(rightTime-leftTime);
+     if(score<=leftScore+(rightScore-leftScore)*fraction){
+      const dataIndex=fraction<.5&&left!==right?rightIndex-1:rightIndex;
+      chart.dispatchAction({type:'showTip',seriesIndex:0,dataIndex});
+      return;
+     }
+    }
+   }
+   chart.dispatchAction({type:'hideTip'});
+  }
   function draw(){
    if(!count.value||!chartEl.value){
     chart?.dispose();chart=null;return;
    }
-   if(!chart)chart=echarts.init(chartEl.value);
+   if(!chart){
+    chart=echarts.init(chartEl.value);
+    chart.getZr().on('mousemove',hover);
+    chart.getZr().on('globalout',()=>chart?.dispatchAction({type:'hideTip'}));
+   }
    const css=getComputedStyle(document.documentElement),token=name=>css.getPropertyValue(name).trim();
    const data=points.value.map(point=>point.metric?{
     ...point,itemStyle:{color:scoreColor(point.metric.score),borderColor:token('--muted'),borderWidth:1}
@@ -58,9 +82,8 @@ export default{
    }:scored[0].itemStyle.color;
    chart.setOption({animation:false,color:[token('--green')],
     grid:{left:58,right:22,top:20,bottom:35},
-    tooltip:{trigger:'axis',axisPointer:{type:'line',axis:'x',snap:true,lineStyle:{color:token('--muted'),opacity:.5}},renderMode:'richText',backgroundColor:token('--panel'),borderColor:token('--border'),
-     textStyle:{color:token('--text')},formatter:items=>{
-      const data=items[0]?.data;
+    tooltip:{trigger:'item',triggerOn:'none',renderMode:'richText',backgroundColor:token('--panel'),borderColor:token('--border'),
+     textStyle:{color:token('--text')},formatter:({data})=>{
       if(!data?.metric)return '';
       const {metric,value}=data;
       const lines=[timestamp.format(value[0]),'CF 尺度 '+metric.score+' 分','计分样本 '+metric.count+' / '+metric.limit+' 道'];
