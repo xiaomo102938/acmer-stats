@@ -245,3 +245,13 @@ button[aria-busy="true"]::before{content:"";display:inline-block;width:6px;heigh
 @media(max-width:700px){
  .appearance-row .card-order-toggle {align-self:flex-end}
 }
+
+.submission-verdict[data-verdict="AC"] {color:var(--goodText);background:var(--goodBg)}
+.submission-verdict[data-verdict="WA"] {color:#942525;background:#fce5e5}
+.submission-verdict[data-verdict="TLE"] {color:#6e5000;background:#fff1bf}
+.submission-verdict[data-verdict="MLE"] {color:#174a89;background:#e3efff}
+.submission-verdict[data-verdict="other"] {color:#49505a;background:#e8eaee}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .submission-verdict[data-verdict="WA"] {color:#ffb7b7;background:#512b2d}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .submission-verdict[data-verdict="TLE"] {color:#ffe19a;background:#4b3d1d}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .submission-verdict[data-verdict="MLE"] {color:#b9d8ff;background:#243d5c}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .submission-verdict[data-verdict="other"] {color:#d4d7dc;background:#3a3d43}
