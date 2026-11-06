@@ -9,7 +9,7 @@
 准备 Node.js 22.12 或更新版本、npm 和正在运行的 MySQL 8.0。以下命令在仓库根目录执行。
 
 1. 执行 `npm ci` 安装锁定版本的依赖。
-2. **首次建库**时，在 MySQL 客户端中执行 `source sql/acmer_stats.sql`。脚本会删除并重建同名 `acmer_stats` 库，并载入课程示例数据。**已有库**先备份，只按编号执行 [sql/migrations](sql/migrations/) 中尚未应用的迁移，当前最新为 016。
+2. **首次建库**时，在 MySQL 客户端中执行 `source sql/acmer_stats.sql`。脚本会删除并重建同名 `acmer_stats` 库，并载入课程示例数据。**已有库**先备份，只按编号执行 [sql/migrations](sql/migrations/) 中尚未应用的迁移，当前最新为 017。
 3. 将 `.env.example` 复制为 `.env`，按本机环境填写 `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD` 和 `DB_NAME`。需要保存平台 Cookie 时，用下方命令生成 64 位十六进制密钥，填入 `ACCOUNT_SECRET_KEY`。保留原密钥才能解密以前保存的 Cookie。
 4. 执行 `npm run build`，再执行 `npm start`。访问 [本机网站](http://127.0.0.1:3000/)。关闭网站时，在运行服务的终端按 `Ctrl+C`。
 
@@ -57,3 +57,7 @@ node --env-file=.env tests/sync-database.mjs
 - [统一难度与题型能力](docs/统一难度与题型能力.md) · [练习趋势统计](docs/练习趋势统计.md)
 - [技能图谱](docs/题型技能图谱.md) · [拓扑编辑与节点归并](docs/图形拓扑编辑与节点归并.md)
 - [课程系统设计报告](docs/个人刷题数据分析网站系统设计文档初稿_241240027汪林辰.docx)
+
+### QOJ 奖牌题数据
+
+可在本机 `.env` 中将 `QOJ_MEDAL_CATALOG` 指向 OJ Insight 的 `xcpc-catalog.json`。服务启动后在后台导入，随后每 30 秒检查文件是否更新。只有带有效榜单统计的题目才会入库，数据库按比赛和题号保存参赛队数、通过队数、档位和榜单来源；页面只查询本地结果。请在 OJ Insight 更新赛事榜单以补全数据。

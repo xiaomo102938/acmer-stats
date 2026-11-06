@@ -9,7 +9,7 @@ import {submissionRouter} from './submissions.js';
 import {practiceRouter} from './practice.js';
 import {abilityProfiles,abilityProfilesByPlatform,skillSubtreeCounts,shanghaiDay} from './ability.js';
 import {ratedProblems,ratingVersion} from './ability-difficulty.js';
-import {readQojMedalCounts} from './qoj-medals.js';
+import {initQojMedalStore,readQojMedalCounts} from './qoj-medals.js';
 import {readAbilityRows,readProblemRows,readAcceptedDays} from './ability-store.js';
 import express from 'express';
 import {accountRouter} from './accounts.js';
@@ -105,7 +105,7 @@ app.get('/api/dashboard', async (req, res) => {
         daily,weekProblems:weekSummary.problem_count,serverDate:clock.server_date
       });
     }
-    const qojMedals=await readQojMedalCounts(ratingRows);
+    const qojMedals=await readQojMedalCounts(connection,ratingRows);
     const unifiedDifficulty=ratedProblems(ratingRows).map(r=>({platform_name:r.platform_name,cf_rating:r.rating,estimated:r.estimated,total_count:1}));
     const tags = await read('SELECT * FROM v_tag_stats ORDER BY total_count DESC, pass_rate DESC');
     const skillSettings=await readSkillSettings(connection);
@@ -224,7 +224,8 @@ const port=Number(process.env.PORT || 3000);
 await pool.query("UPDATE platform_account SET sync_status='error',sync_message='上次同步被服务重启中断，请重新同步。' WHERE sync_status='running'");
 const startupConnection=await pool.getConnection();
 try{await saveAbilitySnapshot(startupConnection,'startup');}finally{startupConnection.release();}
+const stopQojMedalImport=await initQojMedalStore(pool,process.env.QOJ_MEDAL_CATALOG);
 const server=app.listen(port,'127.0.0.1',()=>console.log('Local: http://127.0.0.1:'+port));
-async function close() { server.close(async()=>{await pool.end();process.exit(0);}); }
+async function close() { stopQojMedalImport(); server.close(async()=>{await pool.end();process.exit(0);}); }
 process.on('SIGINT',close);
 process.on('SIGTERM',close);
