@@ -54,7 +54,7 @@ async function requestStatement(key,locale){
  if(!response.ok){
   await response.body?.cancel();
   if(response.status===404)return null;
-  throw Object.assign(new Error('QOJ statement HTTP '+response.status),{status:response.status});
+  throw Object.assign(new Error('QOJ statement HTTP '+response.status),{status:response.status,retryAfter:response.headers.get('retry-after')});
  }
  const result=parseQojStatement(await response.text(),key);
  if(!result)throw new Error('Unexpected QOJ statement page');
@@ -64,7 +64,7 @@ async function requestStatement(key,locale){
 export function qojTypeWorker(pool){
  let running=false,pending=false,recoveryTimer;
  return async function queueQojTypes(recoveries=0){
-  clearTimeout(recoveryTimer);
+  if(recoveryTimer)return;
   pending=true;
   if(running)return;
   running=true;
@@ -91,10 +91,20 @@ export function qojTypeWorker(pool){
    }
   }catch(error){
    console.warn('QOJ type check paused:',error.message);
-   if(isRetryableStatementError(error)&&recoveries<2){
-    const delay=60000*(recoveries+1);
+   if((error.status===429||isRetryableStatementError(error))&&recoveries<2){
+    let delay=60000*(recoveries+1);
+    if(error.status===429){
+     const retryAfter=error.retryAfter;
+     const requestedDelay=/^\d+$/.test(retryAfter)?Number(retryAfter)*1000:Date.parse(retryAfter)-Date.now();
+     delay=Math.max(300000,Number.isFinite(requestedDelay)?requestedDelay:0);
+    }
+    // Delays beyond the timer limit require a later explicit run.
+    if(delay>2147483647)return;
     console.warn('Statement checks will resume in',delay/1000,'seconds');
-    recoveryTimer=setTimeout(()=>void queueQojTypes(recoveries+1),delay).unref();
+    recoveryTimer=setTimeout(()=>{
+     recoveryTimer=undefined;
+     void queueQojTypes(recoveries+1);
+    },delay).unref();
    }
   }finally{
    running=false;
