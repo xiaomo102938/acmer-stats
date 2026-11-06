@@ -1,3 +1,4 @@
+import {scoreStyle} from './score-color.js';
 import {apiFetch} from './api-fetch.js';
 import {ref,onMounted,onBeforeUnmount,watch} from 'vue';
 import ModuleHelp from './module-help.js';
@@ -32,7 +33,7 @@ export default{
   watch(()=>props.refreshKey,()=>load());
   onMounted(()=>load());
   onBeforeUnmount(()=>request?.abort());
-  return {tag,options,manual,result,loading,error,load,selectTag,applyTarget,problemLink};
+  return {scoreStyle,tag,options,manual,result,loading,error,load,selectTag,applyTarget,problemLink};
  },
  template:`
  <article class="panel practice-panel" aria-label="练习题单">
@@ -46,8 +47,8 @@ export default{
     <button :disabled="!options.length||loading">应用难度</button>
   </form>
   <p v-if="result" class="footnote">
-   <template v-if="result.ability!==null">推荐难度基准 {{result.ability}} 分 · 取 {{result.sampleCount}} 道实际入选题的平均难度。</template>
-   <template v-if="result.target!==null">推荐目标 {{result.target}} 分，范围 ±{{result.radius}} 分，排除本地已有记录的题目。</template>
+   <template v-if="result.ability!==null">推荐难度基准 <span :class="{'score-chip':scoreStyle(result.ability)}" :style="scoreStyle(result.ability)">{{result.ability}}</span> 分 · 取 {{result.sampleCount}} 道实际入选题的平均难度。</template>
+   <template v-if="result.target!==null">推荐目标 <span :class="{'score-chip':scoreStyle(result.target)}" :style="scoreStyle(result.target)">{{result.target}}</span> 分，范围 ±{{result.radius}} 分，排除本地已有记录的题目。</template>
    <template v-else>该题型暂无可计分样本，可以手动填写目标难度。</template>
   </p>
   <LoadingNotice v-if="loading" :skeleton="!result">正在读取题单…</LoadingNotice>
@@ -58,7 +59,7 @@ export default{
      <tbody><tr v-for="row in result.items" :key="row.problem_id">
       <td class="submission-problem"><a v-if="problemLink(row)" :href="problemLink(row)" class="problem" target="_blank" rel="noopener noreferrer">{{row.problem_name}} ↗</a><span v-else>{{row.problem_name}}</span></td>
       <td>Codeforces</td>
-      <td>{{row.rating}}</td>
+      <td><span :class="{'score-chip':scoreStyle(row.rating)}" :style="scoreStyle(row.rating)">{{row.rating}}</span></td>
       <td>{{row.distance?'距目标 '+Math.round(row.distance*10)/10+' 分':'与目标难度相同'}}</td>
      </tr></tbody>
     </table>

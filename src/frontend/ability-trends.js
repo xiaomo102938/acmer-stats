@@ -1,3 +1,4 @@
+import {scoreStyle,scoreColor,scoreAxisColor} from './score-color.js';
 import {apiFetch} from './api-fetch.js';
 import {ref,computed,onMounted,onBeforeUnmount,watch} from 'vue';
 import * as echarts from 'echarts/core';
@@ -57,8 +58,8 @@ export default{
      }},
     xAxis:{type:'time',axisLabel:{color:token('--muted'),hideOverlap:true,formatter:date=>dateLabel.format(date)},
      axisLine:{lineStyle:{color:token('--border')}}},
-    yAxis:{type:'value',scale:true,minInterval:1,axisLabel:{color:token('--muted')},splitLine:{lineStyle:{color:token('--rowBorder')}}},
-    series:[{type:'line',showSymbol:true,symbolSize:7,connectNulls:false,data:points.value}]},true);
+    yAxis:{type:'value',scale:true,minInterval:1,axisLabel:{color:value=>scoreAxisColor(value,token('--panel'))},splitLine:{lineStyle:{color:token('--rowBorder')}}},
+    series:[{type:'line',showSymbol:true,symbolSize:7,connectNulls:false,data:points.value.map(point=>point.metric?{...point,itemStyle:{color:scoreColor(point.metric.score),borderColor:token('--muted'),borderWidth:1}}:point)}]},true);
    chart.resize();
   }
   async function load(){
@@ -85,7 +86,7 @@ export default{
    themeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
   });
   onBeforeUnmount(()=>{request?.abort();resize?.disconnect();themeObserver?.disconnect();chart?.dispose();});
-  return {snapshots,historyLimit,scope,mode,chartEl,loading,error,latest,topics,current,count,hasBreak,load,formatTime,formatDay};
+  return {scoreStyle,snapshots,historyLimit,scope,mode,chartEl,loading,error,latest,topics,current,count,hasBreak,load,formatTime,formatDay};
  },
  template:`<article class="panel practice-trends" aria-label="能力变化趋势">
   <div class="panel-head"><h2>能力变化趋势</h2><span>{{mode==='current'?'过去 52 周 · 按周取样':'按能力快照记录'}}</span></div>
@@ -101,7 +102,7 @@ export default{
   <LoadingNotice v-if="loading" :skeleton="!latest">正在读取能力快照…</LoadingNotice>
   <p v-if="latest" class="trend-summary" aria-live="polite">
    {{mode==='current'?'评估日期 '+formatDay(latest.at): '最近快照 '+formatTime(latest.at)}} ·
-   <template v-if="current?.score!=null">CF 尺度 {{current.score}} 分 · 计分样本 {{current.count}} / {{current.limit}} 道{{current.count<current.limit?'（缺额计零）':''}}</template>
+   <template v-if="current?.score!=null">CF 尺度 <span :class="{'score-chip':scoreStyle(current.score)}" :style="scoreStyle(current.score)">{{current.score}}</span> 分 · 计分样本 {{current.count}} / {{current.limit}} 道{{current.count<current.limit?'（缺额计零）':''}}</template>
    <template v-else>当前范围暂无计分样本。</template>
   </p>
   <p v-if="scope==='specialty'&&latest?.specialty.names.length" class="muted">{{latest.specialty.names.join('、')}}{{latest.specialty.includeDescendants?'（含实线下级分支）':''}}</p>

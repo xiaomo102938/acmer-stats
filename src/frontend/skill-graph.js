@@ -1,3 +1,4 @@
+import {scoreStyle} from './score-color.js';
 import {ref,computed,watch,onMounted,onBeforeUnmount} from 'vue';
 import {clampGraphAxis} from './graph-pan.js';
 import {readLayoutPreferences} from './skill-layout-preferences.js';
@@ -138,28 +139,28 @@ export default{
    return 'M '+(a.x+dx/d*start)+' '+(a.y+dy/d*start)+' L '+(b.x-dx/d*end)+' '+(b.y-dy/d*end);
   }
   function connected(e){return e.from===selected.value||e.to===selected.value;}
-  return {skillViewSize,canvas,svg,scene,panning,startPan,movePan,endPan,leaveCanvas,canvasClick,clearSelection,nodeFontSize,arranging,layoutState,iterations,families,allIds,expanded,selected,zoom,graph,index,chosen,allNodes,related,missing,toggle,choose,click,reset,connected,edgePath};
+  return {scoreStyle,skillViewSize,canvas,svg,scene,panning,startPan,movePan,endPan,leaveCanvas,canvasClick,clearSelection,nodeFontSize,arranging,layoutState,iterations,families,allIds,expanded,selected,zoom,graph,index,chosen,allNodes,related,missing,toggle,choose,click,reset,connected,edgePath};
  },
  template:`<section class="skill-graph" aria-label="题型技能图谱">
   <div class="skill-controls"><label>定位题型<select :value="selected" @change="$event.target.value?choose($event.target.value):clearSelection()" aria-label="定位技能图谱题型"><option value="">未选中题型</option><option v-for="n in allNodes" :key="n.id" :value="n.id">{{n.name}}</option></select></label><label>缩放 <input v-model.number="zoom" type="range" min="25" max="150" step="5" aria-label="技能图谱缩放">{{zoom}}%</label><button @click="expanded=allIds">展开全部</button><button @click="reset">重置视图</button></div>
-  <div class="skill-legend"><span class="skill-unrated">● 暂无评分</span><span class="skill-provisional">● 样本缺额计零</span><span class="skill-rated">● 参考值 &lt; 1800</span><span class="skill-strong">● 1800–2399</span><span class="skill-advanced">● ≥ 2400</span></div>
+  <div class="skill-legend"><span>节点按能力参考分着色</span><span v-for="score in [0,1300,1500,1750,2000,2250,2800,4500]" :key="score" class="score-chip" :style="scoreStyle(score)">{{score}}</span><span>● 暂无评分</span></div>
   <p class="footnote skill-layout-status" role="status">{{arranging?'正在自动排布，完成后将静止显示…':'拖动查看图谱，点击空白处取消选择。'}}</p>
   <div ref="canvas" class="skill-canvas" :class="{panning}" @pointerdown="startPan" @pointermove="movePan" @pointerup="endPan" @pointercancel="endPan" @lostpointercapture="endPan" @pointerleave="leaveCanvas" @click.capture="canvasClick" @keydown.esc="clearSelection" :aria-busy="arranging" :data-layout-state="layoutState" :data-layout-steps="iterations" tabindex="0" aria-label="可拖动查看的技能图谱">
    <svg ref="svg" :viewBox="'0 0 '+skillViewSize.width+' '+skillViewSize.height" :style="{width:zoom+'%',minWidth:(900*zoom/100)+'px'}" role="group" aria-label="题型知识关系节点与连线">
     <defs><marker id="skill-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="context-stroke" /></marker></defs>
     <g ref="scene">
     <g v-for="e in graph.edges" :key="e.from+'>'+e.to" class="skill-edge" :class="{related:e.kind==='related',highlight:connected(e)}"><path :d="edgePath(e)" marker-end="url(#skill-arrow)" /></g>
-    <g v-for="n in graph.nodes" :key="n.id" role="button" tabindex="0" :aria-label="n.name+'，已同步通过 '+n.count+' 题'+(n.root?'，点击展开或收起分支':'，点击查看统计')" :aria-pressed="selected===n.id" @click="click(n)" @keydown.enter.prevent="click(n)" @keydown.space.prevent="click(n)" class="skill-node" :class="['skill-'+n.tone,{selected:selected===n.id}]">
+    <g v-for="n in graph.nodes" :key="n.id" role="button" tabindex="0" :aria-label="n.name+'，已同步通过 '+n.count+' 题'+(n.root?'，点击展开或收起分支':'，点击查看统计')" :aria-pressed="selected===n.id" @click="click(n)" @keydown.enter.prevent="click(n)" @keydown.space.prevent="click(n)" class="skill-node" :class="{selected:selected===n.id}" :style="{'--node':n.fill,'--node-ink':n.ink}">
      <title>{{n.row?.display_name||n.name}}：实线子树共 {{n.count}} 道通过题；能力参考 {{n.row?.ability_value??'暂无'}}；样本 {{n.row?.sample_count||0}} / {{n.row?.sample_limit??20}}</title>
      <circle :cx="n.x" :cy="n.y" :r="n.size/2"/><text :x="n.x" :y="n.y" text-anchor="middle" dominant-baseline="central" :style="{fontSize:nodeFontSize(n.count,n.size)+'px'}" class="skill-count">{{n.count}}</text><text :x="n.x" :y="n.y+n.size/2+20" text-anchor="middle" class="skill-label">{{n.name}}{{n.root?(expanded.includes(n.id)?' −':' +'):''}}</text>
     </g>
     </g>
    </svg>
   </div>
-  <section v-if="chosen" class="skill-detail" aria-label="图谱节点详情"><div class="panel-head"><h3>{{chosen.row?.display_name||chosen.name}}</h3><span>实线子树 {{chosen.count}} 道通过题</span></div><p>CF 尺度参考值：{{chosen.row?.ability_value??'暂无'}} · {{chosen.row?.sample_status||'暂无有效评分'}} · {{chosen.row?.sample_count||0}} / {{chosen.row?.sample_limit??20}} 题</p><button v-if="chosen.row?.sample_count>0" @click="$emit('inspect',chosen.row)">查看该题型入选题单</button><p class="footnote">相关知识：<template v-for="(n,i) in related" :key="n.id"><span v-if="i"> · </span><button class="skill-related-button" @click="choose(n.id)">{{n.name}}</button></template><span v-if="!related.length">暂无已整理关系</span></p></section>
+  <section v-if="chosen" class="skill-detail" aria-label="图谱节点详情"><div class="panel-head"><h3>{{chosen.row?.display_name||chosen.name}}</h3><span>实线子树 {{chosen.count}} 道通过题</span></div><p>CF 尺度参考值：<span :class="{'score-chip':scoreStyle(chosen.row?.ability_value)}" :style="scoreStyle(chosen.row?.ability_value)">{{chosen.row?.ability_value??'暂无'}}</span> · {{chosen.row?.sample_count||0}} / {{chosen.row?.sample_limit??20}} 题</p><button v-if="chosen.row?.sample_count>0" @click="$emit('inspect',chosen.row)">查看该题型入选题单</button><p class="footnote">相关知识：<template v-for="(n,i) in related" :key="n.id"><span v-if="i"> · </span><button class="skill-related-button" @click="choose(n.id)">{{n.name}}</button></template><span v-if="!related.length">暂无已整理关系</span></p></section>
   <ModuleHelp>
   <p class="footnote">拖动空白处平移，滑块可调整缩放。点击节点查看详情，点击空白处或按 Esc 清除选择。节点越大，去重通过题数越多；实线为基础与分支，虚线为跨方向关联。它们是人工整理的知识关系，不代表严格学习前置。</p>
-  <p class="footnote">当前关系图共 {{graph.known.size}} 个节点；当前筛选还有 {{missing}} 个标签未纳入关系图，可在表格中查看。节点题数包含自身与全部实线下级的去重通过题，虚线关联不计入。能力参考与入选题单仍按当前题型计算。灰色或 0 表示当前同步数据缺少记录／评分，不代表没有学习过。评分沿用题型能力参考，不是个人 CF rating。</p>
+  <p class="footnote">当前关系图共 {{graph.known.size}} 个节点；当前筛选还有 {{missing}} 个标签未纳入关系图，可在表格中查看。节点题数包含自身与全部实线下级的去重通过题，虚线关联不计入。能力参考与入选题单仍按当前题型计算。灰色表示暂无评分，白色对应 0 分。节点内的题数根据底色自动使用黑字或白字。评分沿用题型能力参考，不是个人 CF rating。</p>
   </ModuleHelp>
  </section>`
 };

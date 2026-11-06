@@ -3,6 +3,7 @@ import * as echarts from 'echarts/core';
 import {BarChart,LineChart,PieChart} from 'echarts/charts';
 import {GridComponent,TooltipComponent,LegendComponent} from 'echarts/components';
 import {CanvasRenderer} from 'echarts/renderers';
+import {scoreColor} from './score-color.js';
 import {cfDifficultyBuckets} from './difficulty.js';
 
 echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendComponent,CanvasRenderer]);
@@ -12,7 +13,7 @@ export function useDashboardCharts(data,editingCards,isDark){
   const charts=new Map();
   const difficultyPlatform=ref('全部平台');
   const difficultyPlatforms=computed(()=>[{platform_name:'全部平台'},...(data.value?.platforms.filter(p=>p.total_count>0)||[])]);
-  const difficultyNote=computed(()=>'统一按 CF 尺度分段。CF 为官方题目 rating；AT 和洛谷为低置信估分，缺少依据的题目单列。原始难度保留在入选题单中。');
+  const difficultyNote=computed(()=>'统一按 CF 尺度分段。CF 为官方题目 rating；AT 和洛谷为低置信估分，每个区间按中点着色，暂无估分的题目用中性色单列。原始难度保留在入选题单中。');
   const days=computed(()=>{
    const today=data.value?.serverDate;if(!today)return [];
    return Array.from({length:7},(_,i)=>{
@@ -52,7 +53,7 @@ export function useDashboardCharts(data,editingCards,isDark){
    const buckets=cfDifficultyBuckets(data.value.unifiedDifficulty||[],difficultyPlatform.value);
    render(difficultyEl.value,{animation:false,color:colors,tooltip:{...tooltip,trigger:'item'},legend:{bottom:0,textStyle:{color:text}},
     series:[{type:'pie',radius:['43%','65%'],center:['50%','36%'],label:{show:false},
-     data:buckets}]});
+     itemStyle:{borderColor:text,borderWidth:1},data:buckets.map(bucket=>({...bucket,itemStyle:{color:scoreColor(bucket.midpoint)}}))}]});
   }
   const resize=()=>charts.forEach(chart=>chart.resize());
   return {difficultyEl,weekEl,difficultyPlatform,difficultyPlatforms,difficultyNote,days,week,draw,disposeCharts,resize};

@@ -1,3 +1,4 @@
+import {scoreStyle} from './score-color.js';
 import {apiFetch} from './api-fetch.js';
 import {ref,computed,watch} from 'vue';
 export default{
@@ -19,7 +20,7 @@ export default{
    }catch(e){if(id===serial)error.value=e.message||'题单读取失败';}
    finally{if(id===serial)loading.value=false;}
   }
-  return {scope,effective,limit,changeScope,open,loading,error,problems,page,pages,visible,toggle};
+  return {scoreStyle,scope,effective,limit,changeScope,open,loading,error,problems,page,pages,visible,toggle};
  },
  template:`<article class="panel overall-ability" aria-label="综合能力参考">
   <div class="panel-head"><h2>{{scope==='specialty'?'专职综合能力参考':'全部题目综合参考'}}</h2><span>全部平台 · 最高难度 {{limit}} 题</span></div>
@@ -27,13 +28,13 @@ export default{
   <p v-if="scope==='specialty'&&!effective.configured" class="footnote">尚未配置专职题型，请前往 <a href="#settings">设置 · 题型与技能图谱</a> 选择。</p>
   <p v-if="error" class="error" role="alert">{{error}}</p>
   <LoadingNotice v-if="loading&&!open">正在读取综合能力…</LoadingNotice>
-  <template v-if="scope==='specialty'?effective.configured:effective.sample_limit"><p v-if="scope==='specialty'" class="footnote">专职：{{effective.specialtyNames?.join('、')}}{{effective.includeDescendants?'（含实线下级分支）':'（仅所选题型）'}}</p><div class="week-summary"><div><strong>{{effective.ability_value ?? '—'}}</strong><span>历史能力参考</span></div><div><strong>{{effective.current_value ?? '—'}}</strong><span>当前能力参考 · {{effective.current_value==null?'暂无 AC 日期':(effective.current_sample_count||0)+' / '+(effective.current_sample_limit??limit)+' 道'}}</span></div><div><strong>{{effective.sample_count||0}} / {{limit}}</strong><span>{{effective.sample_status}}</span></div><div><strong>{{effective.estimated_count||0}}</strong><span>入选估分题</span></div><div><strong>{{effective.rated_count||0}}</strong><span>有效评分通过题</span></div></div>
+  <template v-if="scope==='specialty'?effective.configured:effective.sample_limit"><p v-if="scope==='specialty'" class="footnote">专职：{{effective.specialtyNames?.join('、')}}{{effective.includeDescendants?'（含实线下级分支）':'（仅所选题型）'}}</p><div class="week-summary"><div><strong><span :class="{'score-chip':scoreStyle(effective.ability_value)}" :style="scoreStyle(effective.ability_value)">{{effective.ability_value ?? '—'}}</span></strong><span>历史能力参考</span></div><div><strong><span :class="{'score-chip':scoreStyle(effective.current_value)}" :style="scoreStyle(effective.current_value)">{{effective.current_value ?? '—'}}</span></strong><span>当前能力参考 · {{effective.current_value==null?'暂无 AC 日期':(effective.current_sample_count||0)+' / '+(effective.current_sample_limit??limit)+' 道'}}</span></div><div><strong>{{effective.sample_count||0}} / {{limit}}</strong><span>{{effective.sample_status}}</span></div><div><strong>{{effective.estimated_count||0}}</strong><span>入选估分题</span></div><div><strong>{{effective.rated_count||0}}</strong><span>有效评分通过题</span></div></div>
   <button v-if="effective.sample_count>0" @click="toggle" :aria-expanded="open" aria-controls="overall-problems">{{open?'收起入选题单':'查看前 '+limit+' 题入选题单'}}</button>
   </template>
   <section v-if="open" id="overall-problems" class="ability-detail" aria-label="综合能力入选题单">
    <LoadingNotice v-if="loading" skeleton>正在读取入选题单…</LoadingNotice><p v-else-if="error" role="alert" class="error">{{error}}</p>
    <template v-else><p class="footnote">共 {{problems.length}} 道，每页 25 道。题目按 CF 尺度降序排列。</p>
-    <div class="table-wrap content-ready"><table><thead><tr><th>排名</th><th>题目</th><th>平台</th><th>CF 尺度</th><th>原始难度</th><th>评分依据</th></tr></thead><tbody><tr v-for="(p,i) in visible" :key="p.canonical_key"><td>{{(page-1)*25+i+1}}</td><td><a v-if="p.problem_url" :href="p.problem_url" target="_blank" rel="noopener noreferrer">{{p.problem_name}} ↗</a><span v-else>{{p.problem_name}}</span></td><td>{{p.platform_name}}</td><td>{{p.estimated?'≈ ':''}}{{p.rating}}</td><td>{{p.native_difficulty??'—'}}</td><td>{{p.method}} · {{p.confidence}}</td></tr></tbody></table></div>
+    <div class="table-wrap content-ready"><table><thead><tr><th>排名</th><th>题目</th><th>平台</th><th>CF 尺度</th><th>原始难度</th><th>评分依据</th></tr></thead><tbody><tr v-for="(p,i) in visible" :key="p.canonical_key"><td>{{(page-1)*25+i+1}}</td><td><a v-if="p.problem_url" :href="p.problem_url" target="_blank" rel="noopener noreferrer">{{p.problem_name}} ↗</a><span v-else>{{p.problem_name}}</span></td><td>{{p.platform_name}}</td><td><span :class="{'score-chip':scoreStyle(p.rating)}" :style="scoreStyle(p.rating)">{{(p.estimated?'≈ ':'')+p.rating}}</span></td><td>{{p.native_difficulty??'—'}}</td><td>{{p.method}} · {{p.confidence}}</td></tr></tbody></table></div>
     <div class="overall-pagination"><button :disabled="page<=1" @click="page--">上一页</button><span aria-live="polite">第 {{page}} / {{pages}} 页</span><button :disabled="page>=pages" @click="page++">下一页</button></div>
    </template>
   </section>

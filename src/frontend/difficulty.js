@@ -18,7 +18,7 @@ export function cfDifficultyBuckets(rows,platform){
   const label=n==null?'暂无估分':lower+'–'+(lower+399);
   const old=groups.get(label)||{name:label,value:0,order:lower};old.value+=Number(row.total_count);groups.set(label,old);
  }
- return [...groups.values()].sort((a,b)=>a.order-b.order).map(({order,...row})=>row);
+ return [...groups.values()].sort((a,b)=>a.order-b.order).map(({order,...row})=>({...row,midpoint:Number.isFinite(order)?order+199.5:null}));
 }
 export function difficultyBuckets(rows,platform){
  const groups=new Map();
