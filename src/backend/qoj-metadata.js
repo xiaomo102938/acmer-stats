@@ -10,10 +10,11 @@ export function parseQojHeader(html,key){
 
  const header=$('.uoj-content > .row').filter((_i,row)=>
   $(row).find('.badge-secondary').length>=2).first();
+ if(!header.length)return null;
  const tags=header.children('.badge').map((_i,badge)=>$(badge).text().trim()).get();
  const difficultyValue=header.find('#difficulty-badge [aria-valuenow]').attr('aria-valuenow');
  return {
-  type:submissionTypeFromTags(tags),
+  type:submissionTypeFromTags(tags)??'standard',
   difficulty:difficultyValue===undefined?null:Number(difficultyValue)
  };
 }
