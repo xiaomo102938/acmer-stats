@@ -1,4 +1,4 @@
-import {scoreColor,scoreInk} from './score-color.js';
+import {graphScoreStyle} from './score-color.js';
 import {families,extraRelations} from '../shared/skill-defaults.js';
 export {families,extraRelations};
 export const nodeSize=count=>Math.min(150,20+9*Math.sqrt(Math.max(0,Number(count)||0)));
@@ -7,8 +7,8 @@ export function nodeFontSize(count,size=nodeSize(count)){
  return Math.max(11,Math.min(34,size*.3,size*.74/(digits*.62)));
 }
 export function nodeColors(row){
- const score=row?.ability_value;
- return {fill:scoreColor(score),ink:scoreInk(score)};
+ const {backgroundColor,color}=graphScoreStyle(row?.ability_value);
+ return {fill:backgroundColor,ink:color};
 }
 export function skillGraph(profiles,expanded){
  const byKey=new Map(profiles.map(p=>[p.tag_name,p])),nodes=[],edges=[];let y=70;

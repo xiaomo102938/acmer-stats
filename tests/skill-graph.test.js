@@ -10,7 +10,7 @@ test('curated graph has unique nodes, valid links and multiple tree-DP foundatio
 test('node counts use source deduplicated totals, never sum children or guess unseen tags',()=>{
  const p=[{tag_name:'dp',passed_count:10,sample_count:25,ability_value:2000},{tag_name:'digit dp',passed_count:8,sample_count:8,ability_value:2300},{tag_name:'unknown',passed_count:99}];
  const g=skillGraph(p,['dp']);assert.equal(g.nodes.find(n=>n.id==='dp').count,10);assert.equal(g.nodes.find(n=>n.id==='digit dp').count,8);assert.equal(g.nodes.find(n=>n.id==='tree dp').count,0);
- assert.equal(g.nodes.find(n=>n.id==='dp').fill,'rgb(170,0,170)');assert.deepEqual(nodeColors(p[1]),nodeColors({...p[1],sample_count:20}));assert.ok(!g.known.has('unknown'));
+ assert.equal(g.nodes.find(n=>n.id==='dp').fill,'rgb(138,93,150)');assert.deepEqual(nodeColors(p[1]),nodeColors({...p[1],sample_count:20}));assert.ok(!g.known.has('unknown'));
  const folded=skillGraph(p,[]);assert.equal(folded.nodes.length,6);assert.equal(folded.edges.length,0);
 });
 test('sizes are monotonic and capped; zero and missing scores have distinct fills with readable ink',()=>{

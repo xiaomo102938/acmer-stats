@@ -2,6 +2,10 @@ const anchors=[
  [0,[255,255,255]], [1300,[0,128,0]], [1500,[3,168,158]], [1750,[0,0,255]],
  [2000,[170,0,170]], [2250,[255,140,0]], [2800,[255,0,0]], [4500,[0,0,0]]
 ];
+const graphAnchors=[
+ [0,[255,255,255]], [1300,[74,128,86]], [1500,[69,147,141]], [1750,[75,113,160]],
+ [2000,[138,93,150]], [2250,[190,132,65]], [2800,[177,77,70]], [4500,[0,0,0]]
+];
 const mix=(left,right,ratio)=>left.map((channel,i)=>Math.round(channel+(right[i]-channel)*ratio));
 const css=rgb=>'rgb('+rgb.join(',')+')';
 const luminance=rgb=>rgb.reduce((sum,channel,i)=>{
@@ -9,19 +13,23 @@ const luminance=rgb=>rgb.reduce((sum,channel,i)=>{
  return sum+[.2126,.7152,.0722][i]*(s<=.04045?s/12.92:((s+.055)/1.055)**2.4);
 },0);
 
-function scoreRgb(value){
+function scoreRgb(value,palette=anchors){
  if(value==null||value===''||!Number.isFinite(Number(value)))return null;
  const score=Math.max(0,Math.min(4500,Number(value)));
- const index=anchors.findIndex(([position])=>position>=score);
- if(index===0)return anchors[0][1];
- const [start,left]=anchors[index-1],[end,right]=anchors[index];
+ const index=palette.findIndex(([position])=>position>=score);
+ if(index===0)return palette[0][1];
+ const [start,left]=palette[index-1],[end,right]=palette[index];
  return mix(left,right,(score-start)/(end-start));
 }
 
 export const scoreColor=value=>css(scoreRgb(value)??[142,150,157]);
 
-export function scoreInk(value){
- return luminance(scoreRgb(value)??[142,150,157])>=Math.sqrt(1.05*.05)-.05?'#000':'#fff';
+const contrastInk=rgb=>luminance(rgb)>=Math.sqrt(1.05*.05)-.05?'#000':'#fff';
+export const scoreInk=value=>contrastInk(scoreRgb(value)??[142,150,157]);
+
+export function graphScoreStyle(value){
+ const rgb=scoreRgb(value,graphAnchors)??[142,150,157];
+ return {backgroundColor:css(rgb),color:contrastInk(rgb)};
 }
 
 export function scoreStyle(value){
