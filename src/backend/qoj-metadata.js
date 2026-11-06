@@ -1,5 +1,5 @@
 import {load} from 'cheerio';
-import {isRetryableStatementError,requestWithStatementRetry} from './statement-retry.js';
+import {requestWithStatementRetry} from './statement-retry.js';
 
 const statementOrigin='https://huang.lt';
 const types=[
@@ -61,51 +61,9 @@ async function requestStatement(key,locale){
  return result;
 }
 
-export function qojTypeWorker(pool){
- let running=false,pending=false,recoveryTimer;
- return async function queueQojTypes(recoveries=0){
-  if(recoveryTimer)return;
-  pending=true;
-  if(running)return;
-  running=true;
-  try{
-   while(pending){
-    pending=false;
-    // QOJ uses this timestamp only for the public statement check.
-    const [rows]=await pool.query("SELECT pr.problem_id,pr.source_key FROM problem pr JOIN platform p USING(platform_id) WHERE p.platform_name='QOJ' AND pr.metadata_checked_at IS NULL AND pr.submission_type IS NULL AND pr.source_key REGEXP '^[0-9]+$' AND EXISTS (SELECT 1 FROM synced_submission s WHERE s.problem_id=pr.problem_id) ORDER BY LENGTH(pr.source_key) DESC, pr.source_key DESC");
-    for(const row of rows){
-     let result;
-     try{
-      const statement=await readStatement(row.source_key,'default');
-      result=statement?.tryChinese?await readStatement(row.source_key,'zh_cn')??statement:statement;
-     }catch(error){
-      if(error.status===429)throw error;
-      console.warn('QOJ type check deferred:',row.source_key,error.message);
-      continue;
-     }
-     if(!result)continue;
-     await pool.execute('UPDATE problem SET submission_type=?,metadata_checked_at=NOW() WHERE problem_id=? AND metadata_checked_at IS NULL AND submission_type IS NULL',[result.type,row.problem_id]);
-    }
-   }
-  }catch(error){
-   console.warn('QOJ type check paused:',error.message);
-   if((error.status===429||isRetryableStatementError(error))&&recoveries<2){
-    let delay=60000*(recoveries+1);
-    if(error.status===429){
-     const retryAfter=error.retryAfter;
-     const requestedDelay=/^\d+$/.test(retryAfter)?Number(retryAfter)*1000:Date.parse(retryAfter)-Date.now();
-     delay=Math.max(300000,Number.isFinite(requestedDelay)?requestedDelay:0);
-    }
-    // Delays beyond the timer limit require a later explicit run.
-    if(delay>2147483647)return;
-    console.warn('Statement checks will resume in',delay/1000,'seconds');
-    recoveryTimer=setTimeout(()=>{
-     recoveryTimer=undefined;
-     void queueQojTypes(recoveries+1);
-    },delay).unref();
-   }
-  }finally{
-   running=false;
-  }
- };
+export async function readQojType({source_key:key}){
+ if(!/^\d+$/.test(key??''))return null;
+ const statement=await readStatement(key,'default');
+ const result=statement?.tryChinese?await readStatement(key,'zh_cn')??statement:statement;
+ return result?.type??null;
 }

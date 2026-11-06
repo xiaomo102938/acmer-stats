@@ -1,5 +1,6 @@
+import {knownProblemType,problemTypeExpression} from './problem-type-query.js';
 import express from 'express';
-import {submissionTypeFromTags,typeTags} from '../shared/problem-submission-type.js';
+import {submissionTypeFromTags} from '../shared/problem-submission-type.js';
 import {ratedProblems} from './ability-difficulty.js';
 import {readProblemRows,readAbilityRows} from './ability-store.js';
 import {retryProblems} from './practice.js';
@@ -19,7 +20,7 @@ export function submissionRouter(pool){
   if([rawPage,rawSize,status,sort,q,platform,tag,type,from,to,unique].some(value=>typeof value!=='string')||
    !/^[1-9]\d{0,7}$/.test(rawPage)||!['10','25','50','100'].includes(rawSize)||!filters.includes(status)||
    !['time','hard','easy'].includes(sort)||!['0','1'].includes(unique)||q.length>200||platform.length>100||tag.length>120||
-   (type&&!['standard','unknown'].includes(type)&&!Object.hasOwn(typeTags,type))||!dateValid(from)||!dateValid(to)||(from&&to&&from>to))return res.status(400).json({message:'搜索、筛选或分页参数无效。'});
+   (type&&type!=='unknown'&&!knownProblemType(type))||!dateValid(from)||!dateValid(to)||(from&&to&&from>to))return res.status(400).json({message:'搜索、筛选或分页参数无效。'});
   const pageSize=Number(rawSize),connection=await pool.getConnection();
   const term=q.trim().toLowerCase();
   try{
@@ -58,14 +59,9 @@ export function submissionRouter(pool){
        ${platform?'AND a.platform_id=s.platform_id':''}
        AND (a.submitted_at<s.submitted_at OR (a.submitted_at=s.submitted_at AND a.submission_id<s.submission_id)))`);
     if(type){
-     // Match the displayed type, including the fallback inferred from tags.
-     const cases=Object.entries(typeTags).map(([name,aliases])=>{
-      args.push(...aliases,name);
-      return 'WHEN EXISTS (SELECT 1 FROM problem_tag pt JOIN tag t ON t.tag_id=pt.tag_id '+
-       'WHERE pt.problem_id=pr.problem_id AND LOWER(TRIM(t.tag_name)) IN ('+aliases.map(()=>'?').join(',')+')) THEN ?';
-     });
-     conditions.push('COALESCE(pr.submission_type, CASE '+cases.join(' ')+" ELSE 'unknown' END)=?");
-     args.push(type);
+     const expression=problemTypeExpression();
+     conditions.push(expression.sql+'=?');
+     args.push(...expression.args,type);
     }
     if(status!=='retry'){
      if(tagCondition){conditions.push(tagCondition);args.push(...tagArgs);}
@@ -81,7 +77,7 @@ export function submissionRouter(pool){
      JOIN platform p ON p.platform_id=s.platform_id LEFT JOIN problem_note n ON n.user_id=s.user_id AND n.problem_id=s.problem_id
      WHERE ${conditions.join(' AND ')}`;
     const select=`SELECT s.submission_id,s.source_id,s.account_login,s.submitted_at,s.passed,s.verdict,
-     p.platform_name,pr.problem_id,pr.problem_name,pr.problem_url,pr.source_key,pr.native_difficulty,pr.difficulty_source,pr.submission_type,n.note ${source} ORDER BY ${latest}`;
+     p.platform_name,pr.problem_id,pr.problem_name,pr.problem_url,pr.source_key,pr.native_difficulty,pr.difficulty_source,COALESCE(pr.manual_submission_type,pr.submission_type) AS submission_type,n.note ${source} ORDER BY ${latest}`;
     const paginate=()=>{pages=Math.max(1,Math.ceil(total/pageSize));page=Math.min(Number(rawPage),pages);};
     if(status==='retry'||sort!=='time'||unique==='1'){
      let [rows]=await connection.query(select,args);

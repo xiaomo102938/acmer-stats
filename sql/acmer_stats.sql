@@ -840,3 +840,5 @@ CREATE TABLE IF NOT EXISTS problem_note (
 CREATE INDEX idx_submission_first_ac ON synced_submission(user_id,problem_id,passed,submitted_at,submission_id);
 
 ALTER TABLE problem ADD COLUMN submission_type VARCHAR(20) NULL;
+
+ALTER TABLE problem ADD COLUMN manual_submission_type VARCHAR(20) NULL;

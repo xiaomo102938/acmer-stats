@@ -1,3 +1,4 @@
+import ProblemTypeSettings from './problem-type-settings.js';
 import {apiFetch} from './api-fetch.js';
 import CardOrderEditor from './card-order-editor.js';
 import LoadingNotice from './loading-notice.js';
@@ -43,7 +44,7 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{CardOrderEditor,SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,SiteStatus,Accounts,Activity,TagAnalysis,OverallAbility,AbilityTrends},
+ components:{ProblemTypeSettings,CardOrderEditor,SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,SiteStatus,Accounts,Activity,TagAnalysis,OverallAbility,AbilityTrends},
  setup(){
   const sidebarCollapsed=ref(false),sidebarInteracted=ref(false);
   try { sidebarCollapsed.value=localStorage.getItem('acmer-sidebar-collapsed')==='1'; } catch {}
@@ -255,6 +256,7 @@ createApp({
     </article>
     <SkillLayoutSettings id="bookmark-layout" :style="cardStyle('layout')" />
     <SkillSettings :card-positions="cardPositions" @saved="load" />
+    <ProblemTypeSettings id="bookmark-problem-types" :style="cardStyle('problem-types')" />
     <Accounts :style="cardStyle('accounts')" @synced="load" />
    </section>
    <footer>刷题手记 · 数据来自本机 MySQL</footer>

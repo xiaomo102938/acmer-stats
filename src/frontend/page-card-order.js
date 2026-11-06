@@ -12,7 +12,7 @@ const cardCatalog={
  settings:[
   {id:'appearance',title:'外观'},{id:'layout',title:'技能图谱布局偏好'},
   {id:'specialty',title:'专职题型'},{id:'aliases',title:'标签类型归并'},
-  {id:'topology',title:'技能图谱客制化'},{id:'accounts',title:'平台账号与同步'}
+  {id:'topology',title:'技能图谱客制化'},{id:'accounts',title:'平台账号与同步'},{id:'problem-types',title:'题型管理'}
  ]
 };
 function readCardOrder(){

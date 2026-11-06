@@ -14,7 +14,7 @@ async function get(url,secret){
  }catch{
   throw new LuoguError('洛谷题型元数据请求失败，下次同步可继续补充。');
  }
- if(!response.ok)throw Object.assign(new LuoguError('洛谷题目元数据 HTTP '+response.status+'，已保留先前数据。'),{status:response.status});
+ if(!response.ok)throw Object.assign(new LuoguError('洛谷题目元数据 HTTP '+response.status+'，已保留先前数据。'),{status:response.status,retryAfter:response.headers.get('retry-after')});
  return parseLuoguPayload(text);
 }
 async function readTagDictionary(secret){
@@ -74,24 +74,7 @@ export async function enrichLuoguProblems(connection,platformId,secret='',progre
  await progress(updated,rows.length);return {updated,total:rows.length};
 }
 
-export async function backfillLuoguSubmissionTypes(pool){
- const [rows]=await pool.query(`SELECT pr.problem_id,pr.source_key FROM problem pr
-  JOIN platform p ON p.platform_id=pr.platform_id
-  WHERE p.platform_name=? AND pr.source_key IS NOT NULL
-   AND pr.metadata_checked_at IS NOT NULL AND pr.submission_type IS NULL
-   AND EXISTS (SELECT 1 FROM synced_submission s WHERE s.problem_id=pr.problem_id)
-  ORDER BY pr.source_key`,['洛谷']);
- if(!rows.length)return;
- const tags=await readTagDictionary('');
- for(const row of rows){
-  let meta;
-  try{
-   meta=problemMetadata(await readProblem(row.source_key,''),row.source_key,tags);
-  }catch(error){
-   if(error.status===404)continue;
-   throw error;
-  }
-  await pool.execute('UPDATE problem SET submission_type=? WHERE problem_id=? AND submission_type IS NULL',
-   [meta.submissionType,row.problem_id]);
- }
+export async function readLuoguType({source_key:key}){
+ if(!key)return null;
+ return problemMetadata(await readProblem(key,''),key,await readTagDictionary('')).submissionType;
 }

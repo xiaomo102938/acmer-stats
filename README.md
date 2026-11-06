@@ -9,7 +9,7 @@
 准备 Node.js 22.12 或更新版本、npm 和正在运行的 MySQL 8.0。以下命令在仓库根目录执行。
 
 1. 执行 `npm ci` 安装锁定版本的依赖。
-2. **首次建库**时，在 MySQL 客户端中执行 `source sql/acmer_stats.sql`。脚本会删除并重建同名 `acmer_stats` 库，并载入课程示例数据。**已有库**先备份，只按编号执行 [sql/migrations](sql/migrations/) 中尚未应用的迁移，当前最新为 015。
+2. **首次建库**时，在 MySQL 客户端中执行 `source sql/acmer_stats.sql`。脚本会删除并重建同名 `acmer_stats` 库，并载入课程示例数据。**已有库**先备份，只按编号执行 [sql/migrations](sql/migrations/) 中尚未应用的迁移，当前最新为 016。
 3. 将 `.env.example` 复制为 `.env`，按本机环境填写 `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD` 和 `DB_NAME`。需要保存平台 Cookie 时，用下方命令生成 64 位十六进制密钥，填入 `ACCOUNT_SECRET_KEY`。保留原密钥才能解密以前保存的 Cookie。
 4. 执行 `npm run build`，再执行 `npm start`。访问 [本机网站](http://127.0.0.1:3000/)。关闭网站时，在运行服务的终端按 `Ctrl+C`。
 

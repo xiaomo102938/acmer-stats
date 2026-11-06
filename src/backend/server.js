@@ -1,3 +1,4 @@
+import {problemTypesRouter} from './problem-types.js';
 import {getDifficultyMetadata} from './difficulty-metadata.js';
 import {skillSettingsRouter,readSkillSettings,mergeSkillRows,specialtyAbility} from './skill-settings.js';
 import {applyLeetcodeTotals} from './leetcode.js';
@@ -56,6 +57,7 @@ app.use('/api/skill-settings',skillSettingsRouter(pool,saveAbilitySnapshot));
 app.use('/api/accounts',accountRouter(pool,saveAbilitySnapshot));
 app.use('/api/ability/trends',abilityTrendsRouter(pool,path.join(root,'.cache','current-ability-trend.json')));
 app.use('/api/submissions',submissionRouter(pool));
+app.use('/api/problem-types',problemTypesRouter(pool));
 app.use('/api/practice',practiceRouter(pool));
 app.use('/api/trends',trendRouter(pool));
 app.use('/api/ratings',ratingRouter(pool));
