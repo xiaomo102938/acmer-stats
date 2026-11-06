@@ -1,3 +1,4 @@
+import {getDifficultyMetadata} from './difficulty-metadata.js';
 import {skillSettingsRouter,readSkillSettings,mergeSkillRows,specialtyAbility} from './skill-settings.js';
 import {applyLeetcodeTotals} from './leetcode.js';
 import {ratingRouter} from './ratings.js';
@@ -190,6 +191,18 @@ app.get('/api/activity',async(req,res)=>{
 });
 
 app.use('/api', (_req,res) => res.status(404).json({message:'接口不存在'}));
+let difficultyPrewarmStarted=false;
+app.get('/',(_req,res,next)=>{
+ if(!difficultyPrewarmStarted){
+  res.once('finish',()=>{
+   if(difficultyPrewarmStarted||(res.statusCode!==200&&res.statusCode!==304))return;
+   difficultyPrewarmStarted=true;
+   // Sync shares these in-flight downloads through the existing catalog cache.
+   for(const platform of ['Codeforces','AtCoder'])void getDifficultyMetadata(platform).catch(()=>{});
+  });
+ }
+ next();
+});
 app.use(express.static(path.join(root, 'dist')));
 app.use((error,_req,res,_next) => {
   if(error.status) return res.status(error.status).json({message:error.message});
