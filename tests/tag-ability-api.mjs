@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3000';
 const response=await fetch(base+'/api/dashboard');assert.equal(response.status,200);const d=await response.json();
-assert.equal(d.ratingVersion,'acmer-cf-v1');
+assert.equal(d.ratingVersion,'acmer-cf-v2');
 for(const profile of d.tagAbility.filter(p=>p.sample_count>0)){
  const res=await fetch(base+'/api/tags/'+profile.tag_id+'/ability?platform='+encodeURIComponent(profile.platform_name));assert.equal(res.status,200);
  const {problems}=await res.json();assert.equal(problems.length,profile.sample_count);

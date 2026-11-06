@@ -6,6 +6,7 @@ import {enrichLuoguProblems} from './luogu-metadata.js';
 import {randomUUID,createHash} from 'node:crypto';
 import {capabilities,collect,SourceError} from './adapters.js';
 import {encrypt,decrypt} from './secrets.js';
+import {enrichNowcoderDifficulty} from './nowcoder-difficulty.js';
 import {saveSubmissions} from './sync-store.js';
 import {nowcoderUid,syncSetup} from '../shared/account-config.js';
 
@@ -150,6 +151,11 @@ export function accountRouter(pool,captureSnapshot) {
     }else{
      const result=await collect(account,decrypt(account.login_pwd),checkpointId,rescan);
      ({message}=await saveSubmissions(connection,account,result));
+     if(account.platform_name==='牛客'){
+      await connection.execute("UPDATE platform_account SET sync_message='提交已同步，正在补充牛客题目难度…' WHERE account_id=?",[account.account_id]);
+      const difficulty=await enrichNowcoderDifficulty(connection,account.platform_id);
+      message+=' 本次补充 '+difficulty.updated+' 道牛客题目的难度。'+(difficulty.deferred?'题库暂不可用，剩余题将在后续同步重试。':'');
+     }
     }
     await captureSnapshot?.(connection,'sync');
     await refreshAccountRating(connection,account,decrypt(account.login_pwd));

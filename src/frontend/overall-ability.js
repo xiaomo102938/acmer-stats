@@ -39,6 +39,6 @@ export default{
    </template>
   </section>
   <ModuleHelp><p v-if="scope==='specialty'" class="footnote">专职参考仅统计已同步且有题型标签的题目，主页累计汇总不推算为题单。</p><p class="footnote">{{effective.current_dated_count||0}} / {{effective.rated_count||0}} 道有效评分题有 AC 日期。仅按有日期的题计算，扣分前的计分均值为 {{effective.current_unadjusted_value ?? '—'}}。当前分按最近一次 AC 调整，前 20 天不扣分，第 21 天起开始扣分，之后每 365 天，距离扣满 250 分的差额减半，最低为 800 分。调整后重新选入选题，再按最近一次 AC 加权平均。AC 日期每早 183 天，权重减半。当前分按实际入选题占目标题数的比例折算，缺额计零。入选题等权计分为 {{effective.current_equal_weight_value ?? '—'}}。</p><p class="ability-description">{{scope==='specialty'?'从专职题型范围':'从全部题目'}}内已通过且有评分依据的题目中，取最高 15%（向上取整），专职至少 125 道，全部题目至少 250 道；一题有多个标签也只算一次，可识别的跨平台同源题合并。{{effective.sample_count<limit?'不足的 '+(limit-effective.sample_count)+' 道按零分计入。':''}}</p>
-  <p class="footnote">{{effective.sample_count?'入选难度 '+effective.min_difficulty+'–'+effective.max_difficulty+'。':''}}已通过题中 {{(effective.passed_count||0)-(effective.rated_count||0)}} 道暂无评分依据，未计分。CF 为官方题目分，AT 和洛谷为低置信估分；这不是个人 CF rating。</p></ModuleHelp>
+  <p class="footnote">{{effective.sample_count?'入选难度 '+effective.min_difficulty+'–'+effective.max_difficulty+'。':''}}已通过题中 {{(effective.passed_count||0)-(effective.rated_count||0)}} 道暂无评分依据，未计分。CF 为官方题目分，AT、洛谷和牛客为低置信估分；这不是个人 CF rating。</p></ModuleHelp>
  </article>`
 };

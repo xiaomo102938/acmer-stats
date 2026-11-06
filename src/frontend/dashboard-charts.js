@@ -13,7 +13,7 @@ export function useDashboardCharts(data,editingCards,isDark){
   const charts=new Map();
   const difficultyPlatform=ref('全部平台');
   const difficultyPlatforms=computed(()=>[{platform_name:'全部平台'},...(data.value?.platforms.filter(p=>p.total_count>0)||[])]);
-  const difficultyNote=computed(()=>'统一按 CF 尺度分段。CF 为官方题目 rating；AT 和洛谷为低置信估分，每个区间按中点着色，暂无估分的题目用中性色单列。原始难度保留在入选题单中。');
+  const difficultyNote=computed(()=>'统一按 CF 尺度分段。CF 为官方题目 rating；AT、洛谷和牛客为低置信估分，每个区间按中点着色，暂无估分的题目用中性色单列。原始难度保留在入选题单中。');
   const days=computed(()=>{
    const today=data.value?.serverDate;if(!today)return [];
    return Array.from({length:7},(_,i)=>{
