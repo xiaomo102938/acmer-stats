@@ -5,6 +5,7 @@ import {tagDefinition} from './tags.js';
 const headers={'x-lentille-request':'content-only',Referer:'https://www.luogu.com.cn/','User-Agent':'acmer-stats/1.0 personal coursework'};
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let dictionary;
+let problemRequests=Promise.resolve();
 async function get(url,secret){
  let response,text;
  try{
@@ -13,8 +14,25 @@ async function get(url,secret){
  }catch{
   throw new LuoguError('洛谷题型元数据请求失败，下次同步可继续补充。');
  }
- if(!response.ok)throw new LuoguError('洛谷题目元数据 HTTP '+response.status+'，已保留先前数据。');
+ if(!response.ok)throw Object.assign(new LuoguError('洛谷题目元数据 HTTP '+response.status+'，已保留先前数据。'),{status:response.status});
  return parseLuoguPayload(text);
+}
+async function readTagDictionary(secret){
+ if(!dictionary){
+  const body=await get('https://www.luogu.com.cn/_lfe/tags',secret);
+  if(!Array.isArray(body.tags))throw new LuoguError('洛谷标签字典不可用。');
+  dictionary=new Map(body.tags.map(tag=>[tag.id,tag]));
+ }
+ return dictionary;
+}
+function readProblem(key,secret){
+ // Share the pacing between historical backfill and ordinary account sync.
+ const request=problemRequests.then(async()=>{
+  await pause(4000);
+  return get('https://www.luogu.com.cn/problem/'+encodeURIComponent(key),secret);
+ });
+ problemRequests=request.catch(()=>{});
+ return request;
 }
 export function problemMetadata(payload,key,tags){
  const problem=(payload.data||payload.currentData||payload).problem;
@@ -28,7 +46,7 @@ export function problemMetadata(payload,key,tags){
   }
  }
  const native=Number(problem.difficulty);
- return {tags:[...names],submissionType:submissionTypeFromTags(problem.tags.map(id=>tags.get(id)?.name)),native:problem.difficulty!=null&&Number.isInteger(native)&&native>=0&&native<=8?String(native):null};
+ return {tags:[...names],submissionType:submissionTypeFromTags(problem.tags.map(id=>tags.get(id)?.name))??'standard',native:problem.difficulty!=null&&Number.isInteger(native)&&native>=0&&native<=8?String(native):null};
 }
 export async function saveProblemMetadata(connection,id,meta){
  await connection.beginTransaction();
@@ -46,12 +64,34 @@ export async function saveProblemMetadata(connection,id,meta){
 export async function enrichLuoguProblems(connection,platformId,secret='',progress=()=>{}){
  const [rows]=await connection.execute("SELECT problem_id,source_key FROM problem WHERE platform_id=? AND source_key IS NOT NULL AND (metadata_checked_at IS NULL OR metadata_checked_at<DATE_SUB(NOW(),INTERVAL 30 DAY)) ORDER BY source_key",[platformId]);
  if(!rows.length)return {updated:0,total:0};
- if(!dictionary){const body=await get('https://www.luogu.com.cn/_lfe/tags',secret);if(!Array.isArray(body.tags))throw new LuoguError('洛谷标签字典不可用。');dictionary=new Map(body.tags.map(t=>[t.id,t]));}
+ const tags=await readTagDictionary(secret);
  let updated=0;
  for(const row of rows){
-  await progress(updated,rows.length);await pause(4000);
-  const meta=problemMetadata(await get('https://www.luogu.com.cn/problem/'+encodeURIComponent(row.source_key),secret),row.source_key,dictionary);
+  await progress(updated,rows.length);
+  const meta=problemMetadata(await readProblem(row.source_key,secret),row.source_key,tags);
   await saveProblemMetadata(connection,row.problem_id,meta);updated++;
  }
  await progress(updated,rows.length);return {updated,total:rows.length};
+}
+
+export async function backfillLuoguSubmissionTypes(pool){
+ const [rows]=await pool.query(`SELECT pr.problem_id,pr.source_key FROM problem pr
+  JOIN platform p ON p.platform_id=pr.platform_id
+  WHERE p.platform_name=? AND pr.source_key IS NOT NULL
+   AND pr.metadata_checked_at IS NOT NULL AND pr.submission_type IS NULL
+   AND EXISTS (SELECT 1 FROM synced_submission s WHERE s.problem_id=pr.problem_id)
+  ORDER BY pr.source_key`,['洛谷']);
+ if(!rows.length)return;
+ const tags=await readTagDictionary('');
+ for(const row of rows){
+  let meta;
+  try{
+   meta=problemMetadata(await readProblem(row.source_key,''),row.source_key,tags);
+  }catch(error){
+   if(error.status===404)continue;
+   throw error;
+  }
+  await pool.execute('UPDATE problem SET submission_type=? WHERE problem_id=? AND submission_type IS NULL',
+   [meta.submissionType,row.problem_id]);
+ }
 }

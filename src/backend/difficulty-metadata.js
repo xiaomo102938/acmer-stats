@@ -1,5 +1,6 @@
 // AtCoder Problems display correction follows the maintainer's clipDifficulty formula:
 // https://github.com/kenkoooo/AtCoderProblems/blob/master/atcoder-problems-frontend/src/utils/index.ts
+import {submissionTypeFromTags} from '../shared/problem-submission-type.js';
 const cache=new Map(),ttl=6*60*60*1000;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function json(url){
@@ -58,10 +59,14 @@ export async function getDifficultyMetadata(platform){
  catch(error){cache.delete(platform);throw error;}
 }
 export async function applyDifficultyMetadata(connection,platformId,platform,metadata){
- const [rows]=await connection.execute('SELECT problem_id,source_key,problem_name FROM problem WHERE platform_id=?',[platformId]);
+ const [rows]=await connection.execute('SELECT problem_id,source_key,problem_name,submission_type FROM problem WHERE platform_id=?',[platformId]);
  let updated=0;
  for(const row of rows){
   const key=row.source_key||inferProblemKey(platform,row.problem_name),meta=metadata.get(key);
+  const type=platform==='Codeforces'&&meta?.tags?submissionTypeFromTags(meta.tags):null;
+  if(type&&type!==row.submission_type){
+   await connection.execute('UPDATE problem SET submission_type=? WHERE problem_id=?',[type,row.problem_id]);
+  }
   // A missing or unavailable upstream rating must not erase a rating already stored.
   if(meta?.native==null)continue;
   await connection.execute('UPDATE problem SET native_difficulty=?,difficulty_source=?,problem_name=? WHERE problem_id=?',

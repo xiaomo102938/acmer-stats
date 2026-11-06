@@ -1,3 +1,4 @@
+import {backfillLuoguSubmissionTypes} from './luogu-metadata.js';
 import {getDifficultyMetadata} from './difficulty-metadata.js';
 import {skillSettingsRouter,readSkillSettings,mergeSkillRows,specialtyAbility} from './skill-settings.js';
 import {applyLeetcodeTotals} from './leetcode.js';
@@ -199,6 +200,7 @@ app.get('/',(_req,res,next)=>{
    difficultyPrewarmStarted=true;
    // Sync shares these in-flight downloads through the existing catalog cache.
    for(const platform of ['Codeforces','AtCoder'])void getDifficultyMetadata(platform).catch(()=>{});
+   void backfillLuoguSubmissionTypes(pool).catch(error=>console.warn('Luogu submission type backfill:',error.status??error.code??error.name));
   });
  }
  next();
