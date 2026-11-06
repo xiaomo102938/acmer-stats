@@ -299,3 +299,9 @@ html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) [data-prob
  stroke-linejoin:round;
 }
 .problem-type-legend {display:flex;flex-wrap:wrap;gap:4px 12px}
+
+[data-problem-type="unknown"] .problem-type-icon {
+  color: #fff;
+  background: #343434;
+  border-radius: 50%;
+}

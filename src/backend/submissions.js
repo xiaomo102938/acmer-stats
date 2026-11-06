@@ -19,7 +19,7 @@ export function submissionRouter(pool){
   if([rawPage,rawSize,status,sort,q,platform,tag,type,from,to,unique].some(value=>typeof value!=='string')||
    !/^[1-9]\d{0,7}$/.test(rawPage)||!['10','25','50','100'].includes(rawSize)||!filters.includes(status)||
    !['time','hard','easy'].includes(sort)||!['0','1'].includes(unique)||q.length>200||platform.length>100||tag.length>120||
-   (type&&type!=='standard'&&!Object.hasOwn(typeTags,type))||!dateValid(from)||!dateValid(to)||(from&&to&&from>to))return res.status(400).json({message:'搜索、筛选或分页参数无效。'});
+   (type&&!['standard','unknown'].includes(type)&&!Object.hasOwn(typeTags,type))||!dateValid(from)||!dateValid(to)||(from&&to&&from>to))return res.status(400).json({message:'搜索、筛选或分页参数无效。'});
   const pageSize=Number(rawSize),connection=await pool.getConnection();
   const term=q.trim().toLowerCase();
   try{
@@ -64,7 +64,7 @@ export function submissionRouter(pool){
       return 'WHEN EXISTS (SELECT 1 FROM problem_tag pt JOIN tag t ON t.tag_id=pt.tag_id '+
        'WHERE pt.problem_id=pr.problem_id AND LOWER(TRIM(t.tag_name)) IN ('+aliases.map(()=>'?').join(',')+')) THEN ?';
      });
-     conditions.push('COALESCE(pr.submission_type, CASE '+cases.join(' ')+" ELSE 'standard' END)=?");
+     conditions.push('COALESCE(pr.submission_type, CASE '+cases.join(' ')+" ELSE 'unknown' END)=?");
      args.push(type);
     }
     if(status!=='retry'){
