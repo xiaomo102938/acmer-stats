@@ -29,7 +29,7 @@ test('Luogu keeps each dated AC, verifies ownership and excludes failures',()=>{
  assert.throws(()=>normalizeLuoguAccepted(payload,'456',200),LuoguError);
  assert.throws(()=>normalizeLuoguAccepted(payload,'123',-300),LuoguError);
 });
-test('Luogu checks the page after the saved AC and reads all available pages in rescan mode',async t=>{
+test('Luogu stops before the saved AC and reads all available pages in rescan mode',async t=>{
  const requested=[];
  t.mock.method(globalThis,'setTimeout',callback=>queueMicrotask(callback));
  t.mock.method(globalThis,'fetch',async url=>{
@@ -39,7 +39,7 @@ test('Luogu checks the page after the saved AC and reads all available pages in 
    {id:5-page,status:12,user:{uid:123},submitTime:100,problem:{pid:'P1'}}
   ]}}});
  });
- assert.deepEqual((await collectLuoguAccepted('123','session=example','4')).items.map(row=>row.id),['4','3']);
+ assert.deepEqual((await collectLuoguAccepted('123','session=example','3')).items.map(row=>row.id),['4']);
  assert.deepEqual(requested,[1,2]);
  requested.length=0;
  assert.equal((await collectLuoguAccepted('123','session=example')).items.length,4);

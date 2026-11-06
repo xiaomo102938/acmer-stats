@@ -54,7 +54,7 @@ async function getLuogu(path,secret){
  return parseLuoguPayload(await response.text());
 }
 
-export function normalizeLuoguAccepted(payload,uid,now=Date.now()/1000){
+export function normalizeLuoguAccepted(payload,uid,now=Date.now()/1000,checkpoint=null){
  const records=dataOf(payload).records;
  if(!Array.isArray(records?.result)||!Number.isSafeInteger(records.count)||records.count<0||
     !Number.isSafeInteger(records.perPage)||records.perPage<1||records.result.length>records.perPage){
@@ -63,6 +63,7 @@ export function normalizeLuoguAccepted(payload,uid,now=Date.now()/1000){
  const items=[];
  for(const row of records.result){
   if(String(row.user?.uid)!==uid)throw new LuoguError('洛谷评测记录的用户与请求不一致。');
+  if(checkpoint?.matches(row.id))break;
   if(row.status!==12)continue;
   const problem=row.problem,key=String(problem?.pid??'').toUpperCase();
   if(!problem)continue; // Hidden problems have no importable identity.
@@ -92,14 +93,14 @@ export async function collectLuoguAccepted(uid,secret,checkpointId=null){
    if(error instanceof LuoguError)throw error;
    throw new LuoguError('洛谷评测列表请求失败，请检查网络后重试。');
   }
-  const result=normalizeLuoguAccepted(payload,uid);
+  const result=normalizeLuoguAccepted(payload,uid,undefined,checkpoint);
   if(page===1)pageCount=Math.ceil(result.count/result.perPage);
   if(!result.length&&page<pageCount)throw new LuoguError('洛谷评测列表分页不完整，请稍后重试。');
   for(const item of result.items)items.set(item.id,item);
-  if(checkpoint.afterPage(result.items))break;
+  if(checkpoint.stopped)break;
  }
  return {items:[...items.values()],cursor:0,note:'已读取 '+items.size+' 条有题号和时间的洛谷 AC 记录。'+
-  (checkpoint.stopped?' 已读到上次同步位置并额外复查一页。':pageCount>pageLimit?'本次最多读取最近 '+pageLimit+' 页评测记录。':'')};
+  (checkpoint.stopped?' 已读到上次同步位置，已停止扫描旧记录。':pageCount>pageLimit?'本次最多读取最近 '+pageLimit+' 页评测记录。':'')};
 }
 
 export async function collectLuogu(uid,secret=''){

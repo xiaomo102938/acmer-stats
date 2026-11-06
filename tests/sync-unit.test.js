@@ -63,7 +63,7 @@ test('QOJ submission history retains judged failures and excludes pending or unk
  assert.equal(normalizeAtCoder({id:10,epoch_second:1700000000,problem_id:'abc001_a',contest_id:'abc001',result:'WA'}).verdict,'WA');
 });
 
-test('Codeforces reads one extra page after the checkpoint; history rescan ignores it',async t=>{
+test('Codeforces stops at the checkpoint within a page; history rescan ignores it',async t=>{
  const offsets=[];
  const row=id=>({id,creationTimeSeconds:1700000000,verdict:'OK',problem:{contestId:1,index:'A',name:'Example'}});
  const pages=[Array.from({length:500},(_,i)=>row(1001-i)),Array.from({length:500},(_,i)=>row(501-i)),[row(1)]];
@@ -76,8 +76,8 @@ test('Codeforces reads one extra page after the checkpoint; history rescan ignor
  });
  const account={platform_name:'Codeforces',login_name:'example'};
  const incremental=await collect(account,'','1000');
- assert.deepEqual(offsets,[1,501]);
- assert.equal(incremental.items.length,1000);
+ assert.deepEqual(offsets,[1]);
+ assert.deepEqual(incremental.items.map(row=>row.id),['1001']);
  offsets.length=0;
  const history=await collect(account);
  assert.deepEqual(offsets,[1,501,1001]);
