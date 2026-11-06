@@ -1,3 +1,4 @@
+import {scanCheckpoint} from './sync-checkpoint.js';
 import {load} from 'cheerio';
 export class LuoguError extends Error{}
 export function parseLuoguPayload(text){
@@ -77,7 +78,8 @@ export function normalizeLuoguAccepted(payload,uid,now=Date.now()/1000){
  return {items,count:records.count,perPage:records.perPage,length:records.result.length};
 }
 
-export async function collectLuoguAccepted(uid,secret){
+export async function collectLuoguAccepted(uid,secret,checkpointId=null){
+ const checkpoint=scanCheckpoint(checkpointId);
  const items=new Map();
  const pageLimit=50;
  let pageCount=1;
@@ -94,9 +96,10 @@ export async function collectLuoguAccepted(uid,secret){
   if(page===1)pageCount=Math.ceil(result.count/result.perPage);
   if(!result.length&&page<pageCount)throw new LuoguError('洛谷评测列表分页不完整，请稍后重试。');
   for(const item of result.items)items.set(item.id,item);
+  if(checkpoint.afterPage(result.items))break;
  }
  return {items:[...items.values()],cursor:0,note:'已读取 '+items.size+' 条有题号和时间的洛谷 AC 记录。'+
-  (pageCount>pageLimit?'本次最多读取最近 '+pageLimit+' 页评测记录。':'')};
+  (checkpoint.stopped?' 已读到上次同步位置并额外复查一页。':pageCount>pageLimit?'本次最多读取最近 '+pageLimit+' 页评测记录。':'')};
 }
 
 export async function collectLuogu(uid,secret=''){

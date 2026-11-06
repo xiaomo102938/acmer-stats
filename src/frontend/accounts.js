@@ -39,10 +39,10 @@ export default {
    await nextTick();formEl.value?.scrollIntoView({behavior:'instant',block:'center'});
    formEl.value?.querySelector(account.platform_name==='牛客'&&!account.remote_uid?'[name=remote_uid]':'[name=cookie]')?.focus();
   }
-  async function syncAll(){
+  async function syncAll(rescan=false){
    startingBatch.value=true;failure.value='';message.value='';
    try{
-    const body=await api('/sync-all',{method:'POST',body:'{}'});
+    const body=await api('/sync-all',{method:'POST',body:JSON.stringify({rescan})});
     batch.value=body.batch;wasRunning=true;
     await refresh();
    }catch(error){failure.value=error.message;}
@@ -66,8 +66,8 @@ export default {
  },
  template:`
  <section class="panel accounts-panel" id="accounts">
-  <div class="panel-head"><h2>平台账号与同步</h2><button type="button" :disabled="!canSyncAll||anyRunning||startingBatch||saving" @click="syncAll" :aria-busy="batch?.running||startingBatch">{{batch?.running||startingBatch?'正在同步全部…':'同步全部'}}</button></div>
-  <p v-if="batch" class="account-message" role="status"><template v-if="batch.running">已处理 {{batch.done}} / {{batch.total}} 个账号<span v-if="batch.current"> · 正在同步 {{batch.current}}</span></template><template v-else>本轮同步完成 · 成功 {{batch.succeeded}} · 失败 {{batch.failed}}</template><span v-if="batch.skipped"> · 跳过 {{batch.skipped}} 个（配置不完整或暂未支持）</span></p>
+  <div class="panel-head"><h2>平台账号与同步</h2><button type="button" :disabled="!canSyncAll||anyRunning||startingBatch||saving" @click="syncAll()" :aria-busy="batch?.running||startingBatch">{{batch?.running||startingBatch?'正在同步全部…':'同步全部'}}</button><button type="button" :disabled="!canSyncAll||anyRunning||startingBatch||saving" @click="syncAll(true)">全部重新扫描历史</button></div>
+  <p v-if="batch" class="account-message" role="status"><template v-if="batch.running">{{batch.rescan?'历史重扫':'同步'}}已处理 {{batch.done}} / {{batch.total}} 个账号<span v-if="batch.current"> · 正在同步 {{batch.current}}</span></template><template v-else>本轮同步完成 · 成功 {{batch.succeeded}} · 失败 {{batch.failed}}</template><span v-if="batch.skipped"> · 跳过 {{batch.skipped}} 个（配置不完整或暂未支持）</span></p>
   <div v-if="failure" class="error" role="alert">{{failure}}</div>
   <p v-if="message" class="account-message" role="status">{{message}}</p>
   <LoadingNotice v-if="initialLoading" skeleton>正在读取平台账号…</LoadingNotice>
@@ -91,7 +91,7 @@ export default {
    </article>
   </div>
   <ModuleHelp>
-   <p>Codeforces 和 QOJ 默认同步到上次已入库的提交，并多查一页。重新扫描历史会跳过这个检查点，在平台可读取的范围内补录提交和更新判定。</p>
+   <p>日常同步会按平台的接口使用上次入库的位置。重新扫描历史会跳过检查点，在平台可读取的范围内补录提交和更新判定。力扣只提供近期 AC 明细，洛谷逐题明细需要 Cookie。</p>
    <p class="footnote">添加账号后，点击「同步账号」。重复同步按提交编号去重，已保存的手工记录会保留。</p>
    <p v-if="selected()?.platform_name==='LeetCode'" class="footnote">请填写力扣个人主页 /u/ 后的标识，例如 happy-6reidercmp。显示昵称可能与该标识不同。</p>
    <p class="footnote">{{selected()?.note}} Cookie 在本机服务端加密保存；编辑时留空保留已有值，过期后需要更新。</p>

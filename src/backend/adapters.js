@@ -3,7 +3,7 @@ import {load} from 'cheerio';
 import {qojTransport,qojFetch} from './qoj-network.js';
 import {getDifficultyMetadata} from './difficulty-metadata.js';
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-export const supportsHistoryRescan=platform=>platform==='Codeforces'||platform==='QOJ';
+import {scanCheckpoint} from './sync-checkpoint.js';
 export const capabilities={
  Codeforces:{mode:'公开提交',note:'官方 API；每次最多读取最近 5000 条提交。'},
  AtCoder:{mode:'公开提交',note:'AtCoder Problems 第三方数据；每次最多 5000 条，后续同步从已保存进度继续。'},
@@ -87,17 +87,11 @@ export async function readNowcoderPage(url,secret='',useSession=false){
   }
  }
 }
-export async function collect(account,secret='',checkpointId=null) {
+export async function collect(account,secret='',checkpointId=null,rescan=false) {
  const platform=account.platform_name, login=account.login_name, items=[];
- let checkpointSeen=false,stoppedAtCheckpoint=false;
- function reachedOverlap(rows){
-  if(!checkpointId)return false;
-  // Read the entire page after the checkpoint so recent delayed verdicts can be revisited.
-  if(checkpointSeen){stoppedAtCheckpoint=true;return true;}
-  checkpointSeen=rows.some(row=>row.id===checkpointId);
-  return false;
- }
- let cursor=Math.max(0,Number(account.sync_cursor||0)-86400), note='', partial=false;
+ const checkpoint=scanCheckpoint(checkpointId);
+ const savedCursor=Number(account.sync_cursor||0);
+ let cursor=rescan?0:Math.max(0,savedCursor-86400), note='', partial=false;
  if(platform==='Codeforces'){
   for(let page=0;page<10;page++){
    const url=new URL('https://codeforces.com/api/user.status');
@@ -107,7 +101,7 @@ export async function collect(account,secret='',checkpointId=null) {
    if(!Array.isArray(body.result)) throw new SourceError('Codeforces 数据格式异常。');
    const rows=body.result.map(normalizeCF).filter(Boolean);
    items.push(...rows);
-   if(reachedOverlap(rows)||body.result.length<500) break;
+   if(checkpoint.afterPage(rows)||body.result.length<500) break;
    if(page===9) partial=true; else await pause(2200);
   }
   note=partial?'已读取最近 5000 条提交；更早历史暂未覆盖。':'已读取公开提交记录。';
@@ -124,7 +118,7 @@ export async function collect(account,secret='',checkpointId=null) {
    cursor=next;
    if(page===9) partial=true; else await pause(1200);
   }
-  note=partial?'本次已读取 5000 条；再次同步将继续剩余历史。':'已读取 AtCoder Problems 收录的提交记录（可能存在延迟）。';
+  note=partial&&rescan?'历史重扫达到 5000 条上限。':partial?'本次已读取 5000 条；再次同步将继续剩余历史。':'已读取 AtCoder Problems 收录的提交记录（可能存在延迟）。';
  }else if(platform==='QOJ'||platform==='牛客'){
   if(platform==='QOJ'&&!secret) throw new SourceError('QOJ 需要登录 Cookie，请先编辑账号填写 Cookie。');
   if(platform==='牛客'&&!/^\d+$/.test(account.remote_uid||'')) throw new SourceError('牛客需要个人主页地址中的数字 UID，请先编辑账号填写。');
@@ -144,7 +138,7 @@ export async function collect(account,secret='',checkpointId=null) {
    }
    items.push(...rows);
    const next=new RegExp('(?:page|pageNo)='+String(page+1)+'(?:[^0-9]|$)').test(html);
-   if((platform==='QOJ'&&reachedOverlap(rows))||!next) break;
+   if(checkpoint.afterPage(rows)||!next) break;
    if(page===maxPages) partial=true; else await pause(1200);
   }
   note=(platform==='牛客'?(usedCookie?'本次使用已保存的 Cookie 读取。':'本次读取公开数据，未使用 Cookie。'):'本次使用已保存的 QOJ Cookie。')+(platform==='QOJ'?'已导入可见的已判定提交（含非 AC）；未获取或仍在评测的记录不推算。':'仅导入可见的 AC 提交，失败提交、完整提交次数和缺失历史无法推算。')+(partial?'本次达到 '+maxPages+' 页上限，更早记录暂未覆盖。':'');
@@ -171,6 +165,7 @@ export async function collect(account,secret='',checkpointId=null) {
    for(const item of items){const meta=metadata.get(item.key);if(meta?.native!=null){item.native=meta.native;item.nativeSource=meta.source;}}
   }catch{note+=' 难度数据源暂不可用，已有难度保留，稍后同步可重试。';}
  }
- if(stoppedAtCheckpoint)note+=' 已读到上次同步位置并额外复查一页。';
- return {items:[...new Map(items.map(s=>[s.id,s])).values()],cursor,note,partial,metadata,profileTotals};
+ if(checkpoint.stopped)note+=' 已读到上次同步位置并额外复查一页。';
+ return {items:[...new Map(items.map(s=>[s.id,s])).values()],cursor:Math.max(cursor,savedCursor),note,partial,metadata,profileTotals,
+  skipKnownRecent:platform==='LeetCode'&&items.some(row=>row.id===checkpointId)};
 }

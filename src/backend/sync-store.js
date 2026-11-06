@@ -12,7 +12,15 @@ export async function saveSubmissions(connection,account,result) {
  try {
   const [[current]]=await connection.execute('SELECT login_name FROM platform_account WHERE account_id=? FOR UPDATE',[account.account_id]);
   if(!current||current.login_name!==account.login_name) throw new Error('Account changed while synchronizing');
-  for(const s of result.items){
+  let items=result.items;
+  if(result.skipKnownRecent&&items.length){
+   // LeetCode exposes one recent-AC list; keep late arrivals even if they precede the checkpoint.
+   const [known]=await connection.query('SELECT source_id FROM synced_submission WHERE user_id=? AND platform_id=? AND source_id IN (?)',
+    [account.user_id,account.platform_id,items.map(item=>item.id)]);
+   const ids=new Set(known.map(row=>row.source_id));
+   items=items.filter(item=>!ids.has(item.id));
+  }
+  for(const s of items){
    const title=short(s.title,100);
    let [[problem]]=await connection.execute('SELECT problem_id FROM problem WHERE platform_id=? AND (source_key=? OR (source_key IS NULL AND problem_name=?)) ORDER BY source_key DESC LIMIT 1',
     [account.platform_id,s.key,title]);
