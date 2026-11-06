@@ -11,16 +11,27 @@ export function parseNowcoderType(html){
  return metadata.find('span').toArray().some(span=>/^Special Judge(?:\s*,|$)/i.test($(span).text().trim()))?'spj':'standard';
 }
 
-export async function readNowcoderType({problem_url:url}){
+export async function readNowcoderType({problem_url:url},loadCookies=async()=>[]){
  const path=url?.match(/^https:\/\/ac\.nowcoder\.com(\/acm\/(?:problem\/\d+|contest\/\d+\/[a-z0-9]+))\/?(?:[?#].*)?$/i)?.[1];
  if(!path)return null;
- return requestWithStatementRetry(async()=>{
-  const response=await fetch(origin+path,{redirect:'manual',signal:AbortSignal.timeout(12000)});
+ const read=cookie=>requestWithStatementRetry(async()=>{
+  const response=await fetch(origin+path,{
+   redirect:'manual',signal:AbortSignal.timeout(12000),headers:cookie?{Cookie:cookie}:{}
+  });
   if(!response.ok){
    await response.body?.cancel();
-   if(response.status===404||response.status<400)return null;
+   if(response.status===401||response.status===403)return {restricted:true};
+   if(response.status===404||response.status<400)return {};
    throw Object.assign(new Error('HTTP '+response.status),{status:response.status,retryAfter:response.headers.get('retry-after')});
   }
-  return parseNowcoderType(await response.text())??null;
+  const html=await response.text();
+  return {type:parseNowcoderType(html),restricted:html.includes('没有查看题目的权限')};
  });
+ const publicResult=await read();
+ if(publicResult.type||!publicResult.restricted)return publicResult.type??null;
+ for(const cookie of await loadCookies()){
+  const result=await read(cookie);
+  if(result.type)return result.type;
+ }
+ return null;
 }

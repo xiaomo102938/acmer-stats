@@ -1,3 +1,4 @@
+import {decrypt} from './secrets.js';
 import express from 'express';
 import {readQojType} from './qoj-metadata.js';
 import {readNowcoderType} from './nowcoder-metadata.js';
@@ -8,7 +9,7 @@ import {knownProblemType,problemTypeExpression} from './problem-type-query.js';
 const ownerProblems='EXISTS (SELECT 1 FROM synced_submission s WHERE s.problem_id=pr.problem_id AND s.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1))';
 const fromProblems=' FROM problem pr JOIN platform p USING(platform_id) WHERE '+ownerProblems;
 const sources=new Map([
- ['QOJ',readQojType],['牛客',readNowcoderType],['洛谷',readLuoguType]
+ ['QOJ',readQojType],['洛谷',readLuoguType]
 ]);
 
 export function problemTypesRouter(pool){
@@ -68,7 +69,18 @@ export function problemTypesRouter(pool){
    fromProblems+' AND '+expression.sql+"='unknown' ORDER BY p.platform_name,pr.problem_id",expression.args);
   job.total=rows.length;
   const limited=new Set();
-  const readers=new Map([...sources,['AtCoder',atcoderTypeReader()],['LeetCode',leetcodeTypeReader(rows)]]);
+  let nowcoderCookies;
+  async function loadNowcoderCookies(){
+   if(nowcoderCookies)return nowcoderCookies;
+   const [accounts]=await pool.execute("SELECT a.login_pwd FROM platform_account a JOIN platform p USING(platform_id) "+
+    "WHERE a.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1) AND p.platform_name=? AND a.login_pwd IS NOT NULL",['牛客']);
+   nowcoderCookies=accounts.map(account=>decrypt(account.login_pwd)).filter(Boolean);
+   return nowcoderCookies;
+  }
+  const readers=new Map([...sources,
+   ['牛客',row=>readNowcoderType(row,loadNowcoderCookies)],
+   ['AtCoder',atcoderTypeReader()],['LeetCode',leetcodeTypeReader(rows)]
+  ]);
   for(const row of rows){
    const platform=row.platform_name;
    try{
