@@ -1,3 +1,4 @@
+import {nowcoderTypeWorker} from './nowcoder-metadata.js';
 import {qojTypeWorker} from './qoj-metadata.js';
 import {backfillLuoguSubmissionTypes} from './luogu-metadata.js';
 import {getDifficultyMetadata} from './difficulty-metadata.js';
@@ -56,7 +57,8 @@ app.get('/api/health',async(_req,res)=>{
 });
 app.use('/api/skill-settings',skillSettingsRouter(pool,saveAbilitySnapshot));
 const queueQojTypes=qojTypeWorker(pool);
-app.use('/api/accounts',accountRouter(pool,saveAbilitySnapshot,queueQojTypes));
+const queueNowcoderTypes=nowcoderTypeWorker(pool);
+app.use('/api/accounts',accountRouter(pool,saveAbilitySnapshot,queueQojTypes,queueNowcoderTypes));
 app.use('/api/ability/trends',abilityTrendsRouter(pool,path.join(root,'.cache','current-ability-trend.json')));
 app.use('/api/submissions',submissionRouter(pool));
 app.use('/api/practice',practiceRouter(pool));
@@ -201,6 +203,7 @@ app.get('/',(_req,res,next)=>{
    if(difficultyPrewarmStarted||(res.statusCode!==200&&res.statusCode!==304))return;
    difficultyPrewarmStarted=true;
    void queueQojTypes();
+   void queueNowcoderTypes();
    // Sync shares these in-flight downloads through the existing catalog cache.
    for(const platform of ['Codeforces','AtCoder'])void getDifficultyMetadata(platform).catch(()=>{});
    void backfillLuoguSubmissionTypes(pool).catch(error=>console.warn('Luogu submission type backfill:',error.status??error.code??error.name));
