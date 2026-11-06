@@ -19,7 +19,12 @@ function scoreRgb(value,palette=anchors){
  const index=palette.findIndex(([position])=>position>=score);
  if(index===0)return palette[0][1];
  const [start,left]=palette[index-1],[end,right]=palette[index];
- return mix(left,right,(score-start)/(end-start));
+ const ratio=(score-start)/(end-start);
+ if(palette!==graphAnchors)return mix(left,right,ratio);
+ // Keep the midpoint, with a faster color transition on either side of it.
+ const offset=2*ratio-1;
+ const weight=(1+Math.sign(offset)*Math.abs(offset)**.65)/2;
+ return mix(left,right,weight);
 }
 
 export const scoreColor=value=>css(scoreRgb(value)??[142,150,157]);

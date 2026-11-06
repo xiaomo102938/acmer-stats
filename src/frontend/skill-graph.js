@@ -150,8 +150,8 @@ export default{
    <svg ref="svg" :viewBox="'0 0 '+skillViewSize.width+' '+skillViewSize.height" :style="{width:zoom+'%',minWidth:(900*zoom/100)+'px'}" role="group" aria-label="题型知识关系节点与连线">
     <defs><marker id="skill-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="context-stroke" /></marker>
      <radialGradient v-for="(n,i) in graph.nodes" :key="n.id" :id="gradientId+i">
-      <stop offset="48%" :stop-color="n.fill" />
-      <stop offset="100%" :stop-color="'color-mix(in srgb, '+n.fill+' 88%, black)'" />
+      <stop offset="30%" :stop-color="n.fill" />
+      <stop offset="100%" :stop-color="'color-mix(in srgb, '+n.fill+' 68%, black)'" />
      </radialGradient>
     </defs>
     <g ref="scene">
