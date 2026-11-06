@@ -1,5 +1,6 @@
 import {parseLuoguPayload,LuoguError} from './luogu.js';
 import {randomUUID} from 'node:crypto';
+import {submissionTypeFromTags} from '../shared/problem-submission-type.js';
 import {tagDefinition} from './tags.js';
 const headers={'x-lentille-request':'content-only',Referer:'https://www.luogu.com.cn/','User-Agent':'acmer-stats/1.0 personal coursework'};
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -27,7 +28,7 @@ export function problemMetadata(payload,key,tags){
   }
  }
  const native=Number(problem.difficulty);
- return {tags:[...names],native:problem.difficulty!=null&&Number.isInteger(native)&&native>=0&&native<=8?String(native):null};
+ return {tags:[...names],submissionType:submissionTypeFromTags(problem.tags.map(id=>tags.get(id)?.name)),native:problem.difficulty!=null&&Number.isInteger(native)&&native>=0&&native<=8?String(native):null};
 }
 export async function saveProblemMetadata(connection,id,meta){
  await connection.beginTransaction();
@@ -38,7 +39,7 @@ export async function saveProblemMetadata(connection,id,meta){
    const [[tag]]=await connection.execute('SELECT tag_id FROM tag WHERE tag_name=?',[d.key.slice(0,120)]);
    await connection.execute('INSERT IGNORE INTO problem_tag(problem_id,tag_id) VALUES(?,?)',[id,tag.tag_id]);
   }
-  await connection.execute("UPDATE problem SET native_difficulty=COALESCE(?,native_difficulty),difficulty_source='luogu',metadata_checked_at=NOW() WHERE problem_id=?",[meta.native,id]);
+  await connection.execute("UPDATE problem SET native_difficulty=COALESCE(?,native_difficulty),difficulty_source='luogu',submission_type=?,metadata_checked_at=NOW() WHERE problem_id=?",[meta.native,meta.submissionType,id]);
   await connection.commit();
  }catch(e){await connection.rollback();throw e;}
 }

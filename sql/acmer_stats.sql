@@ -838,3 +838,5 @@ CREATE TABLE IF NOT EXISTS problem_note (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX idx_submission_first_ac ON synced_submission(user_id,problem_id,passed,submitted_at,submission_id);
+
+ALTER TABLE problem ADD COLUMN submission_type VARCHAR(20) NULL;

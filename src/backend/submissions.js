@@ -1,4 +1,5 @@
 import express from 'express';
+import {submissionTypeFromTags} from '../shared/problem-submission-type.js';
 import {ratedProblems} from './ability-difficulty.js';
 import {readProblemRows,readAbilityRows} from './ability-store.js';
 import {retryProblems} from './practice.js';
@@ -70,7 +71,7 @@ export function submissionRouter(pool){
      JOIN platform p ON p.platform_id=s.platform_id LEFT JOIN problem_note n ON n.user_id=s.user_id AND n.problem_id=s.problem_id
      WHERE ${conditions.join(' AND ')}`;
     const select=`SELECT s.submission_id,s.source_id,s.account_login,s.submitted_at,s.passed,s.verdict,
-     p.platform_name,pr.problem_id,pr.problem_name,pr.problem_url,pr.source_key,pr.native_difficulty,pr.difficulty_source,n.note ${source} ORDER BY ${latest}`;
+     p.platform_name,pr.problem_id,pr.problem_name,pr.problem_url,pr.source_key,pr.native_difficulty,pr.difficulty_source,pr.submission_type,n.note ${source} ORDER BY ${latest}`;
     const paginate=()=>{pages=Math.max(1,Math.ceil(total/pageSize));page=Math.min(Number(rawPage),pages);};
     if(status==='retry'||sort!=='time'||unique==='1'){
      let [rows]=await connection.query(select,args);
@@ -96,6 +97,17 @@ export function submissionRouter(pool){
     }
    }
    if(sort==='time')items=await rates(items);
+   const unknownIds=[...new Set(items.filter(item=>!item.submission_type).map(item=>item.problem_id))];
+   if(unknownIds.length){
+    const [typeTags]=await connection.query(`SELECT pt.problem_id,t.tag_name FROM problem_tag pt
+     JOIN tag t ON t.tag_id=pt.tag_id WHERE pt.problem_id IN (?)`,[unknownIds]);
+    const byProblem=new Map();
+    for(const {problem_id,tag_name} of typeTags){
+     if(!byProblem.has(problem_id))byProblem.set(problem_id,[]);
+     byProblem.get(problem_id).push(tag_name);
+    }
+    for(const item of items)item.submission_type??=submissionTypeFromTags(byProblem.get(item.problem_id)||[]);
+   }
    await connection.commit();
    res.set('Cache-Control','no-store').json({items,page,pageSize,total,pages,platforms,tags});
   }catch(error){await connection.rollback();throw error;}finally{connection.release();}

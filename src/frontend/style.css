@@ -273,3 +273,29 @@ html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .badge.sub
 
 .badge.submission-verdict:is([data-verdict="SE"],[data-verdict="FAIL"],[data-verdict="SV"],[data-verdict="HACKED"],[data-verdict="RJ"]) {color:#8b3258;background:#f9e1eb}
 html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .badge.submission-verdict:is([data-verdict="SE"],[data-verdict="FAIL"],[data-verdict="SV"],[data-verdict="HACKED"],[data-verdict="RJ"]) {color:#ffbfd7;background:#522b40}
+
+[data-problem-type="standard"] {--problem-type-color:#205cbe}
+[data-problem-type="spj"] {--problem-type-color:#9a4b0b}
+[data-problem-type="interactive"] {--problem-type-color:#087454}
+[data-problem-type="communication"] {--problem-type-color:#7434bd}
+[data-problem-type="threaded"] {--problem-type-color:#a82d69}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) [data-problem-type="standard"] {--problem-type-color:#9ec4ff}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) [data-problem-type="spj"] {--problem-type-color:#ffc18e}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) [data-problem-type="interactive"] {--problem-type-color:#89dbb2}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) [data-problem-type="communication"] {--problem-type-color:#d3afff}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) [data-problem-type="threaded"] {--problem-type-color:#ffabd5}
+.submission-problem[data-problem-type],.submission-problem[data-problem-type] .problem,.problem-type-legend [data-problem-type] {
+ color:var(--problem-type-color);
+}
+.problem-type-icon {
+ width:1.05em;
+ height:1.05em;
+ margin-inline-end:.35em;
+ vertical-align:-.15em;
+ fill:none;
+ stroke:currentColor;
+ stroke-width:1.7;
+ stroke-linecap:round;
+ stroke-linejoin:round;
+}
+.problem-type-legend {display:flex;flex-wrap:wrap;gap:4px 12px}
