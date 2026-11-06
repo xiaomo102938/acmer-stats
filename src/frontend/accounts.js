@@ -48,10 +48,10 @@ export default {
    }catch(error){failure.value=error.message;}
    finally{startingBatch.value=false;}
   }
-  async function sync(account){
+  async function sync(account,rescan=false){
    if(!syncSetup(account).ready){message.value=syncSetup(account).reason;await edit(account);message.value=syncSetup(account).reason;return;}
    failure.value='';message.value='';
-   try{const body=await api('/'+account.account_id+'/sync',{method:'POST',body:'{}'});message.value=body.message;wasRunning=true;await refresh();}
+   try{const body=await api('/'+account.account_id+'/sync',{method:'POST',body:JSON.stringify({rescan})});message.value=body.message;wasRunning=true;await refresh();}
    catch(error){failure.value=error.message;}
   }
   async function remove(account){
@@ -83,7 +83,7 @@ export default {
   <div v-if="!initialLoading" class="account-list content-ready">
    <article class="account-card" v-for="a in accounts" :key="a.account_id">
     <div class="account-card-head"><div><b>{{a.platform_name}}</b><span class="account-login">{{a.login_name}}</span><span class="badge" :class="{good:a.sync_status==='success',weak:a.sync_status==='error'}">{{({idle:'未同步',running:'同步中',success:'已同步',error:'同步失败'})[a.sync_status]||a.sync_status}}</span></div>
-     <div class="account-actions"><button @click="sync(a)" :aria-busy="a.sync_status==='running'" :disabled="batch?.running||startingBatch||a.sync_status==='running'||platforms.find(p=>p.platform_id===a.platform_id)?.mode==='暂未接入'">{{a.sync_status==='running'?'同步中…':syncSetup(a).action}}</button><button @click="edit(a)" :disabled="batch?.running||startingBatch||a.sync_status==='running'">编辑</button><button @click="confirming=a.account_id" :disabled="batch?.running||startingBatch||a.sync_status==='running'">解绑</button></div></div>
+     <div class="account-actions"><button @click="sync(a)" :aria-busy="a.sync_status==='running'" :disabled="batch?.running||startingBatch||a.sync_status==='running'||platforms.find(p=>p.platform_id===a.platform_id)?.mode==='暂未接入'">{{a.sync_status==='running'?'同步中…':syncSetup(a).action}}</button><button v-if="platforms.find(p=>p.platform_id===a.platform_id)?.canRescan" @click="sync(a,true)" :disabled="batch?.running||startingBatch||a.sync_status==='running'||!syncSetup(a).ready">重新扫描历史</button><button @click="edit(a)" :disabled="batch?.running||startingBatch||a.sync_status==='running'">编辑</button><button @click="confirming=a.account_id" :disabled="batch?.running||startingBatch||a.sync_status==='running'">解绑</button></div></div>
     <p v-if="!syncSetup(a).ready" class="footnote">{{syncSetup(a).reason}}</p>
     <p class="account-detail">最近成功同步：{{a.last_sync||'尚未同步'}}<span v-if="a.has_secret"> · 已保存加密 Cookie</span><span v-if="a.remote_uid"> · UID {{a.remote_uid}}</span></p>
     <p class="account-result" :class="{failed:a.sync_status==='error'}">{{a.sync_message||platforms.find(p=>p.platform_id===a.platform_id)?.note}}</p>
@@ -91,6 +91,7 @@ export default {
    </article>
   </div>
   <ModuleHelp>
+   <p>Codeforces 和 QOJ 默认同步到上次已入库的提交，并多查一页。重新扫描历史会跳过这个检查点，在平台可读取的范围内补录提交和更新判定。</p>
    <p class="footnote">添加账号后，点击「同步账号」。重复同步按提交编号去重，已保存的手工记录会保留。</p>
    <p v-if="selected()?.platform_name==='LeetCode'" class="footnote">请填写力扣个人主页 /u/ 后的标识，例如 happy-6reidercmp。显示昵称可能与该标识不同。</p>
    <p class="footnote">{{selected()?.note}} Cookie 在本机服务端加密保存；编辑时留空保留已有值，过期后需要更新。</p>

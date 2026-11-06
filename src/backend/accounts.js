@@ -4,7 +4,7 @@ import {collectLuogu,collectLuoguAccepted,LuoguError} from './luogu.js';
 import {saveLuoguSnapshot} from './luogu-store.js';
 import {enrichLuoguProblems} from './luogu-metadata.js';
 import {randomUUID,createHash} from 'node:crypto';
-import {capabilities,collect,SourceError} from './adapters.js';
+import {capabilities,collect,SourceError,supportsHistoryRescan} from './adapters.js';
 import {encrypt,decrypt} from './secrets.js';
 import {saveSubmissions} from './sync-store.js';
 import {nowcoderUid,syncSetup} from '../shared/account-config.js';
@@ -25,7 +25,7 @@ export function accountRouter(pool,captureSnapshot) {
   const [accounts]=await pool.execute(`SELECT a.account_id,a.login_name,a.remote_uid,a.platform_id,
    a.last_sync,a.last_attempt,a.sync_status,a.sync_message,(a.login_pwd IS NOT NULL) AS has_secret,p.platform_name
    FROM platform_account a JOIN platform p ON p.platform_id=a.platform_id WHERE a.user_id=? ORDER BY p.platform_name,a.login_name`,[user]);
-  res.set('Cache-Control','no-store').json({platforms:platforms.map(p=>({...p,...capabilities[p.platform_name]})),batch,accounts:accounts.map(account=>account.sync_status!=='running'&&busy.has(account.account_id)?
+  res.set('Cache-Control','no-store').json({platforms:platforms.map(p=>({...p,...capabilities[p.platform_name],canRescan:supportsHistoryRescan(p.platform_name)})),batch,accounts:accounts.map(account=>account.sync_status!=='running'&&busy.has(account.account_id)?
    {...account,sync_status:'running',sync_message:'正在处理同步…'}:account)});
  });
  function input(body) {
@@ -99,10 +99,12 @@ export function accountRouter(pool,captureSnapshot) {
   if(busy.has(account.platform_id))throw conflict('同平台账号正在同步，请等待完成后再同步。');
   const issue=syncIssue(account);
   if(issue)throw invalid(issue);
-  res.status(202).json({message:'同步已开始，请留意账号状态。'});
-  void runSync(account);
+  const rescan=req.body?.rescan===true;
+  if(rescan&&!supportsHistoryRescan(account.platform_name))throw invalid('该平台暂不支持重新扫描历史。');
+  res.status(202).json({message:rescan?'历史重扫已开始，请留意账号状态。':'同步已开始，请留意账号状态。'});
+  void runSync(account,rescan);
  });
- async function runSync(account){
+ async function runSync(account,rescan=false){
    busy.add(account.platform_id);busy.add(account.account_id);
    let connection,locked=false;
    const lockName='acmer-sync-'+createHash('sha256').update(account.user_id+account.platform_id).digest('hex').slice(0,48);
@@ -139,7 +141,15 @@ export function accountRouter(pool,captureSnapshot) {
      }
      message=saved.message+' '+recordMessage+' '+metadataMessage;
     }else{
-     const result=await collect(account,decrypt(account.login_pwd));
+     let checkpointId=null;
+     if(!rescan&&supportsHistoryRescan(account.platform_name)){
+      // Derive the checkpoint from committed rows, including data imported before incremental sync.
+      const [[latest]]=await connection.execute(`SELECT source_id FROM synced_submission
+       WHERE user_id=? AND platform_id=? AND account_login=?
+       ORDER BY submitted_at DESC,submission_id DESC LIMIT 1`,[account.user_id,account.platform_id,account.login_name]);
+      checkpointId=latest?.source_id??null;
+     }
+     const result=await collect(account,decrypt(account.login_pwd),checkpointId);
      ({message}=await saveSubmissions(connection,account,result));
     }
     await captureSnapshot?.(connection,'sync');

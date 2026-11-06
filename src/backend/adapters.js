@@ -3,6 +3,7 @@ import {load} from 'cheerio';
 import {qojTransport,qojFetch} from './qoj-network.js';
 import {getDifficultyMetadata} from './difficulty-metadata.js';
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+export const supportsHistoryRescan=platform=>platform==='Codeforces'||platform==='QOJ';
 export const capabilities={
  Codeforces:{mode:'公开提交',note:'官方 API；每次最多读取最近 5000 条提交。'},
  AtCoder:{mode:'公开提交',note:'AtCoder Problems 第三方数据；每次最多 5000 条，后续同步从已保存进度继续。'},
@@ -86,8 +87,16 @@ export async function readNowcoderPage(url,secret='',useSession=false){
   }
  }
 }
-export async function collect(account,secret='') {
+export async function collect(account,secret='',checkpointId=null) {
  const platform=account.platform_name, login=account.login_name, items=[];
+ let checkpointSeen=false,stoppedAtCheckpoint=false;
+ function reachedOverlap(rows){
+  if(!checkpointId)return false;
+  // Read the entire page after the checkpoint so recent delayed verdicts can be revisited.
+  if(checkpointSeen){stoppedAtCheckpoint=true;return true;}
+  checkpointSeen=rows.some(row=>row.id===checkpointId);
+  return false;
+ }
  let cursor=Math.max(0,Number(account.sync_cursor||0)-86400), note='', partial=false;
  if(platform==='Codeforces'){
   for(let page=0;page<10;page++){
@@ -96,8 +105,9 @@ export async function collect(account,secret='') {
    const body=await (await request(url)).json();
    if(body.status!=='OK') throw new SourceError('Codeforces 未能读取该账号，请检查用户名或稍后重试。');
    if(!Array.isArray(body.result)) throw new SourceError('Codeforces 数据格式异常。');
-   items.push(...body.result.map(normalizeCF).filter(Boolean));
-   if(body.result.length<500) break;
+   const rows=body.result.map(normalizeCF).filter(Boolean);
+   items.push(...rows);
+   if(reachedOverlap(rows)||body.result.length<500) break;
    if(page===9) partial=true; else await pause(2200);
   }
   note=partial?'已读取最近 5000 条提交；更早历史暂未覆盖。':'已读取公开提交记录。';
@@ -134,7 +144,7 @@ export async function collect(account,secret='') {
    }
    items.push(...rows);
    const next=new RegExp('(?:page|pageNo)='+String(page+1)+'(?:[^0-9]|$)').test(html);
-   if(!next) break;
+   if((platform==='QOJ'&&reachedOverlap(rows))||!next) break;
    if(page===maxPages) partial=true; else await pause(1200);
   }
   note=(platform==='牛客'?(usedCookie?'本次使用已保存的 Cookie 读取。':'本次读取公开数据，未使用 Cookie。'):'本次使用已保存的 QOJ Cookie。')+(platform==='QOJ'?'已导入可见的已判定提交（含非 AC）；未获取或仍在评测的记录不推算。':'仅导入可见的 AC 提交，失败提交、完整提交次数和缺失历史无法推算。')+(partial?'本次达到 '+maxPages+' 页上限，更早记录暂未覆盖。':'');
@@ -161,5 +171,6 @@ export async function collect(account,secret='') {
    for(const item of items){const meta=metadata.get(item.key);if(meta?.native!=null){item.native=meta.native;item.nativeSource=meta.source;}}
   }catch{note+=' 难度数据源暂不可用，已有难度保留，稍后同步可重试。';}
  }
+ if(stoppedAtCheckpoint)note+=' 已读到上次同步位置并额外复查一页。';
  return {items:[...new Map(items.map(s=>[s.id,s])).values()],cursor,note,partial,metadata,profileTotals};
 }
