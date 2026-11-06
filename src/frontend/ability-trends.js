@@ -47,6 +47,15 @@ export default{
    }
    if(!chart)chart=echarts.init(chartEl.value);
    const css=getComputedStyle(document.documentElement),token=name=>css.getPropertyValue(name).trim();
+   const data=points.value.map(point=>point.metric?{
+    ...point,itemStyle:{color:scoreColor(point.metric.score),borderColor:token('--muted'),borderWidth:1}
+   }:point);
+   const scored=data.filter(point=>point.metric);
+   const start=scored[0].value[0],span=scored.at(-1).value[0]-start;
+   const areaColor=span?{
+    type:'linear',x:0,y:0,x2:1,y2:0,
+    colorStops:scored.map(point=>({offset:(point.value[0]-start)/span,color:point.itemStyle.color}))
+   }:scored[0].itemStyle.color;
    chart.setOption({animation:false,color:[token('--green')],
     grid:{left:58,right:22,top:20,bottom:35},
     tooltip:{trigger:'item',renderMode:'richText',backgroundColor:token('--panel'),borderColor:token('--border'),
@@ -59,7 +68,8 @@ export default{
     xAxis:{type:'time',axisLabel:{color:token('--muted'),hideOverlap:true,formatter:date=>dateLabel.format(date)},
      axisLine:{lineStyle:{color:token('--border')}}},
     yAxis:{type:'value',scale:true,minInterval:1,axisLabel:{color:value=>scoreAxisColor(value,token('--panel'))},splitLine:{lineStyle:{color:token('--rowBorder')}}},
-    series:[{type:'line',showSymbol:true,symbolSize:7,connectNulls:false,data:points.value.map(point=>point.metric?{...point,itemStyle:{color:scoreColor(point.metric.score),borderColor:token('--muted'),borderWidth:1}}:point)}]},true);
+    series:[{type:'line',showSymbol:true,symbolSize:7,connectNulls:false,
+     areaStyle:{origin:'start',color:areaColor,opacity:.22},data}]},true);
    chart.resize();
   }
   async function load(){
