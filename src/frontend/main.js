@@ -56,6 +56,13 @@ createApp({
   const page=ref(resolvePage()),current=computed(()=>pages.find(p=>p.id===page.value));
   const cardOrder=useCardOrder(page);
   const {editingCards}=cardOrder;
+  const animateCardSwitch=ref(false);
+  function switchCardEditing(event){
+   const keyboardFocus=event.target.matches(':focus-visible');
+   animateCardSwitch.value=true;
+   editingCards.value=event.target.checked;
+   if(keyboardFocus)nextTick(()=>document.querySelector('.card-order-toggle input')?.focus({preventScroll:true}));
+  }
   const displayPreferences=useDisplayPreferences();
   const recordsQuery=ref(page.value==='records'?location.hash.split('?')[1]||'':'');
   const recommendation=ref(recommendationRoute()),recommendationEl=ref(null);
@@ -138,7 +145,7 @@ createApp({
   return {
    ...cardOrder,...displayPreferences,...dashboardCharts,
    recordsQuery,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
-   bookmarks,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
+   animateCardSwitch,switchCardEditing,bookmarks,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
   };
  },
  template:`
@@ -160,7 +167,7 @@ createApp({
    </nav>
    <div v-if="editingCards" class="card-order-info" role="status">拖动标题调整本页卡片顺序，松开后自动保存。模块只能在所属页面内移动。</div>
    <p v-if="cardOrderError" class="error" role="alert">{{cardOrderError}}</p>
-   <CardOrderEditor v-if="editingCards" :key="page" :cards="editableCards" @move="moveCard"><label class="card-order-toggle"><input v-model="editingCards" type="checkbox">卡片位置编辑模式</label></CardOrderEditor>
+   <CardOrderEditor v-if="editingCards" :key="page" :cards="editableCards" @move="moveCard"><label class="card-order-toggle"><input type="checkbox" role="switch" :checked="editingCards" :class="{'switch-animated':animateCardSwitch}" @change="switchCardEditing" @animationend="animateCardSwitch=false">卡片位置编辑模式</label></CardOrderEditor>
    <div v-if="!editingCards&&error&&page!=='settings'" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
    <LoadingNotice v-if="!editingCards&&loading&&!data&&!['settings','records'].includes(page)" class="panel" skeleton>正在读取看板…</LoadingNotice>
 
@@ -204,9 +211,8 @@ createApp({
        <input :id="'display-'+control.key" type="range" :min="control.min" :max="control.max" :step="control.step"
         :aria-valuetext="display[control.key]+control.unit" v-model.number="display[control.key]">
       </div>
-      <button type="button" :disabled="displayIsDefault" @click="resetDisplay">恢复默认字号和间距</button>
      </div>
-     <label class="card-order-toggle"><input v-model="editingCards" type="checkbox">卡片位置编辑模式</label>
+     <label class="card-order-toggle"><input type="checkbox" role="switch" :checked="editingCards" :class="{'switch-animated':animateCardSwitch}" @change="switchCardEditing" @animationend="animateCardSwitch=false">卡片位置编辑模式</label>
      <ModuleHelp><p class="footnote">主题可手动选择，也可以跟随系统。主题、字号和卡片间距保存在当前浏览器。</p></ModuleHelp>
     </article>
     <SkillLayoutSettings id="bookmark-layout" :style="cardStyle('layout')" />

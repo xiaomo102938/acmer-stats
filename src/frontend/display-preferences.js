@@ -1,4 +1,4 @@
-import {computed,ref,watch} from 'vue';
+import {ref,watch} from 'vue';
 
 const displayDefaults={fontSize:100,cardGap:22};
 const displayControls=[
@@ -26,7 +26,5 @@ export function useDisplayPreferences(){
    applyDisplay();
    try {localStorage.setItem(displayStorageKey,JSON.stringify(display.value));} catch {}
   },{deep:true});
-  const displayIsDefault=computed(()=>displayControls.every(({key})=>display.value[key]===displayDefaults[key]));
-  const resetDisplay=()=>{display.value={...displayDefaults};};
-  return {display,displayControls,displayIsDefault,resetDisplay};
+  return {display,displayControls};
 }

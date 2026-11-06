@@ -205,3 +205,38 @@ button[aria-busy="true"]::before{content:"";display:inline-block;width:6px;heigh
  }
  .has-bookmarks :is([id^="bookmark-"],#tag-analysis,#accounts) {scroll-margin-top:20px}
 }
+
+.card-order-toggle {cursor:pointer}
+.card-order-toggle input {
+ appearance:none;
+ display:inline-grid;
+ align-items:center;
+ flex:none;
+ width:40px;
+ height:24px;
+ margin:0;
+ padding:3px;
+ border:1px solid var(--border);
+ border-radius:999px;
+ background:var(--track);
+ cursor:pointer;
+}
+.card-order-toggle input::before {
+ content:"";
+ width:16px;
+ height:16px;
+ border-radius:50%;
+ background:#fff;
+ box-shadow:0 1px 3px #0004;
+}
+.card-order-toggle input:checked {background:#087fcb;border-color:#087fcb}
+.card-order-toggle input:checked::before {transform:translateX(16px)}
+.card-order-toggle input:focus-visible {outline:2px solid var(--focus);outline-offset:3px}
+@media(prefers-reduced-motion:no-preference){
+ .card-order-toggle .switch-animated::before {animation:card-switch-slide 150ms ease-out reverse}
+ .card-order-toggle .switch-animated:checked::before {animation-direction:normal}
+ @keyframes card-switch-slide {
+  from {transform:translateX(0)}
+  to {transform:translateX(16px)}
+ }
+}
