@@ -12,8 +12,9 @@ export function parseNowcoderType(html){
 }
 
 export function nowcoderTypeWorker(pool){
- let running=false,pending=false;
- return async function queueNowcoderTypes(){
+ let running=false,pending=false,recoveryTimer;
+ return async function queueNowcoderTypes(recoveries=0){
+  clearTimeout(recoveryTimer);
   pending=true;
   if(running)return;
   running=true;
@@ -48,6 +49,11 @@ export function nowcoderTypeWorker(pool){
    }
   }catch(error){
    console.warn('Nowcoder type check paused:',error.message);
+   if(isRetryableStatementError(error)&&recoveries<2){
+    const delay=60000*(recoveries+1);
+    console.warn('Statement checks will resume in',delay/1000,'seconds');
+    recoveryTimer=setTimeout(()=>void queueNowcoderTypes(recoveries+1),delay).unref();
+   }
   }finally{
    running=false;
   }

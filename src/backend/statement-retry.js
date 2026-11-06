@@ -13,6 +13,7 @@ export async function requestWithStatementRetry(request,wait=pause){
    return await request();
   }catch(error){
    if(delay===16000||!isRetryableStatementError(error))throw error;
+   console.warn('Retrying statement request:',error.message);
   }
  }
 }

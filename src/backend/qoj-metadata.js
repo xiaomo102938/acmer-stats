@@ -62,8 +62,9 @@ async function requestStatement(key,locale){
 }
 
 export function qojTypeWorker(pool){
- let running=false,pending=false;
- return async function queueQojTypes(){
+ let running=false,pending=false,recoveryTimer;
+ return async function queueQojTypes(recoveries=0){
+  clearTimeout(recoveryTimer);
   pending=true;
   if(running)return;
   running=true;
@@ -90,6 +91,11 @@ export function qojTypeWorker(pool){
    }
   }catch(error){
    console.warn('QOJ type check paused:',error.message);
+   if(isRetryableStatementError(error)&&recoveries<2){
+    const delay=60000*(recoveries+1);
+    console.warn('Statement checks will resume in',delay/1000,'seconds');
+    recoveryTimer=setTimeout(()=>void queueQojTypes(recoveries+1),delay).unref();
+   }
   }finally{
    running=false;
   }
