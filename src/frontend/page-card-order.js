@@ -4,7 +4,7 @@ const cardOrderKey='acmer-page-card-order';
 const cardCatalog={
  analysis:[
   {id:'overall',title:'综合能力参考'},{id:'ability-trend',title:'能力变化趋势'},
-  {id:'practice-trend',title:'练习趋势'},{id:'difficulty',title:'难度分布'},
+  {id:'practice-trend',title:'练习趋势'},{id:'difficulty',title:'难度分布'},{id:'qoj-medals',title:'QOJ 奖牌题'},
   {id:'platforms',title:'各平台练习情况'},{id:'topics',title:'题型能力参考'},
   {id:'recommendation',title:'推荐练习'},{id:'graph',title:'技能图谱'}
  ],

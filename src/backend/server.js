@@ -9,6 +9,7 @@ import {submissionRouter} from './submissions.js';
 import {practiceRouter} from './practice.js';
 import {abilityProfiles,abilityProfilesByPlatform,skillSubtreeCounts,shanghaiDay} from './ability.js';
 import {ratedProblems,ratingVersion} from './ability-difficulty.js';
+import {readQojMedalCounts} from './qoj-medals.js';
 import {readAbilityRows,readProblemRows,readAcceptedDays} from './ability-store.js';
 import express from 'express';
 import {accountRouter} from './accounts.js';
@@ -104,6 +105,7 @@ app.get('/api/dashboard', async (req, res) => {
         daily,weekProblems:weekSummary.problem_count,serverDate:clock.server_date
       });
     }
+    const qojMedals=await readQojMedalCounts(ratingRows);
     const unifiedDifficulty=ratedProblems(ratingRows).map(r=>({platform_name:r.platform_name,cf_rating:r.rating,estimated:r.estimated,total_count:1}));
     const tags = await read('SELECT * FROM v_tag_stats ORDER BY total_count DESC, pass_rate DESC');
     const skillSettings=await readSkillSettings(connection);
@@ -122,7 +124,7 @@ app.get('/api/dashboard', async (req, res) => {
       JOIN platform p ON p.platform_id=pr.platform_id
       ORDER BY r.solve_date DESC,r.record_id LIMIT 8`);
     await connection.commit();
-    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent:ratedProblems(recent), nativeDifficulty, unifiedDifficulty, nowcoderDifficulty, ratingVersion, overallAbility:overall, tagAbility, skillCounts:skillSubtreeCounts(abilityRows,skillSettings.config.nodes), skillConfig:skillSettings.config, platformSnapshots, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
+    res.set('Cache-Control', 'no-store').json({ overview: overview[0] || null, platforms, tags, difficulty, monthly, recent:ratedProblems(recent), nativeDifficulty, unifiedDifficulty, nowcoderDifficulty, qojMedals, ratingVersion, overallAbility:overall, tagAbility, skillCounts:skillSubtreeCounts(abilityRows,skillSettings.config.nodes), skillConfig:skillSettings.config, platformSnapshots, daily, weekProblems:weekSummary.problem_count, serverDate:clock.server_date });
   } catch (error) {
     await connection.rollback();
     throw error;
