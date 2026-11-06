@@ -26,6 +26,12 @@ const pages=[
  {id:'records',icon:'≡',name:'提交记录'},
  {id:'settings',icon:'⚙',name:'设置'}
 ];
+const overviewBookmarks=[
+ {id:'overview-counts',title:'刷题统计'},
+ {id:'activity',title:'刷题热力图'},
+ {id:'week',title:'最近 7 天的表现'},
+ {id:'overview-difficulty',title:'难度一览'}
+];
 const aliases={practice:'analysis',trends:'analysis',tags:'analysis',recent:'records',accounts:'settings'};
 function recommendationRoute(){
  const [page,query]=location.hash.slice(1).split('?');
@@ -111,13 +117,28 @@ createApp({
    recommendation.value=recommendationRoute();
    nextTick(()=>document.getElementById('tag-analysis')?.scrollIntoView({block:'start'}));
   }
+  const bookmarks=computed(()=>{
+   if(editingCards.value||(['overview','analysis'].includes(page.value)&&!data.value))return [];
+   return page.value==='overview'?overviewBookmarks:cardOrder.editableCards.value;
+  });
+  function jumpToCard(id){
+   if(id==='recommendation'&&!recommendation.value.open){
+    location.hash='#analysis?recommend=1';
+    return;
+   }
+   const target=document.getElementById(({topics:'tag-analysis',accounts:'accounts'})[id]??'bookmark-'+id);
+   if(!target)return;
+   target.setAttribute('tabindex','-1');
+   target.focus({preventScroll:true});
+   target.scrollIntoView({block:'start'});
+  }
   watch(sidebarCollapsed,()=>nextTick(resize));
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
   return {
    ...cardOrder,...displayPreferences,...dashboardCharts,
    recordsQuery,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
-   pages,page,current,data,dataVersion,loading,error,load,theme
+   bookmarks,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
   };
  },
  template:`
@@ -131,8 +152,12 @@ createApp({
    <nav id="main-navigation" aria-label="主导航"><template v-for="item in pages" :key="item.id"><span v-if="editingCards&&item.id==='overview'" class="nav nav-locked" aria-disabled="true" title="结束卡片位置编辑后可进入"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></span><a v-else :href="'#'+item.id" class="nav" :class="{active:page===item.id}" :aria-current="page===item.id?'page':undefined" :aria-label="item.name" :title="item.name"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></a></template></nav>
    <SiteStatus />
   </aside>
-  <main>
+  <main :class="{'has-bookmarks':bookmarks.length}">
    <header><h1>{{current.name}}</h1><button v-if="editingCards&&page!=='settings'" @click="editingCards=false">结束卡片编辑</button><button v-else-if="page!=='settings'" @click="load" :aria-busy="loading" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
+   <nav v-if="bookmarks.length" class="page-bookmarks" aria-label="本页模块书签">
+    <span class="page-bookmarks-title">本页书签</span>
+    <button v-for="card in bookmarks" :key="card.id" type="button" @click="jumpToCard(card.id)">{{card.title}}</button>
+   </nav>
    <div v-if="editingCards" class="card-order-info" role="status">拖动标题调整本页卡片顺序，松开后自动保存。模块只能在所属页面内移动。</div>
    <p v-if="cardOrderError" class="error" role="alert">{{cardOrderError}}</p>
    <CardOrderEditor v-if="editingCards" :key="page" :cards="editableCards" @move="moveCard"><label class="card-order-toggle"><input v-model="editingCards" type="checkbox">卡片位置编辑模式</label></CardOrderEditor>
@@ -140,39 +165,39 @@ createApp({
    <LoadingNotice v-if="!editingCards&&loading&&!data&&!['settings','records'].includes(page)" class="panel" skeleton>正在读取看板…</LoadingNotice>
 
    <section v-if="page==='overview'&&data" key="overview" aria-label="数据简览">
-    <div class="metrics content-ready">
+    <div id="bookmark-overview-counts" class="metrics content-ready">
      <article><span>累计题数</span><strong>{{data.overview?.total_problems??0}}<small> 道</small></strong><ModuleHelp><p>按题去重，含平台公开累计汇总。洛谷公开练习清单也计入题目总量。</p></ModuleHelp></article>
      <article><span>AC 题数</span><strong>{{data.overview?.passed_problems??0}}<small> 道</small></strong><ModuleHelp><p>同一道题多次通过只计一次。</p></ModuleHelp></article>
     </div>
-    <Activity :refresh-key="dataVersion" />
+    <Activity id="bookmark-activity" :refresh-key="dataVersion" />
     <div class="chart-grid">
-     <article class="panel">
+     <article id="bookmark-week" class="panel">
       <div class="panel-head"><h2>最近 7 天的表现</h2><span>{{days[0]?.day}} — {{days[6]?.day}}</span></div>
       <div class="week-summary"><div><strong>{{week.submissions}}</strong><span>提交次数</span></div><div><strong>{{week.accepted}}</strong><span>AC 次数</span></div><div><strong>{{week.problems}}</strong><span>尝试题目</span></div><div><strong>{{week.activeDays}} / 7</strong><span>活跃天数</span></div></div>
       <div ref="weekEl" class="chart" role="img" aria-label="最近七天提交与 AC 次数趋势"></div>
       <ModuleHelp><p class="footnote">根据已同步的提交明细统计。部分平台仅同步 AC。洛谷公开练习清单、手工记录和示例记录不计入提交趋势。</p></ModuleHelp>
      </article>
-     <article class="panel"><div class="panel-head"><h2>难度一览</h2><a class="text-link" href="#analysis">查看分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
+     <article id="bookmark-overview-difficulty" class="panel"><div class="panel-head"><h2>难度一览</h2><a class="text-link" href="#analysis">查看分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
     </div>
    </section>
 
    <section v-else-if="page==='analysis'&&data" v-show="!editingCards" key="analysis" class="ordered-cards" aria-label="详细分析">
-    <OverallAbility class="content-ready" :style="cardStyle('overall')" :profile="data.overallAbility" :refresh-key="dataVersion" />
-    <AbilityTrends :style="cardStyle('ability-trend')" :refresh-key="dataVersion" />
-    <PracticeTrends :style="cardStyle('practice-trend')" :refresh-key="dataVersion" />
-    <div class="analysis-difficulty" :style="cardStyle('difficulty')">
+    <OverallAbility id="bookmark-overall" class="content-ready" :style="cardStyle('overall')" :profile="data.overallAbility" :refresh-key="dataVersion" />
+    <AbilityTrends id="bookmark-ability-trend" :style="cardStyle('ability-trend')" :refresh-key="dataVersion" />
+    <PracticeTrends id="bookmark-practice-trend" :style="cardStyle('practice-trend')" :refresh-key="dataVersion" />
+    <div id="bookmark-difficulty" class="analysis-difficulty" :style="cardStyle('difficulty')">
      <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>CF 统一尺度</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
     </div>
-    <PlatformAnalysis :style="cardStyle('platforms')" :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
+    <PlatformAnalysis id="bookmark-platforms" :style="cardStyle('platforms')" :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
     <TagAnalysis :style="cardStyle('topics')" :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
-    <div v-if="recommendation.open&&!editingCards" ref="recommendationEl" class="recommendation-section" :style="cardStyle('recommendation')"><Practice :key="recommendation.tag" :initial-tag="recommendation.tag" :refresh-key="dataVersion" @close="closeRecommendation" /></div>
-    <TagAnalysis :style="cardStyle('graph')" :skill-config="data.skillConfig" :skill-counts="data.skillCounts" graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
+    <div v-if="recommendation.open&&!editingCards" id="bookmark-recommendation" ref="recommendationEl" class="recommendation-section" :style="cardStyle('recommendation')"><Practice :key="recommendation.tag" :initial-tag="recommendation.tag" :refresh-key="dataVersion" @close="closeRecommendation" /></div>
+    <TagAnalysis id="bookmark-graph" :style="cardStyle('graph')" :skill-config="data.skillConfig" :skill-counts="data.skillCounts" graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
 
-   <section v-else-if="page==='records'" v-show="!editingCards" key="records" aria-label="提交记录"><Submissions :route-query="recordsQuery" :refresh-key="dataVersion" /></section>
+   <section v-else-if="page==='records'" v-show="!editingCards" key="records" aria-label="提交记录"><Submissions id="bookmark-submissions" :route-query="recordsQuery" :refresh-key="dataVersion" /></section>
 
    <section v-else-if="page==='settings'" v-show="!editingCards" key="settings" class="ordered-cards" aria-label="设置">
-    <article class="panel appearance-panel" :style="cardStyle('appearance')"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div>
+    <article id="bookmark-appearance" class="panel appearance-panel" :style="cardStyle('appearance')"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label></div>
      <div class="display-controls">
       <div v-for="control in displayControls" :key="control.key" class="range-control">
        <div><label :for="'display-'+control.key">{{control.label}}</label><output :for="'display-'+control.key">{{display[control.key]}}{{control.unit}}</output></div>
@@ -184,7 +209,7 @@ createApp({
      <label class="card-order-toggle"><input v-model="editingCards" type="checkbox">卡片位置编辑模式</label>
      <ModuleHelp><p class="footnote">主题可手动选择，也可以跟随系统。主题、字号和卡片间距保存在当前浏览器。</p></ModuleHelp>
     </article>
-    <SkillLayoutSettings :style="cardStyle('layout')" />
+    <SkillLayoutSettings id="bookmark-layout" :style="cardStyle('layout')" />
     <SkillSettings :card-positions="cardPositions" @saved="load" />
     <Accounts :style="cardStyle('accounts')" @synced="load" />
    </section>

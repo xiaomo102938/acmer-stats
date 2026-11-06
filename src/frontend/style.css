@@ -161,3 +161,47 @@ button[aria-busy="true"]::before{content:"";display:inline-block;width:6px;heigh
  .loading-dot,.content-ready,button[aria-busy="true"]::before,.skill-fields.content-ready>.panel{animation:content-fade-in 160ms ease-out}
  @keyframes content-fade-in{from{opacity:.55}to{opacity:1}}
 }
+
+.page-bookmarks {
+ position:sticky;
+ top:0;
+ z-index:3;
+ display:flex;
+ align-items:center;
+ gap:4px;
+ overflow-x:auto;
+ margin-bottom:var(--card-gap,22px);
+ padding:8px;
+ border:1px solid var(--border);
+ border-radius:10px;
+ background:var(--panel);
+}
+.page-bookmarks-title {
+ padding:6px 8px;
+ color:var(--muted);
+ font-size:calc(12px * var(--font-scale,1));
+ white-space:nowrap;
+}
+.page-bookmarks button {
+ flex:none;
+ padding:7px 8px;
+ border:0;
+ text-align:left;
+ font-size:calc(12px * var(--font-scale,1));
+}
+.page-bookmarks button:hover {background:var(--hover)}
+.has-bookmarks :is([id^="bookmark-"],#tag-analysis,#accounts) {scroll-margin-top:calc(64px + 1em)}
+@media(min-width:1200px){
+ main.has-bookmarks {padding-right:208px}
+ .page-bookmarks {
+  position:fixed;
+  inset:100px 22px auto auto;
+  width:164px;
+  max-height:calc(100vh - 122px);
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  overflow:auto;
+ }
+ .has-bookmarks :is([id^="bookmark-"],#tag-analysis,#accounts) {scroll-margin-top:20px}
+}
