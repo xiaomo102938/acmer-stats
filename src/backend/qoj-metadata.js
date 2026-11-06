@@ -9,6 +9,20 @@ const types=[
  ['threaded',/^(?:本[题題](?:[为為是]|屬於)(?:一道)?\s*多[线線]程[题題]|this is a (?:multi-threaded|multithreaded) (?:problem|task))(?=\s|[。.!！:：]|$)/i]
 ];
 
+function inferStatementType(lines){
+ const instructions=lines.join('\n');
+ const runsTwice=/(?:程[序式][^\n。]{0,35}(?:运行|運行|執行)[^\n。]{0,8}(?:两|兩|二|2)次|(?:your|the) program[^\n.!]{0,40}(?:run|executed)[^\n.!]{0,12}(?:twice|two times))/i;
+ const transfersData=/(?:(?:第一|第二)次[^\n。]{0,90}(?:传递|傳遞|傳送|收到|接收)|(?:first|second) run[^\n.!]{0,90}(?:receives?|passes?|transmits?|outputs?)|(?:交互器|interactor)[^\n。!]{0,80}(?:传递|傳遞|transfer|pass))/i;
+ if(runsTwice.test(instructions)&&transfersData.test(instructions))return 'communication';
+
+ const flushAfterOutput=/(?:(?:每次|每[一]?行|每[个個]查询)[^\n。]{0,50}(?:输出|輸出|查询|查詢)[^\n。]{0,45}(?:刷新|清空|flush|endl)|(?:flush|endl)[^\n.!]{0,80}after (?:each|every) (?:output|query|line)|after (?:each|every) (?:output|query|line)[^\n.!]{0,80}(?:flush|endl))/i;
+ if(flushAfterOutput.test(instructions))return 'interactive';
+
+ const anyValidAnswer=/(?:(?:多解|多[种種](?:合法|可行)?(?:答案|方案|解))[^\n。]{0,30}(?:任意|任选|任選|隨意|随意)[^\n。]{0,22}(?:输出|輸出|一种|一種|一个|一個)|(?:output|print) any (?:one (?:of (?:them|the solutions)|valid (?:answer|solution))|valid (?:answer|solution)|(?:of the )?possible solutions?))/i;
+ const outputTolerance=/(?:(?:绝对|絕對|相对|相對)(?:或相[对對])?误差[^\n。]{0,65}(?:不超过|不超過|小于|小於|以内|以內)|(?:absolute|relative) (?:or relative )?error[^\n.!]{0,80}(?:at most|less than|does not exceed|within))/i;
+ return anyValidAnswer.test(instructions)||outputTolerance.test(instructions)?'spj':null;
+}
+
 export function parseQojStatement(html,key){
  const $=load(html);
  if($('h1.page-header').text().trim().split('.')[0]!=='#'+key)return null;
@@ -19,13 +33,13 @@ export function parseQojStatement(html,key){
   const chinese=$('a[href="/problem/'+key+'/statement/zh_cn"]').length>0;
   return {type:null,tryChinese:chinese};
  }
- const blocks=article.find('p,h2,h3,h4,li');
- for(const block of blocks){
-  const line=$(block).text().replace(/\s+/g,' ').trim();
+ const lines=article.find('p,h2,h3,h4,li').toArray().map(block=>
+  $(block).text().replace(/\s+/g,' ').trim());
+ for(const line of lines){
   const match=types.find(([,pattern])=>pattern.test(line));
   if(match)return {type:match[0],tryChinese:false};
  }
- return {type:null,tryChinese:false};
+ return {type:inferStatementType(lines),tryChinese:false};
 }
 
 function isNetworkError(error){
