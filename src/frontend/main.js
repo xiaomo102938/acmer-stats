@@ -128,16 +128,55 @@ createApp({
    if(editingCards.value||(['overview','analysis'].includes(page.value)&&!data.value))return [];
    return page.value==='overview'?overviewBookmarks:cardOrder.editableCards.value;
   });
+  const bookmarkMain=ref(null),activeBookmark=ref('');
+  let bookmarkFrame=0,bookmarkResize,lastJump='';
+  const bookmarkTarget=id=>document.getElementById(({topics:'tag-analysis',accounts:'accounts'})[id]??'bookmark-'+id);
+  function updateActiveBookmark(){
+   bookmarkFrame=0;
+   const viewport=document.scrollingElement;
+   const atBottom=viewport.scrollTop>0&&viewport.scrollHeight-viewport.clientHeight-viewport.scrollTop<=2;
+   let first='',current='',currentTop=-Infinity;
+   for(const {id} of bookmarks.value){
+    const target=bookmarkTarget(id);
+    if(!target?.getClientRects().length)continue;
+    first||=id;
+    const top=target.getBoundingClientRect().top;
+    const offset=parseFloat(getComputedStyle(target).scrollMarginTop)||0;
+    if((top<=offset+2||atBottom)&&(top>currentTop||(top===currentTop&&id===lastJump))){
+     current=id;
+     currentTop=top;
+    }
+   }
+   activeBookmark.value=current||first;
+  }
+  function scheduleBookmarkUpdate(){
+   if(!bookmarkFrame)bookmarkFrame=requestAnimationFrame(updateActiveBookmark);
+  }
+  watch([bookmarks,()=>recommendation.value.open],scheduleBookmarkUpdate,{flush:'post'});
+  watch(page,()=>{lastJump='';activeBookmark.value='';});
+  onMounted(()=>{
+   window.addEventListener('scroll',scheduleBookmarkUpdate,{passive:true});
+   bookmarkResize=new ResizeObserver(scheduleBookmarkUpdate);
+   bookmarkResize.observe(bookmarkMain.value);
+   scheduleBookmarkUpdate();
+  });
+  onBeforeUnmount(()=>{
+   window.removeEventListener('scroll',scheduleBookmarkUpdate);
+   bookmarkResize?.disconnect();
+   cancelAnimationFrame(bookmarkFrame);
+  });
   function jumpToCard(id){
    if(id==='recommendation'&&!recommendation.value.open){
     location.hash='#analysis?recommend=1';
     return;
    }
-   const target=document.getElementById(({topics:'tag-analysis',accounts:'accounts'})[id]??'bookmark-'+id);
+   const target=bookmarkTarget(id);
    if(!target)return;
+   lastJump=id;
    target.setAttribute('tabindex','-1');
    target.focus({preventScroll:true});
    target.scrollIntoView({block:'start'});
+   scheduleBookmarkUpdate();
   }
   watch(sidebarCollapsed,()=>nextTick(resize));
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
@@ -145,7 +184,7 @@ createApp({
   return {
    ...cardOrder,...displayPreferences,...dashboardCharts,
    recordsQuery,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
-   animateCardSwitch,switchCardEditing,bookmarks,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
+   animateCardSwitch,switchCardEditing,bookmarks,bookmarkMain,activeBookmark,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
   };
  },
  template:`
@@ -159,11 +198,11 @@ createApp({
    <nav id="main-navigation" aria-label="主导航"><template v-for="item in pages" :key="item.id"><span v-if="editingCards&&item.id==='overview'" class="nav nav-locked" aria-disabled="true" title="结束卡片位置编辑后可进入"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></span><a v-else :href="'#'+item.id" class="nav" :class="{active:page===item.id}" :aria-current="page===item.id?'page':undefined" :aria-label="item.name" :title="item.name"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></a></template></nav>
    <SiteStatus />
   </aside>
-  <main :class="{'has-bookmarks':bookmarks.length}">
+  <main ref="bookmarkMain" :class="{'has-bookmarks':bookmarks.length}">
    <header><h1>{{current.name}}</h1><button v-if="editingCards&&page!=='settings'" @click="editingCards=false">结束卡片编辑</button><button v-else-if="page!=='settings'" @click="load" :aria-busy="loading" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
    <nav v-if="bookmarks.length" class="page-bookmarks" aria-label="本页模块书签">
     <span class="page-bookmarks-title">本页书签</span>
-    <button v-for="card in bookmarks" :key="card.id" type="button" @click="jumpToCard(card.id)">{{card.title}}</button>
+    <button v-for="card in bookmarks" :key="card.id" type="button" :aria-current="activeBookmark===card.id?'location':undefined" @click="jumpToCard(card.id)">{{card.title}}</button>
    </nav>
    <div v-if="editingCards" class="card-order-info" role="status">拖动标题调整本页卡片顺序，松开后自动保存。模块只能在所属页面内移动。</div>
    <p v-if="cardOrderError" class="error" role="alert">{{cardOrderError}}</p>

@@ -190,6 +190,7 @@ button[aria-busy="true"]::before{content:"";display:inline-block;width:6px;heigh
  font-size:calc(12px * var(--font-scale,1));
 }
 .page-bookmarks button:hover {background:var(--hover)}
+.page-bookmarks button[aria-current="location"] {background:var(--selected);color:var(--accent);font-weight:600}
 .has-bookmarks :is([id^="bookmark-"],#tag-analysis,#accounts) {scroll-margin-top:calc(64px + 1em)}
 @media(min-width:1200px){
  main.has-bookmarks {padding-right:208px}
