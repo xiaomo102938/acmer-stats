@@ -1,6 +1,6 @@
-// acmer-cf-v1: transparent training heuristic, not an official rating prediction.
+// acmer-cf-v2: transparent training heuristic, not an official rating prediction.
 // AtCoder projection references Silver_Fox's user-rating converter, not a problem calibration.
-export const ratingVersion='acmer-cf-v1';
+export const ratingVersion='acmer-cf-v2';
 export const luoguCF=[null,800,1000,1400,1800,2000,2200,2700,3200];
 export function canonicalProblem(row){
  const key=row.source_key;
@@ -20,6 +20,9 @@ export function estimateCF(row){
   return {rating:Math.round(Math.min(3900,Math.max(800,3900*(n+940)/5155))/100)*100,method:'AT 社区难度 → CF 实验换算 v1',confidence:'低',estimated:true};
  }
  if(row.platform_name==='洛谷'&&row.difficulty_source==='luogu'&&valid&&Number.isInteger(n)&&luoguCF[n]!=null)return {rating:luoguCF[n],method:'洛谷八档难度映射 v1',confidence:'低',estimated:true};
+ if(row.platform_name==='牛客'&&row.difficulty_source==='nowcoder'&&Number.isInteger(n)&&n>0&&n<=4500){
+  return {rating:n-300,method:'牛客题库原分减 300（经验换算）',confidence:'低',estimated:true};
+ }
  // No numerical rating is invented from a platform name, solve count, or missing metadata.
  return {rating:null,method:'暂无可靠换算依据',confidence:'无',estimated:true};
 }

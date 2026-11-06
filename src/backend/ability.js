@@ -13,7 +13,7 @@ function currentProfile(problems,minimum,day,includeSamples=false){
  const scores=dated.map(row=>{
   const daysAfterGrace=Math.max(0,day-row.lastAcceptedDay-20);
   const penalty=250*(1-2**(-daysAfterGrace/365));
-  return {problem:row,age:day-row.lastAcceptedDay,score:Math.max(800,row.rating-penalty)};
+  return {problem:row,age:day-row.lastAcceptedDay,score:Math.max(Math.min(800,row.rating),row.rating-penalty)};
  })
   .sort((a,b)=>b.score-a.score);
  const sample=scores.slice(0,limit);

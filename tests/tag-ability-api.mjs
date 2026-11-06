@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 const base=process.env.TEST_BASE_URL||'http://127.0.0.1:3000';
 const response=await fetch(base+'/api/dashboard');assert.equal(response.status,200);const d=await response.json();
-assert.equal(d.ratingVersion,'acmer-cf-v1');
+assert.equal(d.ratingVersion,'acmer-cf-v2');
 for(const profile of d.tagAbility.filter(p=>p.sample_count>0)){
  const res=await fetch(base+'/api/tags/'+profile.tag_id+'/ability?platform='+encodeURIComponent(profile.platform_name));assert.equal(res.status,200);
  const {problems}=await res.json();assert.equal(problems.length,profile.sample_count);
  assert.equal(new Set(problems.map(p=>p.canonical_key)).size,problems.length,'same-origin mirrors count only once');
- assert.ok(problems.every(p=>p.passed===1&&p.rating>=800&&p.method&&p.confidence));
+ assert.ok(problems.every(p=>p.passed===1&&Number.isFinite(p.rating)&&(p.platform_name==='牛客'?p.rating===Number(p.native_difficulty)-300:p.rating>=800)&&p.method&&p.confidence));
  assert.equal(Math.round(problems.reduce((s,p)=>s+p.rating,0)/profile.sample_limit*10)/10,profile.ability_value);
  assert.equal(problems.filter(p=>p.estimated).length,profile.estimated_count);
  assert.equal(Math.min(...problems.map(p=>p.rating)),profile.min_difficulty);
