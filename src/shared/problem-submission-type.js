@@ -1,4 +1,4 @@
-const typeTags={
+export const typeTags={
  threaded:['multithreading','multithreaded','multi-threading','concurrency','多线程','多线程题'],
  communication:['communication','communication problem','通信','通信题'],
  interactive:['interactive','交互','交互题'],

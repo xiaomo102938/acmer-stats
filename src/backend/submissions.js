@@ -1,5 +1,5 @@
 import express from 'express';
-import {submissionTypeFromTags} from '../shared/problem-submission-type.js';
+import {submissionTypeFromTags,typeTags} from '../shared/problem-submission-type.js';
 import {ratedProblems} from './ability-difficulty.js';
 import {readProblemRows,readAbilityRows} from './ability-store.js';
 import {retryProblems} from './practice.js';
@@ -15,11 +15,11 @@ const contains=(row,term)=>[row.problem_name,row.source_key,row.note].some(value
 export function submissionRouter(pool){
  const router=express.Router();
  router.get('/',async(req,res)=>{
-  const {page:rawPage='1',pageSize:rawSize='25',status='all',sort='time',q='',platform='',tag='',from='',to='',unique='0'}=req.query;
-  if([rawPage,rawSize,status,sort,q,platform,tag,from,to,unique].some(value=>typeof value!=='string')||
+  const {page:rawPage='1',pageSize:rawSize='25',status='all',sort='time',q='',platform='',tag='',type='',from='',to='',unique='0'}=req.query;
+  if([rawPage,rawSize,status,sort,q,platform,tag,type,from,to,unique].some(value=>typeof value!=='string')||
    !/^[1-9]\d{0,7}$/.test(rawPage)||!['10','25','50','100'].includes(rawSize)||!filters.includes(status)||
    !['time','hard','easy'].includes(sort)||!['0','1'].includes(unique)||q.length>200||platform.length>100||tag.length>120||
-   !dateValid(from)||!dateValid(to)||(from&&to&&from>to))return res.status(400).json({message:'搜索、筛选或分页参数无效。'});
+   (type&&type!=='standard'&&!Object.hasOwn(typeTags,type))||!dateValid(from)||!dateValid(to)||(from&&to&&from>to))return res.status(400).json({message:'搜索、筛选或分页参数无效。'});
   const pageSize=Number(rawSize),connection=await pool.getConnection();
   const term=q.trim().toLowerCase();
   try{
@@ -57,6 +57,16 @@ export function submissionRouter(pool){
       WHERE a.user_id=s.user_id AND a.problem_id=s.problem_id AND a.passed=1
        ${platform?'AND a.platform_id=s.platform_id':''}
        AND (a.submitted_at<s.submitted_at OR (a.submitted_at=s.submitted_at AND a.submission_id<s.submission_id)))`);
+    if(type){
+     // Match the displayed type, including the fallback inferred from tags.
+     const cases=Object.entries(typeTags).map(([name,aliases])=>{
+      args.push(...aliases,name);
+      return 'WHEN EXISTS (SELECT 1 FROM problem_tag pt JOIN tag t ON t.tag_id=pt.tag_id '+
+       'WHERE pt.problem_id=pr.problem_id AND LOWER(TRIM(t.tag_name)) IN ('+aliases.map(()=>'?').join(',')+')) THEN ?';
+     });
+     conditions.push('COALESCE(pr.submission_type, CASE '+cases.join(' ')+" ELSE 'standard' END)=?");
+     args.push(type);
+    }
     if(status!=='retry'){
      if(tagCondition){conditions.push(tagCondition);args.push(...tagArgs);}
      if(platform){conditions.push('p.platform_name=?');args.push(platform);}
