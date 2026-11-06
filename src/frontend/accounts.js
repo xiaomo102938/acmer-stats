@@ -91,12 +91,12 @@ export default {
    </article>
   </div>
   <ModuleHelp>
-   <p>日常同步会按平台的接口使用上次入库的位置。重新扫描历史会跳过检查点，在平台可读取的范围内补录提交和更新判定。力扣只提供近期 AC 明细，洛谷逐题明细需要 Cookie。</p>
+   <p>日常同步会按平台的接口使用上次入库的位置。重新扫描历史会跳过检查点，在平台可读取的范围内补录提交和更新判定。力扣只提供近期 AC 明细，洛谷逐题明细需要 Cookie。同步全部依次处理已配置账号，可以在各账号卡片查看结果。解绑后，已同步记录仍可查询。</p>
    <p class="footnote">添加账号后，点击「同步账号」。重复同步按提交编号去重，已保存的手工记录会保留。</p>
    <p v-if="selected()?.platform_name==='LeetCode'" class="footnote">请填写力扣个人主页 /u/ 后的标识，例如 happy-6reidercmp。显示昵称可能与该标识不同。</p>
    <p class="footnote">{{selected()?.note}} Cookie 在本机服务端加密保存；编辑时留空保留已有值，过期后需要更新。</p>
   <details v-if="['QOJ','牛客','洛谷'].includes(selected()?.platform_name)" class="footnote cookie-guide"><summary>如何配置 {{selected()?.platform_name}} 同步</summary>
-   <p v-if="selected()?.platform_name==='牛客'">先打开牛客个人主页，将完整链接或其中的数字 UID 填入上方。保存后先尝试公开同步，仅在提示要求登录时填写 Cookie。</p>
+   <p v-if="selected()?.platform_name==='牛客'">先打开牛客个人主页，将完整链接或其中的数字 UID 填入上方。保存后先尝试公开同步，遇到同步登录提示，或希望识别已购买训练的题型时，可以保存已登录的牛客 Cookie。</p>
    <ol><li>在你自己的浏览器中打开 {{selected()?.platform_name==='QOJ'?'qoj.ac':selected()?.platform_name==='洛谷'?'www.luogu.com.cn':'ac.nowcoder.com'}} 并正常登录。</li><li>按 F12 打开开发者工具，选择“网络 / Network”，然后刷新平台页面。洛谷请刷新个人评测列表。</li><li>选中该平台主页面请求，在“请求标头 / Request Headers”中找到 Cookie，复制完整的 name=value; name2=value2 内容。</li><li>只把 Cookie 值粘贴到本机设置页，点击“保存设置”，再点击“同步账号”。不要粘贴 Cookie: 前缀或 Set-Cookie 响应头。</li></ol>
    <p>保存一次即可重复使用，直到平台会话过期。Cookie 不需要发到聊天中；更新凭据不会删除已同步历史。QOJ 两个账号分别检查配置状态，依次同步。若提示 Cloudflare 浏览器验证，说明后台请求被防护拦截，不能直接判定 Cookie 失效；先在浏览器完成正常验证，仍失败时请保留错误信息。</p>
   </details>

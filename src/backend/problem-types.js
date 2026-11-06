@@ -1,4 +1,5 @@
 import {decrypt} from './secrets.js';
+import {setTimeout as pause} from 'node:timers/promises';
 import express from 'express';
 import {readQojType} from './qoj-metadata.js';
 import {readNowcoderType} from './nowcoder-metadata.js';
@@ -15,6 +16,7 @@ const sources=new Map([
 export function problemTypesRouter(pool){
  const router=express.Router();
  const cooldowns=new Map();
+ let backgroundController;
  let job={status:'idle',total:0,done:0,identified:0,standard:0,skipped:0,errors:0,limited:[]};
  router.use((_req,res,next)=>{res.set('Cache-Control','no-store');next();});
 
@@ -54,19 +56,34 @@ export function problemTypesRouter(pool){
 
  router.get('/auto',(_req,res)=>res.json(job));
  router.post('/auto',(_req,res)=>{
-  if(job.status==='running')return res.status(202).json(job);
-  job={status:'running',total:0,done:0,identified:0,standard:0,skipped:0,errors:0,limited:[]};
-  void classify().catch(error=>{
-   console.warn('Problem type scan failed:',error.message);
-   job.status='error';
-  });
+  if(job.status!=='running')startScan();
   res.status(202).json(job);
  });
+ router.put('/auto/qoj',(req,res)=>{
+  if(typeof req.body?.enabled!=='boolean')return res.status(400).json({message:'请选择是否开启后台补判。'});
+  if(req.body.enabled){
+   if(job.status==='running'&&!job.background)return res.status(409).json({message:'请等待当前自动判断结束。'});
+   if(job.status!=='running')startScan(new AbortController());
+  }else{
+   backgroundController?.abort();
+  }
+  res.json(job);
+ });
 
- async function classify(){
+ function startScan(controller){
+  backgroundController=controller;
+  job={status:'running',background:!!controller,resumeAt:null,total:0,done:0,identified:0,standard:0,skipped:0,errors:0,limited:[]};
+  void classify(controller?.signal).then(()=>{job.status='done';}).catch(error=>{
+   if(controller?.signal.aborted){job.status='stopped';return;}
+   console.warn('Problem type scan failed:',error.message);
+   job.status='error';
+  }).finally(()=>{job.resumeAt=null;backgroundController=undefined;});
+ }
+
+ async function classify(signal){
   const expression=problemTypeExpression();
   const [rows]=await pool.query('SELECT pr.problem_id,pr.source_key,pr.problem_url,p.platform_name'+
-   fromProblems+' AND '+expression.sql+"='unknown' ORDER BY p.platform_name,pr.problem_id",expression.args);
+   fromProblems+(signal?" AND p.platform_name='QOJ'":'')+' AND '+expression.sql+"='unknown' ORDER BY p.platform_name,pr.problem_id",expression.args);
   job.total=rows.length;
   const limited=new Set();
   let nowcoderCookies;
@@ -81,8 +98,20 @@ export function problemTypesRouter(pool){
    ['牛客',row=>readNowcoderType(row,loadNowcoderCookies)],
    ['AtCoder',atcoderTypeReader()],['LeetCode',leetcodeTypeReader(rows)]
   ]);
-  for(const row of rows){
+  for(let index=0;index<rows.length;){
+   const row=rows[index];
    const platform=row.platform_name;
+   if(signal){
+    const remaining=(cooldowns.get(platform)??0)-Date.now();
+    job.resumeAt=remaining>0?Date.now()+remaining:null;
+    await pause(Math.min(Math.max(remaining,15000),3600000),undefined,{signal});
+    if((cooldowns.get(platform)??0)>Date.now())continue;
+    job.resumeAt=null;
+    const [pending]=await pool.execute('SELECT 1 FROM problem WHERE problem_id=? AND submission_type IS NULL AND manual_submission_type IS NULL',[row.problem_id]);
+    signal.throwIfAborted();
+    if(!pending.length){index++;job.done++;job.skipped++;continue;}
+   }
+   let retry=false;
    try{
     if((cooldowns.get(platform)??0)>Date.now()){
      limited.add(platform);
@@ -94,26 +123,28 @@ export function problemTypesRouter(pool){
      job.skipped++;
      continue;
     }
-    const type=await readType(row);
+    const type=await readType(row,signal);
+    signal?.throwIfAborted();
     if(type){
      const [result]=await pool.execute('UPDATE problem SET submission_type=?,metadata_checked_at=NOW() WHERE problem_id=? AND submission_type IS NULL AND manual_submission_type IS NULL',[type,row.problem_id]);
      job.identified+=result.affectedRows;
      if(type==='standard')job.standard+=result.affectedRows;
     }
    }catch(error){
-    job.errors++;
+    signal?.throwIfAborted();
     if(error.status===429){
      const hint=error.retryAfter;
      const ms=/^\d+$/.test(hint)?Number(hint)*1000:Date.parse(hint)-Date.now();
      cooldowns.set(platform,Date.now()+Math.max(300000,Number.isFinite(ms)?ms:0));
      limited.add(platform);
+     retry=!!signal;
     }
+    if(!retry)job.errors++;
    }finally{
-    job.done++;
+    if(!retry&&!signal?.aborted){index++;job.done++;}
     job.limited=[...limited];
    }
   }
-  job.status='done';
  }
  return router;
 }

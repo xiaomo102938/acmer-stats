@@ -252,7 +252,7 @@ createApp({
         :aria-valuetext="display[control.key]+control.unit" v-model.number="display[control.key]">
       </div>
      </div>
-     <ModuleHelp><p class="footnote">主题可手动选择，也可以跟随系统。主题、字号和卡片间距保存在当前浏览器。</p></ModuleHelp>
+     <ModuleHelp><p class="footnote">主题可手动选择，也可以跟随系统。主题、字号和卡片间距保存在当前浏览器。开启卡片位置编辑模式后，可以拖动标题调整同一页面的卡片顺序，松开后自动保存。</p></ModuleHelp>
     </article>
     <SkillLayoutSettings id="bookmark-layout" :style="cardStyle('layout')" />
     <SkillSettings :card-positions="cardPositions" @saved="load" />

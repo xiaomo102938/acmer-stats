@@ -1,14 +1,17 @@
 import {apiFetch} from './api-fetch.js';
 import {ref,computed,onMounted,onBeforeUnmount,watch} from 'vue';
+import ProblemTypeHelp from './problem-type-help.js';
 import {submissionLabel as label,problemType,problemTypes,problemLink as link} from './submission-display.js';
 export default{
+ components:{ProblemTypeHelp},
  props:{refreshKey:Number,routeQuery:String},
  setup(props){
   const loaded=ref(false);
   const items=ref([]),page=ref(1),pageSize=ref(25),pages=ref(1),total=ref(0),loading=ref(false),error=ref(''),jump=ref(1);let request,serial=0;
   const q=ref(''),search=ref(''),status=ref('all'),sort=ref('time'),platform=ref(''),tag=ref(''),type=ref(''),from=ref(''),to=ref(''),unique=ref(false);
   const platforms=ref([]),tags=ref([]);
-  const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'首次 AC',retry:'待攻克',
+  const verdictLegend=[["AC","通过","绿色"],["WA","答案错误","红色"],["TLE","超时","黄色"],["MLE","超内存","蓝色"],["RE","运行错误","紫色"],["CE","编译错误","橙色"],["PARTIAL","部分得分","青绿色"],["OLE","超输出限制","琥珀色"],["ILE","空闲超时","琥珀色"],["PE","格式错误","粉色"],["SE","评测异常","玫红色"],["FAIL","评测失败","玫红色"],["SV","违反安全限制","玫红色"],["HACKED","被成功攻击","玫红色"],["RJ","拒绝评测","玫红色"],["SKIP","跳过评测","灰色"],["非 AC","旧记录缺少具体判定","灰色"]];
+const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'首次 AC',retry:'待攻克',
    WA:'WA',TLE:'TLE',MLE:'MLE',RE:'RE',CE:'CE',PARTIAL:'PARTIAL'};
   const editing=ref(null),draft=ref(''),saving=ref(false),noteError=ref('');
   const noteLength=computed(()=>[...draft.value.trim()].length);
@@ -52,7 +55,7 @@ export default{
   }
   const go=()=>{if(Number.isInteger(Number(jump.value))&&jump.value>=1&&jump.value<=pages.value)load(Number(jump.value));};
   watch(()=>props.refreshKey,()=>load());watch(()=>props.routeQuery,applyRoute);onMounted(applyRoute);onBeforeUnmount(()=>{serial++;request?.abort();});
-  return {loaded,q,status,sort,platform,tag,type,from,to,unique,platforms,tags,statusOptions,editing,draft,saving,noteError,noteLength,editNote,saveNote,applySearch,items,page,pageSize,pages,total,loading,error,jump,buttons,load,label,problemType,problemTypes,link,go};
+  return {loaded,q,status,sort,platform,tag,type,from,to,unique,platforms,tags,statusOptions,verdictLegend,editing,draft,saving,noteError,noteLength,editNote,saveNote,applySearch,items,page,pageSize,pages,total,loading,error,jump,buttons,load,label,problemType,problemTypes,link,go};
  },
  template:`<article class="panel recent" aria-label="提交记录列表">
   <div class="panel-head"><h2>提交记录</h2><span>共 {{total}} {{status==='retry'||unique?'道题':'条提交'}}</span></div>
@@ -79,6 +82,6 @@ export default{
    <button v-else type="button" class="submission-note-button" :disabled="saving" @click="editNote(r)">{{r.note||'添加备注'}}</button>
    </td><td>{{r.platform_name}}</td><td>{{r.account_login}}</td><td>{{r.source_id}}</td></tr></tbody></table><p v-if="!loading&&!error&&!items.length" class="muted">没有符合当前条件的提交记录。</p></div>
   <nav class="submission-pagination" aria-label="提交记录分页"><button :disabled="loading||page<=1" @click="load(page-1)">上一页</button><template v-for="(n,i) in buttons" :key="n"><span v-if="i&&n>buttons[i-1]+1">…</span><button :disabled="loading" :aria-current="n===page?'page':undefined" @click="load(n)">{{n}}</button></template><button :disabled="loading||page>=pages" @click="load(page+1)">下一页</button><span aria-live="polite">第 {{page}} / {{pages}} 页</span><form @submit.prevent="go"><label>跳至 <input v-model.number="jump" type="number" min="1" :max="pages" required aria-label="跳转页码"> 页</label><button :disabled="loading">跳转</button></form></nav>
-  <ModuleHelp><p class="footnote problem-type-legend"><span v-for="type in problemTypes" :key="type.id" :data-problem-type="type.id"><svg class="problem-type-icon" viewBox="0 0 24 24" aria-hidden="true"><path :d="type.icon" /></svg>{{type.name}}</span> 白色问号表示题型未知。</p><p class="footnote">AC 通过，WA 答案错误，TLE 超时，MLE 超内存，RE 运行错误，CE 编译错误，PARTIAL 部分得分。OLE 超输出限制，ILE 空闲超时，PE 格式错误，SE / FAIL 评测异常，SV 违反安全限制，HACKED 被成功攻击，SKIP 跳过评测，RJ 拒绝评测。</p><p class="footnote">同一平台的同一道题共用一条备注，清空后保存即可删除。首次 AC 按完整已同步历史判定。待攻克只显示没有已知 AC 的题，每题取最近一次非 AC。未评级放在难度排序末尾。仅含已同步数据：CF、AT 和 QOJ 可包含非 AC；牛客、力扣和洛谷的明细当前主要提供 AC，手工汇总没有逐次提交信息，不在此虚构记录。旧数据若未保存具体判定，仅标记“非 AC”，后续重新同步可补充。时间相同时使用固定编号排序。</p></ModuleHelp>
+  <ModuleHelp><p class="footnote problem-type-legend"><span v-for="type in problemTypes" :key="type.id" :data-problem-type="type.id"><svg class="problem-type-icon" viewBox="0 0 24 24" aria-hidden="true"><path :d="type.icon" /></svg>{{type.name}}</span> 白色问号表示题型未知。</p><p class="footnote">判定状态</p><div class="footnote problem-type-legend"><span v-for="([code,meaning,color]) in verdictLegend" :key="code"><span class="badge submission-verdict" :data-verdict="code">{{code}}</span> {{meaning}}（{{color}}）</span></div><ProblemTypeHelp /><p class="footnote">同一平台的同一道题共用一条备注，清空后保存即可删除。首次 AC 按完整已同步历史判定。待攻克只显示没有已知 AC 的题，每题取最近一次非 AC。未评级放在难度排序末尾。仅含已同步数据：CF、AT 和 QOJ 可包含非 AC；牛客、力扣和洛谷的明细当前主要提供 AC，手工汇总没有逐次提交信息，不在此虚构记录。旧数据若未保存具体判定，仅标记“非 AC”，后续重新同步可补充。时间相同时使用固定编号排序。</p></ModuleHelp>
  </article>`
 };

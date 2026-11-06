@@ -1,8 +1,10 @@
 import {apiFetch} from './api-fetch.js';
 import {ref,onMounted,onBeforeUnmount,watch} from 'vue';
+import ModuleHelp from './module-help.js';
 import {problemLink} from './submission-display.js';
 
 export default{
+ components:{ModuleHelp},
  props:{initialTag:{type:String,default:''},refreshKey:Number},
  emits:['close'],
  setup(props){
@@ -68,5 +70,6 @@ export default{
     <button :disabled="loading||result.page>=result.pages" @click="load(result.page+1)">下一页</button>
    </nav>
   </template>
+  <ModuleHelp><p class="footnote">按所选算法标签从 Codeforces 题库推荐有官方难度的题，优先展示最接近目标分的题。默认目标取实际入选能力样本的平均难度，也可手动填写目标。题单排除本机已有提交记录的题。</p></ModuleHelp>
  </article>`
 };

@@ -66,6 +66,6 @@ export default{
    </div>
    <div class="activity-bottom"><p class="activity-selection" role="status">{{selected?selected.label:'悬停或点击方格，查看当天的提交与 AC 情况。'}}</p><div class="activity-legend" aria-label="颜色由浅到深表示 0、1 至 2、3 至 5、6 至 9、10 及以上"><span>少</span><i v-for="level in 5" :key="level" class="activity-cell" :class="'level-'+(level-1)"></i><span>多</span></div></div>
   </template>
-  <ModuleHelp><p class="footnote">颜色表示每天的{{metricLabel}}，周日到周六从上往下排列。AC 和尝试题目当日去重，同题跨天分别统计。站点活动是洛谷独立口径，不推算提交、AC 或逐题日期。仅统计已同步数据；缺失历史不等于未练习，不含手工和示例记录。</p></ModuleHelp>
+  <ModuleHelp><p class="footnote">颜色表示每天的{{metricLabel}}，周日到周六从上往下排列。默认显示截至今天的近一年，也可以按自然年查看。AC 和尝试题目当日去重，同题跨天分别统计。站点活动是洛谷独立口径，不推算提交、AC 或逐题日期。仅统计已同步数据；缺失历史不等于未练习，不含手工和示例记录。</p></ModuleHelp>
  </article>`
 };

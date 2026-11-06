@@ -1,5 +1,7 @@
 import {onMounted,onUnmounted,reactive,ref} from 'vue';
 import {apiFetch} from './api-fetch.js';
+import ModuleHelp from './module-help.js';
+import ProblemTypeHelp from './problem-type-help.js';
 import {problemTypes} from './submission-display.js';
 
 const options=Object.values(problemTypes).filter(type=>type.id!=='unknown');
@@ -15,6 +17,7 @@ async function request(path='',method='GET',body){
 }
 
 export default{
+ components:{ModuleHelp,ProblemTypeHelp},
  setup(){
   const q=ref(''),unknown=ref(true),items=ref([]),page=ref(1),pages=ref(1),total=ref(0);
   const job=ref(null),error=ref(''),loading=ref(false),starting=ref(false),saving=ref('');
@@ -56,6 +59,21 @@ export default{
    }catch(e){error.value=e.message;}
    finally{starting.value=false;}
   }
+  async function toggleBackground(event){
+   starting.value=true;
+   error.value='';
+   clearTimeout(poll);
+   try{
+    job.value=await request('/auto/qoj','PUT',{enabled:event.target.checked});
+   }catch(e){
+    event.target.checked=!!job.value?.background&&job.value.status==='running';
+    error.value=e.message;
+   }finally{
+    await refreshJob();
+    starting.value=false;
+   }
+  }
+  const formatResume=time=>new Date(time).toLocaleTimeString('zh-CN');
   async function save(row,type){
    saving.value=row.problem_id;
    error.value='';
@@ -67,12 +85,14 @@ export default{
   }
   onMounted(()=>{void load();void refreshJob();});
   onUnmounted(()=>{closed=true;clearTimeout(poll);});
-  return {q,unknown,items,page,pages,total,job,error,loading,starting,saving,draft,options,problemTypes,load,start,save};
+  return {q,unknown,items,page,pages,total,job,error,loading,starting,saving,draft,options,problemTypes,load,start,toggleBackground,formatResume,save};
  },
  template:'<article class="panel">'+
   '<div class="panel-head"><h2>题型管理</h2><button :disabled="starting || job?.status===\'running\'" @click="start">一键自动判断问号题</button></div>'+
-  '<p class="footnote">自动判断只检查未知题型。手动设定优先，也可以恢复自动结果。</p>'+
-  '<p v-if="job?.status===\'running\' || job?.status===\'done\'" role="status">{{job.status===\'running\'?\'正在判断\':\'本轮结束\'}} · 已处理 {{job.done}} / {{job.total}} · 新归类 {{job.identified}} 道（传统题 {{job.standard ?? 0}} 道）<span v-if="job.skipped"> · 跳过 {{job.skipped}} 道</span><span v-if="job.errors"> · 读取失败 {{job.errors}} 次</span><span v-if="job.limited.length"> · {{job.limited.join(\'、\')}} 限流，余题留待下轮</span></p>'+
+  "<label class=\"card-order-toggle\"><input type=\"checkbox\" role=\"switch\" :checked=\"job?.background && job.status==='running'\" :disabled=\"!job || starting || (job.status==='running' && !job.background)\" @change=\"toggleBackground\">QOJ 后台低速补判</label>"+
+  "<p v-if=\"job?.background && job.resumeAt\" role=\"status\">QOJ 限流，预计 {{formatResume(job.resumeAt)}} 后继续。</p>"+
+  "<p v-if=\"job?.status==='stopped'\" role=\"status\">QOJ 后台补判已停止，已保存 {{job.identified}} 道。</p>"+
+  '<p v-if="job?.status===\'running\' || job?.status===\'done\'" role="status">{{job.status===\'running\'?\'正在判断\':\'本轮结束\'}} · 已处理 {{job.done}} / {{job.total}} · 新归类 {{job.identified}} 道（传统题 {{job.standard ?? 0}} 道）<span v-if="job.skipped"> · 跳过 {{job.skipped}} 道</span><span v-if="job.errors"> · 读取失败 {{job.errors}} 次</span><span v-if="job.limited.length && !job.background"> · {{job.limited.join(\'、\')}} 限流，余题留待下轮</span></p>'+
   '<p v-if="job?.status===\'error\'" role="alert">自动判断中断，请稍后重试。</p>'+
   '<form class="trend-controls submission-filters" @submit.prevent="load()"><label>搜索题目<input v-model="q" type="search" maxlength="100" placeholder="题名或题号"></label><button type="submit">搜索</button><label><input v-model="unknown" type="checkbox" @change="load()">只看问号题</label></form>'+
   '<p v-if="error" class="error" role="alert">{{error}}</p>'+
@@ -81,5 +101,6 @@ export default{
   '<td><form @submit.prevent="save(row,draft[row.problem_id])"><select v-model="draft[row.problem_id]" :aria-label="row.problem_name + \'的题型\'" :disabled="loading || !!saving"><option value="" disabled>选择题型</option><option v-for="option in options" :key="option.id" :value="option.id">{{option.name}}</option></select> <button :disabled="loading || !!saving || !draft[row.problem_id]">保存</button> <button v-if="row.manual_submission_type" type="button" :disabled="loading || !!saving" @click="save(row,null)">恢复自动结果</button></form></td></tr>'+
   '</tbody></table></div><p v-if="!loading && !items.length" class="footnote">没有符合条件的题目。</p>'+
   '<nav class="submission-pagination" aria-label="题型管理分页"><button :disabled="loading || page<=1" @click="load(page-1)">上一页</button><span>第 {{page}} / {{pages}} 页 · {{total}} 道题</span><button :disabled="loading || page>=pages" @click="load(page+1)">下一页</button></nav>'+
+  '<ModuleHelp><p class="footnote">一键判断只处理问号题。后台低速补判仅处理 QOJ，离开页面后仍在本机服务中运行。每判完一道即保存，遇到限流自动等待并从该题继续。本轮结束后开关自动关闭，也可随时关闭。重启服务后可重新开启，继续处理问号题。</p><ProblemTypeHelp /></ModuleHelp>'+
   '</article>'
 };

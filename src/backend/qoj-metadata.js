@@ -1,3 +1,4 @@
+import {setTimeout as pause} from 'node:timers/promises';
 import {load} from 'cheerio';
 import {requestWithStatementRetry} from './statement-retry.js';
 import {submissionTypeFromTags} from '../shared/problem-submission-type.js';
@@ -19,12 +20,12 @@ export function parseQojHeader(html,key){
  };
 }
 
-export async function readQojType({source_key:key}){
+export async function readQojType({source_key:key},signal){
  if(!/^\d+$/.test(key??''))return null;
  return requestWithStatementRetry(async()=>{
   // Read the HTML header only for classification. Linked statements and PDFs are not fetched.
   const response=await fetch(statementOrigin+'/problem/'+key+'/statement/default',{
-   redirect:'error',signal:AbortSignal.timeout(12000),headers:{Accept:'text/html'}
+   redirect:'error',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(12000)]):AbortSignal.timeout(12000),headers:{Accept:'text/html'}
   });
   if(!response.ok){
    await response.body?.cancel();
@@ -36,5 +37,5 @@ export async function readQojType({source_key:key}){
   const header=parseQojHeader(await response.text(),key);
   if(!header)throw new Error('Unexpected QOJ problem page');
   return header.type;
- });
+ },signal?delay=>pause(delay,undefined,{signal}):undefined);
 }
