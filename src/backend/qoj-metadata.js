@@ -28,7 +28,21 @@ export function parseQojStatement(html,key){
  return {type:null,tryChinese:false};
 }
 
+function isNetworkError(error){
+ return ['TimeoutError','AbortError'].includes(error.name)||
+  (error instanceof TypeError&&error.message==='fetch failed');
+}
+
 async function readStatement(key,locale){
+ try{
+  return await requestStatement(key,locale);
+ }catch(error){
+  if(!isNetworkError(error))throw error;
+  return requestStatement(key,locale);
+ }
+}
+
+async function requestStatement(key,locale){
  await pause(4000);
  // Public statements only. Fetch does not load the resources linked by the HTML.
  const response=await fetch(statementOrigin+'/problem/'+key+'/statement/'+locale,{
@@ -55,10 +69,19 @@ export function qojTypeWorker(pool){
     pending=false;
     // QOJ uses this timestamp only for the public statement check.
     const [rows]=await pool.query("SELECT pr.problem_id,pr.source_key FROM problem pr JOIN platform p USING(platform_id) WHERE p.platform_name='QOJ' AND pr.metadata_checked_at IS NULL AND pr.submission_type IS NULL AND pr.source_key REGEXP '^[0-9]+$' AND EXISTS (SELECT 1 FROM synced_submission s WHERE s.problem_id=pr.problem_id) ORDER BY LENGTH(pr.source_key) DESC, pr.source_key DESC");
+    let consecutiveFailures=0;
     for(const row of rows){
-     const statement=await readStatement(row.source_key,'default');
-     if(!statement)continue;
-     const result=statement.tryChinese?await readStatement(row.source_key,'zh_cn')??statement:statement;
+     let result;
+     try{
+      const statement=await readStatement(row.source_key,'default');
+      result=statement?.tryChinese?await readStatement(row.source_key,'zh_cn')??statement:statement;
+      consecutiveFailures=0;
+     }catch(error){
+      if(!isNetworkError(error)||++consecutiveFailures>=3)throw error;
+      console.warn('QOJ type check deferred:',row.source_key,error.message);
+      continue;
+     }
+     if(!result)continue;
      await pool.execute('UPDATE problem SET submission_type=?,metadata_checked_at=NOW() WHERE problem_id=? AND metadata_checked_at IS NULL AND submission_type IS NULL',[result.type,row.problem_id]);
     }
    }
