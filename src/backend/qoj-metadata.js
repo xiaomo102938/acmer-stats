@@ -1,5 +1,5 @@
 import {load} from 'cheerio';
-import {setTimeout as pause} from 'node:timers/promises';
+import {isRetryableStatementError,requestWithStatementRetry} from './statement-retry.js';
 
 const statementOrigin='https://huang.lt';
 const types=[
@@ -42,22 +42,11 @@ export function parseQojStatement(html,key){
  return {type:inferStatementType(lines),tryChinese:false};
 }
 
-function isNetworkError(error){
- return ['TimeoutError','AbortError'].includes(error.name)||
-  (error instanceof TypeError&&error.message==='fetch failed');
-}
-
-async function readStatement(key,locale){
- try{
-  return await requestStatement(key,locale);
- }catch(error){
-  if(!isNetworkError(error))throw error;
-  return requestStatement(key,locale);
- }
+function readStatement(key,locale){
+ return requestWithStatementRetry(()=>requestStatement(key,locale));
 }
 
 async function requestStatement(key,locale){
- await pause(4000);
  // Public statements only. Fetch does not load the resources linked by the HTML.
  const response=await fetch(statementOrigin+'/problem/'+key+'/statement/'+locale,{
   redirect:'error',signal:AbortSignal.timeout(12000),headers:{Accept:'text/html'}
@@ -65,7 +54,7 @@ async function requestStatement(key,locale){
  if(!response.ok){
   await response.body?.cancel();
   if(response.status===404)return null;
-  throw new Error('QOJ statement HTTP '+response.status);
+  throw Object.assign(new Error('QOJ statement HTTP '+response.status),{status:response.status});
  }
  const result=parseQojStatement(await response.text(),key);
  if(!result)throw new Error('Unexpected QOJ statement page');
@@ -91,7 +80,7 @@ export function qojTypeWorker(pool){
       result=statement?.tryChinese?await readStatement(row.source_key,'zh_cn')??statement:statement;
       consecutiveFailures=0;
      }catch(error){
-      if(!isNetworkError(error)||++consecutiveFailures>=3)throw error;
+      if(!isRetryableStatementError(error)||++consecutiveFailures>=3)throw error;
       console.warn('QOJ type check deferred:',row.source_key,error.message);
       continue;
      }
