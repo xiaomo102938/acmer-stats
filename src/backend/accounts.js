@@ -9,7 +9,7 @@ import {encrypt,decrypt} from './secrets.js';
 import {saveSubmissions} from './sync-store.js';
 import {nowcoderUid,syncSetup} from '../shared/account-config.js';
 
-export function accountRouter(pool,captureSnapshot) {
+export function accountRouter(pool,captureSnapshot,queueQojTypes) {
  const router=express.Router(), busy=new Set();
  let batch=null;
  const conflict=message=>Object.assign(new Error(message),{status:409});
@@ -150,6 +150,7 @@ export function accountRouter(pool,captureSnapshot) {
     }else{
      const result=await collect(account,decrypt(account.login_pwd),checkpointId,rescan);
      ({message}=await saveSubmissions(connection,account,result));
+     if(account.platform_name==='QOJ')void queueQojTypes?.();
     }
     await captureSnapshot?.(connection,'sync');
     await refreshAccountRating(connection,account,decrypt(account.login_pwd));
