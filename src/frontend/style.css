@@ -246,12 +246,30 @@ button[aria-busy="true"]::before{content:"";display:inline-block;width:6px;heigh
  .appearance-row .card-order-toggle {align-self:flex-end}
 }
 
-.submission-verdict[data-verdict="AC"] {color:var(--goodText);background:var(--goodBg)}
+.submission-verdict {color:#49505a;background:#e8eaee}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .submission-verdict {color:#d4d7dc;background:#3a3d43}
+.badge.submission-verdict[data-verdict="AC"] {color:var(--goodText);background:var(--goodBg)}
 .submission-verdict[data-verdict="WA"] {color:#942525;background:#fce5e5}
 .submission-verdict[data-verdict="TLE"] {color:#6e5000;background:#fff1bf}
 .submission-verdict[data-verdict="MLE"] {color:#174a89;background:#e3efff}
-.submission-verdict[data-verdict="other"] {color:#49505a;background:#e8eaee}
 html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .submission-verdict[data-verdict="WA"] {color:#ffb7b7;background:#512b2d}
 html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .submission-verdict[data-verdict="TLE"] {color:#ffe19a;background:#4b3d1d}
 html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .submission-verdict[data-verdict="MLE"] {color:#b9d8ff;background:#243d5c}
-html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .submission-verdict[data-verdict="other"] {color:#d4d7dc;background:#3a3d43}
+
+.badge.submission-verdict:is([data-verdict="RE"]) {color:#592487;background:#efe3fb}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .badge.submission-verdict:is([data-verdict="RE"]) {color:#e1c1ff;background:#463058}
+
+.badge.submission-verdict:is([data-verdict="CE"]) {color:#8a3708;background:#ffe8d7}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .badge.submission-verdict:is([data-verdict="CE"]) {color:#ffc19c;background:#513425}
+
+.badge.submission-verdict:is([data-verdict="PARTIAL"]) {color:#145c57;background:#d9f4ed}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .badge.submission-verdict:is([data-verdict="PARTIAL"]) {color:#9aeadb;background:#204640}
+
+.badge.submission-verdict:is([data-verdict="OLE"],[data-verdict="ILE"]) {color:#834800;background:#ffedd2}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .badge.submission-verdict:is([data-verdict="OLE"],[data-verdict="ILE"]) {color:#ffcd8e;background:#50391d}
+
+.badge.submission-verdict:is([data-verdict="PE"]) {color:#8a2656;background:#fbe1ed}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .badge.submission-verdict:is([data-verdict="PE"]) {color:#f8bddb;background:#4d2b40}
+
+.badge.submission-verdict:is([data-verdict="SE"],[data-verdict="FAIL"],[data-verdict="SV"],[data-verdict="HACKED"],[data-verdict="RJ"]) {color:#8b3258;background:#f9e1eb}
+html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .badge.submission-verdict:is([data-verdict="SE"],[data-verdict="FAIL"],[data-verdict="SV"],[data-verdict="HACKED"],[data-verdict="RJ"]) {color:#ffbfd7;background:#522b40}

@@ -1,6 +1,8 @@
 import {verdictGroups} from '../shared/submission-verdicts.js';
-const coloredVerdicts=new Map(['WA','TLE','MLE'].flatMap(group=>verdictGroups[group].map(verdict=>[verdict,group])));
-export const submissionTone=row=>row.passed===1?'AC':coloredVerdicts.get(row.verdict)||'other';
-const verdicts={AC:'AC · 通过',WA:'WA · 答案错误',WRONG_ANSWER:'WA · 答案错误',TLE:'TLE · 超时',TL:'TLE · 超时',TIME_LIMIT_EXCEEDED:'TLE · 超时',MLE:'MLE · 超内存',ML:'MLE · 超内存',MEMORY_LIMIT_EXCEEDED:'MLE · 超内存',RE:'RE · 运行错误',RTE:'RE · 运行错误',RUNTIME_ERROR:'RE · 运行错误',CE:'CE · 编译错误',COMPILATION_ERROR:'CE · 编译错误',PARTIAL:'部分得分'};
-export const submissionLabel=r=>r.passed===1?'AC · 通过':verdicts[r.verdict]||(r.verdict?'非 AC · '+r.verdict:'非 AC · 历史判定未保存');
+
+const verdictCodes=new Map(Object.entries(verdictGroups).flatMap(([code,aliases])=>aliases.map(alias=>[alias,code])));
+for(const [alias,code] of Object.entries({OL:'OLE',OUTPUT_LIMIT_EXCEEDED:'OLE',IDLENESS_LIMIT_EXCEEDED:'ILE',IL:'ILE',PRESENTATION_ERROR:'PE',SECURITY_VIOLATED:'SV',FAILED:'FAIL',CHALLENGED:'HACKED',SKIPPED:'SKIP',REJECTED:'RJ',CRASHED:'RE',INPUT_PREPARATION_CRASHED:'FAIL'})){
+ verdictCodes.set(alias,code);
+}
+export const submissionLabel=row=>row.passed===1?'AC':(verdictCodes.get(row.verdict)??(row.verdict||'非 AC'));
 export const problemLink=r=>/^https?:\/\//i.test(r.problem_url||'')?r.problem_url:null;
