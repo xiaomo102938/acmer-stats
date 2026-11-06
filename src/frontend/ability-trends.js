@@ -58,8 +58,10 @@ export default{
    }:scored[0].itemStyle.color;
    chart.setOption({animation:false,color:[token('--green')],
     grid:{left:58,right:22,top:20,bottom:35},
-    tooltip:{trigger:'item',renderMode:'richText',backgroundColor:token('--panel'),borderColor:token('--border'),
-     textStyle:{color:token('--text')},formatter:({data})=>{
+    tooltip:{trigger:'axis',axisPointer:{type:'line',axis:'x',snap:true,lineStyle:{color:token('--muted'),opacity:.5}},renderMode:'richText',backgroundColor:token('--panel'),borderColor:token('--border'),
+     textStyle:{color:token('--text')},formatter:items=>{
+      const data=items[0]?.data;
+      if(!data?.metric)return '';
       const {metric,value}=data;
       const lines=[timestamp.format(value[0]),'CF 尺度 '+metric.score+' 分','计分样本 '+metric.count+' / '+metric.limit+' 道'];
       if(metric.names?.length)lines.push(metric.names.join('、'));
