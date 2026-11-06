@@ -63,7 +63,8 @@ export async function applyDifficultyMetadata(connection,platformId,platform,met
  let updated=0;
  for(const row of rows){
   const key=row.source_key||inferProblemKey(platform,row.problem_name),meta=metadata.get(key);
-  const type=platform==='Codeforces'&&meta?.tags?submissionTypeFromTags(meta.tags):null;
+  const taggedType=platform==='Codeforces'&&meta?.tags?.length?submissionTypeFromTags(meta.tags)??'standard':null;
+  const type=taggedType==='spj'?'standard':taggedType;
   if(type&&type!==row.submission_type){
    await connection.execute('UPDATE problem SET submission_type=? WHERE problem_id=?',[type,row.problem_id]);
   }

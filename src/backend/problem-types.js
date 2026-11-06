@@ -2,6 +2,7 @@ import express from 'express';
 import {readQojType} from './qoj-metadata.js';
 import {readNowcoderType} from './nowcoder-metadata.js';
 import {readLuoguType} from './luogu-metadata.js';
+import {atcoderTypeReader,leetcodeTypeReader} from './contest-problem-types.js';
 import {knownProblemType,problemTypeExpression} from './problem-type-query.js';
 
 const ownerProblems='EXISTS (SELECT 1 FROM synced_submission s WHERE s.problem_id=pr.problem_id AND s.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1))';
@@ -63,11 +64,11 @@ export function problemTypesRouter(pool){
 
  async function classify(){
   const expression=problemTypeExpression();
-  const [rows]=await pool.query('SELECT pr.problem_id,pr.source_key,pr.problem_url,p.platform_name,'+
-   'EXISTS (SELECT 1 FROM problem_tag pt WHERE pt.problem_id=pr.problem_id) AS has_tags'+
+  const [rows]=await pool.query('SELECT pr.problem_id,pr.source_key,pr.problem_url,p.platform_name'+
    fromProblems+' AND '+expression.sql+"='unknown' ORDER BY p.platform_name,pr.problem_id",expression.args);
   job.total=rows.length;
   const limited=new Set();
+  const readers=new Map([...sources,['AtCoder',atcoderTypeReader()],['LeetCode',leetcodeTypeReader(rows)]]);
   for(const row of rows){
    const platform=row.platform_name;
    try{
@@ -76,13 +77,12 @@ export function problemTypesRouter(pool){
      job.skipped++;
      continue;
     }
-    const readType=sources.get(platform);
-    const localStandard=platform==='Codeforces'&&row.has_tags;
-    if(!localStandard&&!readType){
+    const readType=readers.get(platform);
+    if(!readType){
      job.skipped++;
      continue;
     }
-    const type=localStandard?'standard':await readType(row);
+    const type=await readType(row);
     if(type){
      const [result]=await pool.execute('UPDATE problem SET submission_type=?,metadata_checked_at=NOW() WHERE problem_id=? AND submission_type IS NULL AND manual_submission_type IS NULL',[type,row.problem_id]);
      job.identified+=result.affectedRows;
