@@ -22,8 +22,7 @@ function countBelow(values, target) {
 
 export function estimateVpMedal(contest, {items,solved}, completeRoster) {
  const board = boards[contest];
- if (board?.noAward) return {tier:'noAward'};
- if (!board?.cutoffs || !completeRoster) return {tier:'unknown'};
+ if (!board?.scores || !completeRoster) return {tier:board?.noAward?'noAward':'unknown'};
 
  // Apply the original board's time precision before comparing scores.
  let time = items.reduce((sum, item) => {
@@ -37,6 +36,8 @@ export function estimateVpMedal(contest, {items,solved}, completeRoster) {
  for (const [value, times] of Object.entries(board.scores)) {
   if (Number(value) > solved) ahead += times.length;
  }
+
+ if (board.noAward) return {tier:'noAward',place:ahead+1,total:board.total};
 
  const cutoff = board.cutoffs.findIndex(line => line &&
   (solved > line[0] || solved === line[0] && time <= line[1]));
