@@ -28,8 +28,8 @@ export default {
 
   return {layoutControls, values, dirty, message, error, save, reset};
  },
- template:`<article class="panel skill-layout-panel" aria-label="技能图谱布局偏好">
-  <div class="panel-head module-head"><h2>技能图谱布局偏好</h2><div>
+ template:`<article class="panel skill-layout-panel" aria-label="知识图谱布局偏好">
+  <div class="panel-head module-head"><h2>知识图谱布局偏好</h2><div>
    <button @click="reset">恢复默认值</button>
    <button class="module-save" :class="{dirty}" :disabled="!dirty" @click="save">保存布局偏好</button>
   </div></div>

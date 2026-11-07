@@ -4,16 +4,16 @@ const cardOrderKey='acmer-page-card-order';
 const cardCatalog={
  analysis:[
   {id:'overall',title:'综合能力参考'},{id:'ability-trend',title:'能力变化趋势'},
-  {id:'practice-trend',title:'练习趋势'},{id:'difficulty',title:'难度分布'},
+  {id:'practice-trend',title:'练习统计'},{id:'difficulty',title:'难度分布'},
   {id:'platforms',title:'平台练习统计'},{id:'topics',title:'题型能力参考'},
-  {id:'recommendation',title:'推荐练习'},{id:'graph',title:'技能图谱'}
+  {id:'recommendation',title:'推荐练习'},{id:'graph',title:'知识图谱'}
  ],
- team:[{id:'qoj-summary',title:'场次总览'},{id:'qoj-medals',title:'QOJ 奖牌题'},{id:'qoj-vp',title:'团队赛场次分析'}],
+ team:[{id:'qoj-summary',title:'场次总览'},{id:'qoj-medals',title:'QOJ 过题分布'},{id:'qoj-vp',title:'团队赛场次分析'}],
  records:[{id:'submissions',title:'提交记录'}],
  settings:[
-  {id:'appearance',title:'外观'},{id:'layout',title:'技能图谱布局偏好'},
+  {id:'appearance',title:'外观'},{id:'layout',title:'知识图谱布局偏好'},
   {id:'specialty',title:'专职题型'},{id:'aliases',title:'标签类型归并'},
-  {id:'topology',title:'技能图谱客制化'},{id:'accounts',title:'平台账号与同步'},{id:'problem-types',title:'题型管理'}
+  {id:'topology',title:'知识图谱客制化'},{id:'accounts',title:'平台账号与同步'},{id:'problem-types',title:'题型管理'}
  ]
 };
 function readCardOrder(){
