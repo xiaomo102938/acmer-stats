@@ -69,6 +69,10 @@ createApp({
   }
   const displayPreferences=useDisplayPreferences();
   const recordsQuery=ref(page.value==='records'?location.hash.split('?')[1]||'':'');
+  const recordsTarget=computed(()=>{
+   const params=new URLSearchParams(recordsQuery.value);
+   return params.get('scope')==='qoj'||params.get('platform')==='QOJ'||params.has('medal')?'qoj-submissions':'submissions';
+  });
   const recommendation=ref(recommendationRoute()),recommendationEl=ref(null);
   const pageData=shallowRef({});
   const data=computed(()=>pageData.value[page.value]??null);
@@ -190,13 +194,18 @@ createApp({
    target.scrollIntoView({block:'start'});
    scheduleBookmarkUpdate();
   }
+  watch([page,recordsQuery,editingCards],async()=>{
+   if(page.value!=='records'||!recordsQuery.value||editingCards.value)return;
+   await nextTick();
+   jumpToCard(recordsTarget.value);
+  },{immediate:true});
   watch(sidebarCollapsed,()=>nextTick(resize));
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
   return {
    vpSession,vpSummaryVersion,vpMedals,inspectVp,
    ...cardOrder,...displayPreferences,...dashboardCharts,
-   recordsQuery,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
+   recordsQuery,recordsTarget,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
    animateCardSwitch,switchCardEditing,bookmarks,bookmarkMain,activeBookmark,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
   };
  },
@@ -265,7 +274,10 @@ createApp({
      <ModuleHelp><p class="footnote">使用 OJ Insight 榜单缓存中的赛时通过队伍比例。通过比例 ≤10% 为金牌题，>10% 至 30% 为银牌题，>30% 至 60% 为铜牌题，>60% 为铁牌题。缺少可靠榜单匹配的题只计入总题数。QOJ 不计入个人能力分。</p></ModuleHelp>
     </article>
    </section>
-   <section v-else-if="page==='records'" v-show="!editingCards" key="records" aria-label="提交记录"><Submissions id="bookmark-submissions" :route-query="recordsQuery" :refresh-key="dataVersion" /></section>
+   <section v-else-if="page==='records'" v-show="!editingCards" key="records" class="ordered-cards records-cards" aria-label="提交记录">
+    <Submissions id="bookmark-submissions" scope="personal" :style="cardStyle('submissions')" :route-query="recordsTarget==='submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
+    <Submissions id="bookmark-qoj-submissions" scope="qoj" :style="cardStyle('qoj-submissions')" :route-query="recordsTarget==='qoj-submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
+   </section>
 
    <section v-else-if="page==='settings'" v-show="!editingCards" key="settings" class="ordered-cards" aria-label="设置">
     <article id="bookmark-appearance" class="panel appearance-panel" :style="cardStyle('appearance')"><div class="panel-head"><h2>外观</h2><span>偏好自动保存</span></div><div class="appearance-row"><label class="theme-switch"><span>页面主题</span><select v-model="theme" aria-label="页面主题"><option value="light">☀ 白色主题</option><option value="dark">☾ 深绿主题</option><option value="black">● 纯黑主题</option><option value="gray">◑ 灰色主题</option><option value="system">◐ 跟随系统</option></select></label><label class="card-order-toggle"><input type="checkbox" role="switch" :checked="editingCards" :class="{'switch-animated':animateCardSwitch}" @change="switchCardEditing" @animationend="animateCardSwitch=false">卡片位置编辑模式</label></div>

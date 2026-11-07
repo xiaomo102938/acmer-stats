@@ -6,12 +6,13 @@ import ProblemTypeHelp from './problem-type-help.js';
 import {submissionLabel as label,problemType,problemTypes,problemLink as link} from './submission-display.js';
 export default{
  components:{ProblemTypeHelp},
- props:{refreshKey:Number,routeQuery:String},
+ props:{refreshKey:Number,routeQuery:String,scope:{type:String,default:'personal'}},
  setup(props){
   const loaded=ref(false);
   const items=ref([]),page=ref(1),pageSize=ref(25),pages=ref(1),total=ref(0),loading=ref(false),error=ref(''),jump=ref(1);let request,serial=0;
   const q=ref(''),search=ref(''),status=ref('all'),sort=ref('time'),platform=ref(''),tag=ref(''),type=ref(''),from=ref(''),to=ref(''),unique=ref(false);
-  const platforms=ref([]),tags=ref([]),medal=ref(''),scope=ref('personal');
+  const platforms=ref([]),tags=ref([]),medal=ref('');
+  const scope=props.scope;
   const cfMin=ref(''),cfMax=ref('');
   const verdictLegend=[["AC","通过","绿色"],["WA","答案错误","红色"],["TLE","超时","黄色"],["MLE","超内存","蓝色"],["RE","运行错误","紫色"],["CE","编译错误","橙色"],["PARTIAL","部分得分","青绿色"],["OLE","超输出限制","琥珀色"],["ILE","空闲超时","琥珀色"],["PE","格式错误","粉色"],["SE","评测异常","玫红色"],["FAIL","评测失败","玫红色"],["SV","违反安全限制","玫红色"],["HACKED","被成功攻击","玫红色"],["RJ","拒绝评测","玫红色"],["SKIP","跳过评测","灰色"],["非 AC","旧记录缺少具体判定","灰色"]];
 const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'首次 AC',retry:'待攻克',
@@ -37,10 +38,9 @@ const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'�
    const requestedStatus=params.get('status');
    q.value=search.value='';
    status.value=Object.hasOwn(statusOptions,requestedStatus)?requestedStatus:'all';
-   scope.value=params.get('scope')==='qoj'||params.get('platform')==='QOJ'||params.has('medal')?'qoj':'personal';
-   platform.value=scope.value==='qoj'?'QOJ':params.get('platform')||'';
-   cfMin.value=scope.value==='personal'?params.get('cfMin')||'':'';
-   cfMax.value=scope.value==='personal'?params.get('cfMax')||'':'';
+   platform.value=scope==='qoj'?'QOJ':params.get('platform')||'';
+   cfMin.value=scope==='personal'?params.get('cfMin')||'':'';
+   cfMax.value=scope==='personal'?params.get('cfMax')||'':'';
    tag.value=params.get('tag')||'';
    const requestedType=params.get('type');
    type.value=Object.hasOwn(problemTypes,requestedType)?requestedType:'';
@@ -57,21 +57,17 @@ const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'�
    request?.abort();request=new AbortController();const id=++serial;loading.value=true;error.value='';
    editing.value=null;
    if(platform.value!=='QOJ'||status.value!=='ac'||!unique.value)medal.value='';
-   const params=new URLSearchParams({scope:scope.value,medal:scope.value==='qoj'?medal.value:'',cfMin:cfMin.value,cfMax:cfMax.value,page:String(target),pageSize:String(pageSize.value),q:search.value,status:status.value,sort:sort.value,platform:platform.value,tag:tag.value,type:type.value,from:from.value,to:to.value,unique:unique.value?'1':'0'});
+   const params=new URLSearchParams({scope:scope,medal:scope==='qoj'?medal.value:'',cfMin:cfMin.value,cfMax:cfMax.value,page:String(target),pageSize:String(pageSize.value),q:search.value,status:status.value,sort:sort.value,platform:platform.value,tag:tag.value,type:type.value,from:from.value,to:to.value,unique:unique.value?'1':'0'});
    try{const r=await apiFetch('/api/submissions?'+params,{signal:request.signal});const body=await r.json();if(!r.ok)throw new Error(body.message);
     if(id!==serial)return;items.value=body.items;loaded.value=true;page.value=body.page;pages.value=body.pages;total.value=body.total;jump.value=body.page;platforms.value=body.platforms;tags.value=body.tags;
    }catch(e){if(id===serial&&e.name!=='AbortError')error.value=e.message||'读取提交记录失败';}finally{if(id===serial)loading.value=false;}
   }
   const go=()=>{if(Number.isInteger(Number(jump.value))&&jump.value>=1&&jump.value<=pages.value)load(Number(jump.value));};
-  watch(()=>props.refreshKey,()=>load());watch(()=>props.routeQuery,applyRoute);onMounted(applyRoute);onBeforeUnmount(()=>{serial++;request?.abort();});
+  watch(()=>props.refreshKey,()=>load());watch(()=>props.routeQuery,value=>{if(value!==undefined)applyRoute();});onMounted(applyRoute);onBeforeUnmount(()=>{serial++;request?.abort();});
   return {scope,cfMin,cfMax,medal,qojMedalLabels,scoreStyle,loaded,q,status,sort,platform,tag,type,from,to,unique,platforms,tags,statusOptions,verdictLegend,editing,draft,saving,noteError,noteLength,editNote,saveNote,applySearch,items,page,pageSize,pages,total,loading,error,jump,buttons,load,label,problemType,problemTypes,link,go};
  },
  template:`<article class="panel recent" aria-label="提交记录列表">
   <div class="panel-head"><h2>{{scope==='qoj'?'QOJ 提交':'个人提交'}}</h2><span>共 {{total}} {{status==='retry'||unique?'道题':'条提交'}}</span></div>
-  <nav class="trend-controls submission-filters submission-views" aria-label="提交记录分类">
-   <a class="badge" href="#records" :aria-current="scope==='personal'?'page':undefined">个人提交</a>
-   <a class="badge" href="#records?scope=qoj" :aria-current="scope==='qoj'?'page':undefined">QOJ 提交</a>
-  </nav>
   <form class="trend-controls submission-filters" @submit.prevent="applySearch">
    <label>搜索<input v-model="q" type="search" maxlength="200" placeholder="题名、题号或备注"></label>
    <button type="submit">搜索</button>
