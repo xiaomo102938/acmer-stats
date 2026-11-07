@@ -246,6 +246,7 @@ button[aria-busy="true"]::before{content:"";display:inline-block;width:6px;heigh
  .appearance-row .card-order-toggle {align-self:flex-end}
 }
 
+.qoj-vp-table tbody tr[style] td {background-color:color-mix(in srgb, var(--vp-medal-color) 16%, transparent)}
 .submission-verdict {color:#49505a;background:#e8eaee}
 html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) .submission-verdict {color:#d4d7dc;background:#3a3d43}
 .badge.submission-verdict[data-verdict="AC"] {color:var(--goodText);background:var(--goodBg)}

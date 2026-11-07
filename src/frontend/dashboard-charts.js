@@ -6,7 +6,7 @@ import {CanvasRenderer} from 'echarts/renderers';
 import {scoreColor} from './score-color.js';
 import {cfDifficultyBuckets} from './difficulty.js';
 
-import {qojMedalLabels} from '../shared/qoj-medal-labels.js';
+import {qojMedalColors,qojMedalLabels} from '../shared/qoj-medal-labels.js';
 
 const qojMedalHref=medal=>'#records?'+new URLSearchParams({platform:'QOJ',status:'ac',unique:'1',medal});
 const chartTiers=['iron','bronze','silver','gold'];
@@ -62,8 +62,8 @@ export function useDashboardCharts(data,editingCards,isDark){
     const chart=render(qojMedalsEl.value,{...base,grid:{...base.grid,bottom:35},
      xAxis:axis(chartTiers.map(tier=>qojMedalLabels[tier])),
      series:[{name:'AC 题数',type:'bar',barMaxWidth:56,label:{show:true,position:'top',color:text},
-      data:chartTiers.map((tier,i)=>({value:medals.counts[tier],tier,
-       itemStyle:{color:['#75858e','#b47850','#b9c2ce','#d7ae4a'][i],borderRadius:[4,4,0,0]}}))}]});
+      data:chartTiers.map(tier=>({value:medals.counts[tier],tier,
+       itemStyle:{color:qojMedalColors[tier],borderRadius:[4,4,0,0]}}))}]});
     chart.off('click');
     chart.on('click','series.bar',event=>{
      if(event.data?.tier)location.hash=qojMedalHref(event.data.tier);

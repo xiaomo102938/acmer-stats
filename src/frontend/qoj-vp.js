@@ -1,6 +1,7 @@
 import {computed,onMounted,ref,watch} from 'vue';
 import {apiFetch} from './api-fetch.js';
-import {qojMedalLabels} from '../shared/qoj-medal-labels.js';
+import {qojMedalColors,qojMedalLabels} from '../shared/qoj-medal-labels.js';
+import {submissionLabel} from './submission-display.js';
 
 export default {
  setup(){
@@ -58,9 +59,10 @@ export default {
    return Math.floor(seconds/3600)+':'+String(Math.floor(seconds/60)%60).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
   }
   const problemHref=p=>p.url&&/^https:\/\/qoj\.ac\/(?:contest\/\d+\/)?problem\/\d+(?:[/?#]|$)/.test(p.url)?p.url:'https://qoj.ac/problem/'+encodeURIComponent(p.key);
+  const verdict=problem=>problem.attempts?submissionLabel({passed:problem.acSeconds!=null?1:0,verdict:problem.lastVerdict}):'无赛内记录';
   watch(selected,loadDetail);
   onMounted(refresh);
-  return {sessions,selected,session,detail,loading,syncing,error,syncMessage,boardError,comparing,rank,key,sync,compare,elapsed,problemHref,qojMedalLabels};
+  return {sessions,selected,session,detail,loading,syncing,error,syncMessage,boardError,comparing,rank,key,sync,compare,elapsed,problemHref,qojMedalColors,qojMedalLabels,verdict};
  },
  template:`
  <article class="panel" aria-label="团队赛场次分析">
@@ -81,8 +83,8 @@ export default {
    <p v-if="rank" role="status">参考名次 {{rank.place}} / {{rank.total}} · 模拟奖牌暂无已核实的原榜奖牌线</p>
    <p v-if="boardError" role="alert" class="footnote">{{boardError}}</p>
    <p v-if="!detail.completeRoster" class="footnote">本地暂无整场题单，仅显示能关联到该场的提交。</p>
-   <div class="table-wrap"><table><thead><tr><th>题目</th><th>档位</th><th>赛内状态</th><th>首次 AC 用时</th><th>计罚次数</th><th>单题罚时</th><th>赛后首次 AC</th></tr></thead><tbody>
-    <tr v-for="p in detail.items" :key="p.key"><td><a class="problem" :href="problemHref(p)" target="_blank" rel="noopener noreferrer">{{p.index?p.index+' · ':''}}{{p.name}} ↗</a></td><td>{{qojMedalLabels[p.tier]||'未分档'}}</td><td>{{p.acSeconds!=null?'AC':p.attempts?'尝试未 AC':'无赛内记录'}}</td><td>{{p.acSeconds!=null?elapsed(p.acSeconds):'—'}}</td><td>{{p.acSeconds!=null?p.wrong:'—'}}</td><td>{{p.penalty!=null?p.penalty+' 分钟':'—'}}</td><td>{{p.acSeconds==null?p.afterAc||'—':'—'}}</td></tr>
+   <div class="table-wrap qoj-vp-table"><table><thead><tr><th>题目</th><th>档位</th><th>赛内状态</th><th>首次 AC 用时</th><th>计罚次数</th><th>单题罚时</th><th>赛后首次 AC</th></tr></thead><tbody>
+    <tr v-for="p in detail.items" :key="p.key" :style="qojMedalColors[p.tier]?{'--vp-medal-color':qojMedalColors[p.tier]}:undefined"><td><a class="problem" :href="problemHref(p)" target="_blank" rel="noopener noreferrer">{{p.index?p.index+' · ':''}}{{p.name}} ↗</a></td><td>{{qojMedalLabels[p.tier]||'未分档'}}</td><td><span class="badge submission-verdict" :data-verdict="verdict(p)" :title="p.attempts&&p.acSeconds==null?'最后一次赛内提交的判定':undefined">{{verdict(p)}}</span></td><td>{{p.acSeconds!=null?elapsed(p.acSeconds):'—'}}</td><td>{{p.acSeconds!=null?p.wrong:'—'}}</td><td>{{p.penalty!=null?p.penalty+' 分钟':'—'}}</td><td>{{p.acSeconds==null?p.afterAc||'—':'—'}}</td></tr>
    </tbody></table></div>
   </template>
   <ModuleHelp><p class="footnote">按该场 VP 的开赛时间和所选账号已同步的提交回算。首次 AC 的整分钟用时，加上此前每次计罚提交的 20 分钟。编译错误、评测异常和未通过的题不计入总罚时。只覆盖该账号的已同步记录。参考名次按过题数和总罚时与当前 QOJ 榜单比较，榜单可能包含其他 VP。</p></ModuleHelp>

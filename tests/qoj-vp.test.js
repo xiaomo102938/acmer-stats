@@ -19,6 +19,7 @@ test('VP scoring counts only the first in-window AC and its penalized attempts',
  assert.equal(score.penalty,30);
  assert.equal(score.upsolved,1);
  assert.equal(score.items[0].wrong,1);
+ assert.equal(score.items[1].lastVerdict,'WA');
  assert.equal(score.items[1].afterAc,'2026-11-02 15:00:00');
  assert.equal(score.items[2].afterAc,undefined);
  assert.equal(score.items.length,3);

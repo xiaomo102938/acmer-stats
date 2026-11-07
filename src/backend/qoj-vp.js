@@ -75,7 +75,10 @@ export function scoreVp(session,submissions,roster=[],nextStart){
   problem.attempts++;
   if(problem.acSeconds!=null)continue;
   if(Number(row.passed)===1)problem.acSeconds=submitted-start;
-  else if(penalized.has(row.verdict))problem.wrong++;
+  else{
+   problem.lastVerdict=row.verdict;
+   if(penalized.has(row.verdict))problem.wrong++;
+  }
  }
  const items=[...problems.values()].map(problem=>({...problem,
   penalty:problem.acSeconds==null?null:Math.floor(problem.acSeconds/60)+20*problem.wrong}));
