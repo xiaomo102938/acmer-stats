@@ -36,6 +36,11 @@ test('VP medals distinguish an original award line from no award and missing evi
  const {estimateVpMedal,originalBoard}=await import('../src/backend/qoj-vp-medals.js');
  const score={solved:12,items:[{acSeconds:59,wrong:0}]};
  assert.equal(estimateVpMedal('1893',score,true).tier,'gold');
+ // Hangzhou's gold cutoff is 6 solves and 495 minutes.
+ const atGoldCutoff={solved:6,items:[{acSeconds:495*60,wrong:0}]};
+ assert.equal(estimateVpMedal('1893',atGoldCutoff,true).tier,'silver');
+ const justAhead={solved:6,items:[{acSeconds:494*60,wrong:0}]};
+ assert.equal(estimateVpMedal('1893',justAhead,true).tier,'gold');
  assert.equal(estimateVpMedal('1893',score,false).tier,'unknown');
  assert.equal(estimateVpMedal('1893',{solved:0,items:[]},true).tier,'below');
  assert.equal(estimateVpMedal('1358',score,true).tier,'noAward');
