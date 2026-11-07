@@ -110,7 +110,7 @@ export default {
   return {sessions,scope,error,loading,visible,average,coverage,tiers,load,distribution,medalRing,chartEl,unranked};
  },
  template:`
- <article class="panel" aria-label="场次总览">
+ <article class="panel vp-summary" aria-label="场次总览">
   <div class="panel-head"><h2>场次总览</h2>
    <label>范围 <select v-model="scope" aria-label="场次总览范围"><option value="all">全部场次</option><option value="recent">最近 10 场</option></select></label>
   </div>

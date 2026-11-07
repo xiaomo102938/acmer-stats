@@ -313,3 +313,4 @@ html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) [data-prob
 .vp-medal-legend{list-style:none;padding:0;margin:0;display:grid;gap:5px}
 .vp-medal-legend li{display:flex;align-items:center;gap:8px}
 .vp-medal-legend li span{width:.8em;height:.8em;border-radius:3px}
+.vp-summary > h3{font-size:calc(14px * var(--font-scale,1));font-weight:600}

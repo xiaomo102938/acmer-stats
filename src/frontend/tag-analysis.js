@@ -52,9 +52,9 @@ export default{
   return {scoreStyle,currentSample,recordsHref,query,sortKey,sortOptions,practiceHref,panelEl,page,pageSize,pages,visible,pageButtons,changePage,detailEl,platform,platforms,rows,selected,problems,loading,error,show,close};
  },
  template:`
- <article :id="graphOnly?undefined:'tag-analysis'" ref="panelEl" class="panel tag-analysis" :aria-label="graphOnly?'技能图谱':'题型能力参考'">
-  <div class="panel-head"><h2>{{graphOnly?'技能图谱':'题型能力参考'}}</h2><span v-if="graphOnly">节点大小表示去重通过题数</span><a v-else href="#analysis?recommend=1" class="problem">推荐练习 ↗</a></div>
-  <label class="difficulty-filter"><span>{{graphOnly?'平台':'能力尺度'}}</span><select v-model="platform" :aria-label="graphOnly?'技能图谱平台':'题型能力平台'"><option v-for="p in platforms" :key="p" :value="p">{{p}} · CF 尺度{{p==='全部平台'?'（计分排除 QOJ）':''}}</option></select></label>
+ <article :id="graphOnly?undefined:'tag-analysis'" ref="panelEl" class="panel tag-analysis" :aria-label="graphOnly?'知识图谱':'题型能力参考'">
+  <div class="panel-head"><h2>{{graphOnly?'知识图谱':'题型能力参考'}}</h2><span v-if="graphOnly">节点大小表示去重通过题数</span><a v-else href="#analysis?recommend=1" class="problem">推荐练习 ↗</a></div>
+  <label class="difficulty-filter"><span>{{graphOnly?'平台':'能力尺度'}}</span><select v-model="platform" :aria-label="graphOnly?'知识图谱平台':'题型能力平台'"><option v-for="p in platforms" :key="p" :value="p">{{p}} · CF 尺度{{p==='全部平台'?'（计分排除 QOJ）':''}}</option></select></label>
   <template v-if="!graphOnly">
   <div class="trend-controls submission-filters">
    <label>搜索题型<input v-model="query" type="search" placeholder="中文名、英文名或标签"></label>

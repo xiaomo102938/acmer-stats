@@ -257,7 +257,7 @@ createApp({
     <QojVpSummary id="bookmark-qoj-summary" :style="cardStyle('qoj-summary')" :refresh-key="dataVersion+vpSummaryVersion" @inspect="inspectVp" @medals="vpMedals=$event" />
     <QojVp id="bookmark-qoj-vp" :style="cardStyle('qoj-vp')" :requested-session="vpSession" :medals="vpMedals" @synced="vpSummaryVersion++" />
     <article id="bookmark-qoj-medals" class="panel" :style="cardStyle('qoj-medals')">
-     <div class="panel-head"><h2>QOJ 奖牌题 AC 数量</h2><span>按题去重</span></div>
+     <div class="panel-head"><h2>QOJ 过题分布</h2><span>按题去重</span></div>
      <div ref="qojMedalsEl" class="chart" role="img" :aria-label="'铁牌 '+(data.qojMedals?.counts.iron??0)+' 道，铜牌 '+(data.qojMedals?.counts.bronze??0)+' 道，银牌 '+(data.qojMedals?.counts.silver??0)+' 道，金牌 '+(data.qojMedals?.counts.gold??0)+' 道'"></div>
      <p class="footnote">已分档 {{data.qojMedals?.matched??0}} / {{data.qojMedals?.total??0}} 道 QOJ 通过题。点击柱子或下方档位查看提交记录。</p>
      <nav v-if="data.qojMedals?.total" class="problem-type-legend" aria-label="查看各档 QOJ 提交记录"><a v-for="(label,tier) in qojMedalLabels" :key="tier" class="problem" :href="qojMedalHref(tier)">{{label}} {{tier==='unrated'?data.qojMedals.total-data.qojMedals.matched:data.qojMedals.counts[tier]}} 道 ↗</a></nav>

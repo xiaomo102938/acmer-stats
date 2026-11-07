@@ -49,7 +49,7 @@ export default{
   onMounted(load);
   return {needsReload,base,catalog,revision,storedDraft,sDraft,tDraft,editorKey,busy,error,message,first,second,preview,drop,mergeName,undoSource,name,standard,choices,sDirty,tDirty,draftDirty,coverage,conflict,draftConflict,plan,mergeBlocked,load,save,previewMerge,cancelSpecialty,cancelTopology,cancelMerge,edgeKey};
  },
- template:`<section class="skill-settings" aria-label="题型与技能图谱设置"><article v-if="error && (!base || needsReload)" class="panel" aria-label="题型与图谱设置恢复">
+ template:`<section class="skill-settings" aria-label="题型与知识图谱设置"><article v-if="error && (!base || needsReload)" class="panel" aria-label="题型与图谱设置恢复">
   <p class="error" role="alert">{{error}}</p>
   <button :disabled="busy" @click="load">{{base?'重新加载题型与图谱设置（放弃未保存编辑）':'重试加载题型与图谱设置'}}</button>
  </article><p v-else-if="error" class="error" role="alert">{{error}}</p><p v-if="message" role="status">{{message}}</p>
@@ -66,7 +66,7 @@ export default{
  <ul v-if="Object.keys(base.aliases).length"><li v-for="(to,from) in base.aliases" :key="from">{{from}} → {{name(to)}} <button :disabled="mergeBlocked" @click="undoSource=from;preview=false">准备撤销此归并</button></li></ul><p v-else class="footnote">暂无个人归并。</p><p v-if="undoSource">待撤销别名：{{undoSource}}。点击模块右上角保存后生效。</p>
  <ModuleHelp><p class="footnote">两个节点须属于同一棵实线树。深节点并入浅节点，同深度时保留第二个节点。原始标签保留为别名，标签、图谱与专职引用一起保存。撤销已保存归并后，来源标签恢复为独立根。</p></ModuleHelp>
  </article>
- <article id="bookmark-topology" class="panel" :style="{order:cardPositions.topology}" aria-label="技能图谱客制化设置"><div class="panel-head module-head"><h2>技能图谱客制化</h2><div><button class="module-save" :class="{dirty:tDirty}" :disabled="!tDirty||!!conflict" @click="save('topology')">应用拓扑修改</button><button class="module-save" :class="{dirty:draftDirty}" :disabled="!draftDirty||!!draftConflict" @click="save('draft')">保存拓扑草稿</button><button :disabled="!draftDirty" @click="cancelTopology">撤销本次编辑</button><button v-if="storedDraft" @click="save('discardDraft')">放弃已存草稿</button></div></div>
+ <article id="bookmark-topology" class="panel" :style="{order:cardPositions.topology}" aria-label="知识图谱客制化设置"><div class="panel-head module-head"><h2>知识图谱客制化</h2><div><button class="module-save" :class="{dirty:tDirty}" :disabled="!tDirty||!!conflict" @click="save('topology')">应用拓扑修改</button><button class="module-save" :class="{dirty:draftDirty}" :disabled="!draftDirty||!!draftConflict" @click="save('draft')">保存拓扑草稿</button><button :disabled="!draftDirty" @click="cancelTopology">撤销本次编辑</button><button v-if="storedDraft" @click="save('discardDraft')">放弃已存草稿</button></div></div>
  <p v-if="storedDraft" class="footnote">已恢复数据库中的拓扑草稿；分析页仍使用上次应用的图谱。</p><p v-if="conflict" class="error" role="alert">尚不能应用：{{conflict}}</p><p v-else class="footnote">{{tDraft.nodes.length}} 个节点，规则检查通过。右上角应用后才影响分析页。</p><TopologyEditor :key="editorKey" v-model="tDraft" :catalog="standard" />
  </article>
  </fieldset><LoadingNotice v-else-if="busy" class="panel" skeleton>正在读取设置…</LoadingNotice></section>`

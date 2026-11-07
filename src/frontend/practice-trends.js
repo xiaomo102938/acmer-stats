@@ -48,8 +48,8 @@ export default{
   onBeforeUnmount(()=>{serial++;request?.abort();resize?.disconnect();observer?.disconnect();chart?.dispose();});
   return {mode,month,year,grain,platform,metric,data,loading,error,chartEl,available,labels,metrics,total,load,changeMode,draw};
  },
- template:`<article class="panel practice-trends" aria-label="练习趋势">
-  <div class="panel-head"><h2>练习趋势</h2><span>按真实提交统计</span></div>
+ template:`<article class="panel practice-trends" aria-label="练习统计">
+  <div class="panel-head"><h2>练习统计</h2><span>按真实提交统计</span></div>
   <div class="trend-controls">
    <label>统计范围<select v-model="mode" @change="changeMode" aria-label="趋势统计范围"><option value="month">按月</option><option value="year">按年</option><option value="life">生涯</option></select></label>
    <label v-if="mode==='month'">月份<input v-model="month" type="month" min="1970-01" :max="data?.serverDate.slice(0,7)" @change="load" aria-label="趋势月份"></label>
@@ -57,9 +57,9 @@ export default{
    <label>粒度<select v-model="grain" @change="load" aria-label="趋势粒度"><option v-for="g in available" :value="g">{{labels[g]}}</option></select></label>
    <label>平台<select v-model="platform" @change="load" aria-label="趋势平台"><option value="all">全部平台</option><option v-for="p in data?.platforms||[]" :value="p">{{p}}</option></select></label>
    <label>指标<select v-model="metric" @change="draw" aria-label="趋势指标"><option v-for="(label,key) in metrics" :value="key">{{label}}</option></select></label>
-   <button @click="load" :aria-busy="loading" :disabled="loading">{{loading?'读取中…':'刷新趋势'}}</button>
+   <button @click="load" :aria-busy="loading" :disabled="loading">{{loading?'读取中…':'刷新统计'}}</button>
   </div>
-  <LoadingNotice v-if="loading&&!data" skeleton>正在读取练习趋势…</LoadingNotice>
+  <LoadingNotice v-if="loading&&!data" skeleton>正在读取练习统计…</LoadingNotice>
   <p v-if="error" class="error" role="alert">{{error}}</p>
   <p v-if="data" class="trend-summary" aria-live="polite">{{data.start}} — {{data.end}} · {{metrics[metric]}}：{{total}} · {{data.buckets.length}} 个分组 · 点击柱子查看提交</p>
   <div ref="chartEl" v-show="data" :class="{'content-ready':data}" class="chart trend-chart" role="img" :aria-label="'按'+labels[grain]+'统计的'+metrics[metric]" :aria-busy="loading"></div>
