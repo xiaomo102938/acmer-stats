@@ -16,12 +16,17 @@ const contains=(row,term)=>[row.problem_name,row.source_key,row.note].some(value
 export function submissionRouter(pool){
  const router=express.Router();
  router.get('/',async(req,res)=>{
-  const {page:rawPage='1',pageSize:rawSize='25',status='all',sort='time',q='',platform='',tag='',type='',from='',to='',unique='0',medal=''}=req.query;
-  if([rawPage,rawSize,status,sort,q,platform,tag,type,from,to,unique,medal].some(value=>typeof value!=='string')||
+  const {page:rawPage='1',pageSize:rawSize='25',status='all',sort='time',q='',platform='',tag='',type='',from='',to='',unique='0',medal='',scope='',cfMin='',cfMax=''}=req.query;
+  if([rawPage,rawSize,status,sort,q,platform,tag,type,from,to,unique,medal,scope,cfMin,cfMax].some(value=>typeof value!=='string')||
    !/^[1-9]\d{0,7}$/.test(rawPage)||!['10','25','50','100'].includes(rawSize)||!filters.includes(status)||
    !['time','hard','easy'].includes(sort)||!['0','1'].includes(unique)||q.length>200||platform.length>100||tag.length>120||
-   (medal&&(!['iron','bronze','silver','gold','unrated'].includes(medal)||platform!=='QOJ'||status!=='ac'||unique!=='1'))||
+   !['','personal','qoj'].includes(scope)||
+   (medal&&(!['iron','bronze','silver','gold','unrated'].includes(medal)||scope==='personal'||(platform&&platform!=='QOJ')))||
+   ([cfMin,cfMax].some(value=>value&&!/^-?\d{1,6}$/.test(value)))||
+   (cfMin&&cfMax&&Number(cfMin)>Number(cfMax))||
+   ((cfMin||cfMax)&&(scope==='qoj'||medal||platform==='QOJ'))||
    (type&&type!=='unknown'&&!knownProblemType(type))||!dateValid(from)||!dateValid(to)||(from&&to&&from>to))return res.status(400).json({message:'搜索、筛选或分页参数无效。'});
+  const byRating=Boolean(cfMin||cfMax);
   const pageSize=Number(rawSize),connection=await pool.getConnection();
   const term=q.trim().toLowerCase();
   try{
@@ -29,7 +34,7 @@ export function submissionRouter(pool){
    await connection.query('START TRANSACTION READ ONLY');
    const [[user]]=await connection.query('SELECT user_id FROM user ORDER BY user_id LIMIT 1');
    const [platformRows]=await connection.query('SELECT platform_name FROM platform ORDER BY platform_name');
-   const platforms=platformRows.map(row=>row.platform_name);
+   const platforms=platformRows.map(row=>row.platform_name).filter(name=>scope==='personal'?name!=='QOJ':scope==='qoj'?name==='QOJ':true);
    let items=[],total=0,pages=1,page=1,tags=[],progress;
    const rates=async rows=>{
     if(!rows.some(row=>row.platform_name==='洛谷'&&/^CF\d+[A-Z]\d?$/i.test(row.source_key||'')))return ratedProblems(rows);
@@ -50,9 +55,11 @@ export function submissionRouter(pool){
     }
     const args=[user.user_id];
     const conditions=['s.user_id=?'];
+    if(scope==='qoj'||medal)conditions.push("p.platform_name='QOJ'");
+    if(scope==='personal')conditions.push("p.platform_name<>'QOJ'");
     if(medal){
      progress=await readProblemRows(connection);
-     const assignments=await readQojMedalAssignments(connection,progress);
+     const assignments=await readQojMedalAssignments(connection,progress,{acceptedOnly:status==='ac'||status==='first'});
      const ids=[...assignments.values()].filter(item=>item.tier===medal).map(item=>item.problemId);
      conditions.push(ids.length?'s.problem_id IN (?)':'1=0');
      if(ids.length)args.push(ids);
@@ -87,7 +94,7 @@ export function submissionRouter(pool){
     const select=`SELECT s.submission_id,s.source_id,s.account_login,s.submitted_at,s.passed,s.verdict,
      p.platform_name,pr.problem_id,pr.problem_name,pr.problem_url,pr.source_key,pr.native_difficulty,pr.difficulty_source,NULLIF(${expression.sql},'unknown') AS submission_type,n.note ${source} ORDER BY ${latest}`;
     const paginate=()=>{pages=Math.max(1,Math.ceil(total/pageSize));page=Math.min(Number(rawPage),pages);};
-    if(status==='retry'||sort!=='time'||unique==='1'){
+    if(status==='retry'||sort!=='time'||unique==='1'||byRating){
      let [rows]=await connection.query(select,[...expression.args,...args]);
      if(status==='retry'){
       progress=await readProblemRows(connection);
@@ -98,8 +105,9 @@ export function submissionRouter(pool){
       const seen=new Set();
       rows=rows.filter(row=>!seen.has(row.problem_id)&&seen.add(row.problem_id));
      }
+     if(sort!=='time'||byRating)rows=await rates(rows);
+     if(byRating)rows=rows.filter(({rating})=>rating!=null&&(!cfMin||rating>=Number(cfMin))&&(!cfMax||rating<=Number(cfMax)));
      if(sort!=='time'){
-      rows=await rates(rows);
       const direction=sort==='hard'?-1:1;
       rows.sort((a,b)=>(a.rating===null)-(b.rating===null)||direction*((a.rating??0)-(b.rating??0)));
      }
@@ -110,7 +118,7 @@ export function submissionRouter(pool){
      [items]=await connection.query(select+' LIMIT ? OFFSET ?',[...expression.args,...args,pageSize,(page-1)*pageSize]);
     }
    }
-   if(sort==='time')items=await rates(items);
+   if(sort==='time'&&!byRating)items=await rates(items);
    await connection.commit();
    res.set('Cache-Control','no-store').json({items,page,pageSize,total,pages,platforms,tags});
   }catch(error){await connection.rollback();throw error;}finally{connection.release();}
