@@ -44,7 +44,7 @@ export default{
  },
  template:`
  <article class="panel activity-panel" aria-label="刷题热力图">
-  <div class="panel-head"><h2>把坚持，铺成一整年。</h2><span>每日刷题热力图</span></div>
+  <div class="panel-head"><h2>热力图</h2></div>
   <div class="activity-controls">
    <label>时间范围<select :value="year" @change="choose" aria-label="热力图年份" :disabled="loading"><option value="rolling">最近 365 天</option><option v-for="y in result?.years||[]" :key="y" :value="y">{{y}} 年</option></select></label>
    <label>平台<select v-model="platform" aria-label="热力图平台"><option value="all">全部平台</option><option v-for="p in result?.platforms||[]" :key="p" :value="p">{{p}}</option></select></label>
@@ -53,7 +53,7 @@ export default{
   <p v-if="error" role="alert" class="error">{{error}} <button @click="load">重试</button></p>
   <LoadingNotice v-if="loading" :skeleton="!result">正在读取每日记录…</LoadingNotice>
   <template v-if="result">
-   <p class="footnote">{{calendar.rangeStart}} — {{calendar.rangeEnd}}{{year==='rolling'?' · 截至今天，最近 365 天':' · 按年份展示'}}</p>
+   <p class="footnote">{{calendar.rangeStart}} — {{calendar.rangeEnd}}{{year==='rolling'?' · 最近 365 天':''}}</p>
    <div class="activity-summary"><span><strong>{{summary.activeDays}}</strong> 个活跃日</span><span v-if="metric==='activity_count'"><strong>{{summary.activities}}</strong> 次站点活动</span><template v-else><span><strong>{{summary.submissions}}</strong> 次提交</span><span><strong>{{summary.acProblems}}</strong> 道 AC 题目<span class="muted">（按天去重合计）</span></span></template></div>
    <div class="activity-layout content-ready">
     <div class="weekday-labels" aria-hidden="true"><span>一</span><span>三</span><span>五</span></div>
@@ -64,7 +64,7 @@ export default{
      </div>
     </div>
    </div>
-   <div class="activity-bottom"><p class="activity-selection" role="status">{{selected?selected.label:'悬停或点击方格，查看当天的提交与 AC 情况。'}}</p><div class="activity-legend" aria-label="颜色由浅到深表示 0、1 至 2、3 至 5、6 至 9、10 及以上"><span>少</span><i v-for="level in 5" :key="level" class="activity-cell" :class="'level-'+(level-1)"></i><span>多</span></div></div>
+   <div class="activity-bottom"><p class="activity-selection" role="status">{{selected?selected.label:'选择日期查看当日数据。'}}</p><div class="activity-legend" aria-label="颜色由浅到深表示 0、1 至 2、3 至 5、6 至 9、10 及以上"><span>少</span><i v-for="level in 5" :key="level" class="activity-cell" :class="'level-'+(level-1)"></i><span>多</span></div></div>
   </template>
   <ModuleHelp><p class="footnote">颜色表示每天的{{metricLabel}}，周日到周六从上往下排列。默认显示截至今天的近一年，也可以按自然年查看。AC 和尝试题目当日去重，同题跨天分别统计。站点活动是洛谷独立口径，不推算提交、AC 或逐题日期。仅统计已同步数据；缺失历史不等于未练习，不含手工和示例记录。</p></ModuleHelp>
  </article>`
