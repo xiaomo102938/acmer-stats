@@ -57,7 +57,7 @@ export default {
   }
   function penaltyBreakdown(problem){
    const minutes=Math.floor(problem.acSeconds/60);
-   return minutes+'+'+(problem.penalty-minutes)+' 分钟';
+   return minutes+'+'+(problem.penalty-minutes);
   }
   function elapsed(seconds){
    return Math.floor(seconds/3600)+':'+String(Math.floor(seconds/60)%60).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
@@ -82,7 +82,7 @@ export default {
   <p v-if="session" class="footnote">北京时间 {{session.starts_at}} 开赛 · 按 5 小时回算 · 账号 {{session.login_name}} · <a :href="'https://qoj.ac/contest/'+session.contest_key+'/standings'" target="_blank" rel="noopener noreferrer">查看 QOJ 榜单 ↗</a></p>
   <LoadingNotice v-if="loading">正在读取场次成绩…</LoadingNotice>
   <template v-if="detail">
-   <p>赛内通过 <strong>{{detail.solved}}</strong> 道 · 总罚时 <strong>{{detail.penalty}}</strong> 分钟 · 赛后补题 <strong>{{detail.upsolved}}</strong> 道</p>
+   <p>赛内通过 <strong>{{detail.solved}}</strong> 道 · 总罚时 <strong>{{detail.penalty}}</strong> · 赛后补题 <strong>{{detail.upsolved}}</strong> 道</p>
    <button type="button" :disabled="comparing" @click="compare">{{comparing?'正在读取榜单…':'比较 QOJ 榜单'}}</button>
    <p v-if="rank" role="status">参考名次 {{rank.place}} / {{rank.total}} · 模拟奖牌暂无已核实的原榜奖牌线</p>
    <p v-if="boardError" role="alert" class="footnote">{{boardError}}</p>
@@ -91,6 +91,6 @@ export default {
     <tr v-for="p in detail.items" :key="p.key" :style="qojMedalColors[p.tier]?{'--vp-medal-color':qojMedalColors[p.tier]}:undefined"><td><a class="problem" :href="problemHref(p)" target="_blank" rel="noopener noreferrer">{{p.index?p.index+' · ':''}}{{p.name}} ↗</a></td><td>{{qojMedalLabels[p.tier]||'未分档'}}</td><td><span class="badge submission-verdict" :data-verdict="verdict(p)" :title="p.attempts&&p.acSeconds==null?'最后一次赛内提交的判定':undefined">{{verdict(p)}}</span></td><td>{{p.acSeconds!=null?elapsed(p.acSeconds):'—'}}</td><td>{{p.acSeconds!=null?p.wrong:'—'}}</td><td>{{p.penalty!=null?penaltyBreakdown(p):'—'}}</td><td>{{p.acSeconds==null?p.afterAc||'—':'—'}}</td></tr>
    </tbody></table></div>
   </template>
-  <ModuleHelp><p class="footnote">按该场 VP 的开赛时间和所选账号已同步的提交回算。首次 AC 的整分钟用时，加上此前每次计罚提交的 20 分钟。编译错误、评测异常和未通过的题不计入总罚时。只覆盖该账号的已同步记录。参考名次按过题数和总罚时与当前 QOJ 榜单比较，榜单可能包含其他 VP。</p></ModuleHelp>
+  <ModuleHelp><p class="footnote">按该场 VP 的开赛时间和所选账号已同步的提交回算。总罚时和单题罚时均以分钟计。单题罚时显示为首次 AC 的整分钟用时 + 惩罚罚时，每次计罚提交加 20 分钟。编译错误、评测异常和未通过的题不计入总罚时。只覆盖该账号的已同步记录。参考名次按过题数和总罚时与当前 QOJ 榜单比较，榜单可能包含其他 VP。</p></ModuleHelp>
  </article>`
 };
