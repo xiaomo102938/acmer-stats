@@ -136,9 +136,6 @@ main>header{margin-bottom:22px}main>header h1{font-size:calc(24px * var(--font-s
 
 .ordered-cards{display:flex;flex-direction:column;reading-flow:flex-visual}
 .ordered-cards > :is(#bookmark-qoj-summary,#bookmark-qoj-medals,#bookmark-qoj-vp){margin-bottom:var(--card-gap,22px)}
-.vp-summary-trend{display:flex;gap:6px;overflow-x:auto;padding:6px 5px}
-.vp-summary-trend button{display:flex;flex:1 0 44px;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;min-height:112px;padding:4px}
-.vp-summary-bar{display:flex;align-items:flex-end;justify-content:center;min-height:1.5em;width:100%;border-radius:4px;background:var(--vp-result-color,var(--selected));color:#111}
 .ordered-cards>.skill-settings,.ordered-cards>.skill-settings>.skill-fields{display:contents}
 .ordered-cards>.skill-settings>.error,.ordered-cards>.skill-settings>[role="status"],.ordered-cards>.skill-settings>[aria-label="题型与图谱设置恢复"]{order:-1}
 .card-order-info{margin:14px 0;color:var(--muted)}
