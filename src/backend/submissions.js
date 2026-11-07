@@ -1,5 +1,6 @@
 import {knownProblemType,problemTypeExpression} from './problem-type-query.js';
 import express from 'express';
+import {readQojMedalAssignments} from './qoj-medals.js';
 import {ratedProblems} from './ability-difficulty.js';
 import {readProblemRows,readAbilityRows} from './ability-store.js';
 import {retryProblems} from './practice.js';
@@ -15,10 +16,11 @@ const contains=(row,term)=>[row.problem_name,row.source_key,row.note].some(value
 export function submissionRouter(pool){
  const router=express.Router();
  router.get('/',async(req,res)=>{
-  const {page:rawPage='1',pageSize:rawSize='25',status='all',sort='time',q='',platform='',tag='',type='',from='',to='',unique='0'}=req.query;
-  if([rawPage,rawSize,status,sort,q,platform,tag,type,from,to,unique].some(value=>typeof value!=='string')||
+  const {page:rawPage='1',pageSize:rawSize='25',status='all',sort='time',q='',platform='',tag='',type='',from='',to='',unique='0',medal=''}=req.query;
+  if([rawPage,rawSize,status,sort,q,platform,tag,type,from,to,unique,medal].some(value=>typeof value!=='string')||
    !/^[1-9]\d{0,7}$/.test(rawPage)||!['10','25','50','100'].includes(rawSize)||!filters.includes(status)||
    !['time','hard','easy'].includes(sort)||!['0','1'].includes(unique)||q.length>200||platform.length>100||tag.length>120||
+   (medal&&(!['iron','bronze','silver','gold','unrated'].includes(medal)||platform!=='QOJ'||status!=='ac'||unique!=='1'))||
    (type&&type!=='unknown'&&!knownProblemType(type))||!dateValid(from)||!dateValid(to)||(from&&to&&from>to))return res.status(400).json({message:'搜索、筛选或分页参数无效。'});
   const pageSize=Number(rawSize),connection=await pool.getConnection();
   const term=q.trim().toLowerCase();
@@ -48,6 +50,13 @@ export function submissionRouter(pool){
     }
     const args=[user.user_id];
     const conditions=['s.user_id=?'];
+    if(medal){
+     progress=await readProblemRows(connection);
+     const assignments=await readQojMedalAssignments(connection,progress);
+     const ids=[...assignments.values()].filter(item=>item.tier===medal).map(item=>item.problemId);
+     conditions.push(ids.length?'s.problem_id IN (?)':'1=0');
+     if(ids.length)args.push(ids);
+    }
     if(status==='ac'||status==='first')conditions.push('s.passed=1');
     if(status==='failed'||status==='retry'||Object.hasOwn(verdictGroups,status))conditions.push('s.passed=0');
     if(Object.hasOwn(verdictGroups,status)){

@@ -9,7 +9,7 @@ import {submissionRouter} from './submissions.js';
 import {practiceRouter} from './practice.js';
 import {abilityProfiles,abilityProfilesByPlatform,skillSubtreeCounts,shanghaiDay} from './ability.js';
 import {ratedProblems,ratingVersion} from './ability-difficulty.js';
-import {initQojMedalStore,readQojMedalCounts} from './qoj-medals.js';
+import {initQojMedalStore,readQojImportStatus,readQojMedalCounts} from './qoj-medals.js';
 import {readAbilityRows,readProblemRows,readAcceptedDays} from './ability-store.js';
 import express from 'express';
 import {accountRouter} from './accounts.js';
@@ -57,6 +57,9 @@ app.get('/api/health',async(_req,res)=>{
 app.use('/api/skill-settings',skillSettingsRouter(pool,saveAbilitySnapshot));
 app.use('/api/accounts',accountRouter(pool,saveAbilitySnapshot));
 app.use('/api/ability/trends',abilityTrendsRouter(pool,path.join(root,'.cache','current-ability-trend.json')));
+app.get('/api/qoj-medals/status',async(_req,res)=>{
+ res.set('Cache-Control','no-store').json(await readQojImportStatus(pool));
+});
 app.use('/api/submissions',submissionRouter(pool));
 app.use('/api/problem-types',problemTypesRouter(pool));
 app.use('/api/practice',practiceRouter(pool));

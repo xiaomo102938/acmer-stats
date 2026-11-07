@@ -7,10 +7,11 @@ export default {
   const formEl=ref(null),initialLoading=ref(true);
   const accounts=ref([]),platforms=ref([]),form=ref({platform_id:'',login_name:'',remote_uid:'',cookie:'',remove_cookie:false}),
    editing=ref(null),message=ref(''),failure=ref(''),saving=ref(false),confirming=ref(null);
+  const qojImport=ref(null),qojImportError=ref(false);
   const batch=ref(null),startingBatch=ref(false);
   const anyRunning=computed(()=>batch.value?.running||accounts.value.some(a=>a.sync_status==='running'));
   const canSyncAll=computed(()=>accounts.value.some(a=>syncSetup(a).ready&&platforms.value.find(p=>p.platform_id===a.platform_id)?.mode!=='暂未接入'));
-  let timer,loading=false,wasRunning=false;
+  let timer,importTimer,loading=false,wasRunning=false;
   async function api(url,options={}){
    const response=await apiFetch('/api/accounts'+url,{...options,headers:{'Content-Type':'application/json','X-Acmer-Request':'1',...options.headers}});
    const body=await response.json();if(!response.ok) throw new Error(body.message||'请求失败');return body;
@@ -60,13 +61,35 @@ export default {
    catch(error){failure.value=error.message;}
   }
   const selected=()=>platforms.value.find(p=>p.platform_id===form.value.platform_id);
-  onMounted(()=>{refresh();timer=setInterval(refresh,2000);});
-  onBeforeUnmount(()=>clearInterval(timer));
-  return {initialLoading,formEl,syncSetup,batch,startingBatch,anyRunning,canSyncAll,syncAll,accounts,platforms,form,editing,message,failure,saving,confirming,save,cancel,edit,sync,remove,selected};
+  async function refreshQojImport(){
+   try{
+    const response=await apiFetch('/api/qoj-medals/status');
+    if(!response.ok)throw new Error();
+    qojImport.value=await response.json();qojImportError.value=false;
+   }catch{qojImportError.value=true;}
+  }
+  const importTime=value=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',dateStyle:'medium',timeStyle:'medium'}).format(new Date(value));
+  onMounted(()=>{
+   refresh();timer=setInterval(refresh,2000);
+   refreshQojImport();importTimer=setInterval(refreshQojImport,30000);
+  });
+  onBeforeUnmount(()=>{clearInterval(timer);clearInterval(importTimer);});
+  return {qojImport,qojImportError,importTime,refreshQojImport,initialLoading,formEl,syncSetup,batch,startingBatch,anyRunning,canSyncAll,syncAll,accounts,platforms,form,editing,message,failure,saving,confirming,save,cancel,edit,sync,remove,selected};
  },
  template:`
  <section class="panel accounts-panel" id="accounts">
   <div class="panel-head"><h2>平台账号与同步</h2><button type="button" :disabled="!canSyncAll||anyRunning||startingBatch||saving" @click="syncAll()" :aria-busy="batch?.running||startingBatch">{{batch?.running||startingBatch?'正在同步全部…':'同步全部'}}</button><button type="button" :disabled="!canSyncAll||anyRunning||startingBatch||saving" @click="syncAll(true)">全部重新扫描历史</button></div>
+  <div class="footnote">
+   <strong>QOJ 榜单导入</strong>
+   <p v-if="qojImportError">暂时无法读取导入状态。</p>
+   <template v-else-if="qojImport">
+    <p>最近成功导入：{{qojImport.importedAt?importTime(qojImport.importedAt)+'（北京时间）':'暂无记录'}} · 覆盖 {{qojImport.contests}} 场 · {{qojImport.records}} 条档位记录</p>
+    <p v-if="!qojImport.configured">尚未配置 OJ Insight 榜单缓存。</p>
+    <p v-else>在 OJ Insight 更新赛事数据后，本站每 30 秒检查一次本地缓存。</p>
+   </template>
+   <p v-else>正在读取导入状态…</p>
+   <button type="button" @click="refreshQojImport">刷新导入状态</button>
+  </div>
   <p v-if="batch" class="account-message" role="status"><template v-if="batch.running">{{batch.rescan?'历史重扫':'同步'}}已处理 {{batch.done}} / {{batch.total}} 个账号<span v-if="batch.current"> · 正在同步 {{batch.current}}</span></template><template v-else>本轮同步完成 · 成功 {{batch.succeeded}} · 失败 {{batch.failed}}</template><span v-if="batch.skipped"> · 跳过 {{batch.skipped}} 个（配置不完整或暂未支持）</span></p>
   <div v-if="failure" class="error" role="alert">{{failure}}</div>
   <p v-if="message" class="account-message" role="status">{{message}}</p>

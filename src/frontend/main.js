@@ -238,7 +238,8 @@ createApp({
     <article id="bookmark-qoj-medals" class="panel" :style="cardStyle('qoj-medals')">
      <div class="panel-head"><h2>QOJ 奖牌题 AC 数量</h2><span>按题去重</span></div>
      <div ref="qojMedalsEl" class="chart" role="img" :aria-label="'铁牌 '+(data.qojMedals?.counts.iron??0)+' 道，铜牌 '+(data.qojMedals?.counts.bronze??0)+' 道，银牌 '+(data.qojMedals?.counts.silver??0)+' 道，金牌 '+(data.qojMedals?.counts.gold??0)+' 道'"></div>
-     <p class="footnote">已分档 {{data.qojMedals?.matched??0}} / {{data.qojMedals?.total??0}} 道 QOJ 通过题。</p>
+     <p class="footnote">已分档 {{data.qojMedals?.matched??0}} / {{data.qojMedals?.total??0}} 道 QOJ 通过题。点击柱子或下方档位查看提交记录。</p>
+     <nav v-if="data.qojMedals?.total" class="problem-type-legend" aria-label="查看各档 QOJ 提交记录"><a v-for="(label,tier) in qojMedalLabels" :key="tier" class="problem" :href="qojMedalHref(tier)">{{label}} {{tier==='unrated'?data.qojMedals.total-data.qojMedals.matched:data.qojMedals.counts[tier]}} 道 ↗</a></nav>
      <p v-if="data.qojMedals?.total && !data.qojMedals?.matched" class="footnote">暂无可匹配的榜单数据。同步 OJ Insight 的公开榜单后，刷新详细分析。</p>
      <ModuleHelp><p class="footnote">使用 OJ Insight 榜单缓存中的赛时通过队伍比例。金牌不超过 10%，银牌不超过 30%，铜牌不超过 60%，其余为铁牌。缺少可靠榜单匹配的题只计入总题数。QOJ 不计入个人能力分。</p></ModuleHelp>
     </article>

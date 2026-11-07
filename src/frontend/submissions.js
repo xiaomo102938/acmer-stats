@@ -1,3 +1,4 @@
+import {qojMedalLabels} from '../shared/qoj-medal-labels.js';
 import {scoreStyle} from './score-color.js';
 import {apiFetch} from './api-fetch.js';
 import {ref,computed,onMounted,onBeforeUnmount,watch} from 'vue';
@@ -10,7 +11,7 @@ export default{
   const loaded=ref(false);
   const items=ref([]),page=ref(1),pageSize=ref(25),pages=ref(1),total=ref(0),loading=ref(false),error=ref(''),jump=ref(1);let request,serial=0;
   const q=ref(''),search=ref(''),status=ref('all'),sort=ref('time'),platform=ref(''),tag=ref(''),type=ref(''),from=ref(''),to=ref(''),unique=ref(false);
-  const platforms=ref([]),tags=ref([]);
+  const platforms=ref([]),tags=ref([]),medal=ref('');
   const verdictLegend=[["AC","通过","绿色"],["WA","答案错误","红色"],["TLE","超时","黄色"],["MLE","超内存","蓝色"],["RE","运行错误","紫色"],["CE","编译错误","橙色"],["PARTIAL","部分得分","青绿色"],["OLE","超输出限制","琥珀色"],["ILE","空闲超时","琥珀色"],["PE","格式错误","粉色"],["SE","评测异常","玫红色"],["FAIL","评测失败","玫红色"],["SV","违反安全限制","玫红色"],["HACKED","被成功攻击","玫红色"],["RJ","拒绝评测","玫红色"],["SKIP","跳过评测","灰色"],["非 AC","旧记录缺少具体判定","灰色"]];
 const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'首次 AC',retry:'待攻克',
    WA:'WA',TLE:'TLE',MLE:'MLE',RE:'RE',CE:'CE',PARTIAL:'PARTIAL'};
@@ -42,6 +43,8 @@ const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'�
    from.value=params.get('from')||'';
    to.value=params.get('to')||'';
    unique.value=params.get('unique')==='1';
+   const requestedMedal=params.get('medal');
+   medal.value=Object.hasOwn(qojMedalLabels,requestedMedal)?requestedMedal:'';
    sort.value='time';
    load(1);
   }
@@ -49,14 +52,15 @@ const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'�
   async function load(target=page.value){
    request?.abort();request=new AbortController();const id=++serial;loading.value=true;error.value='';
    editing.value=null;
-   const params=new URLSearchParams({page:String(target),pageSize:String(pageSize.value),q:search.value,status:status.value,sort:sort.value,platform:platform.value,tag:tag.value,type:type.value,from:from.value,to:to.value,unique:unique.value?'1':'0'});
+   if(platform.value!=='QOJ'||status.value!=='ac'||!unique.value)medal.value='';
+   const params=new URLSearchParams({medal:medal.value,page:String(target),pageSize:String(pageSize.value),q:search.value,status:status.value,sort:sort.value,platform:platform.value,tag:tag.value,type:type.value,from:from.value,to:to.value,unique:unique.value?'1':'0'});
    try{const r=await apiFetch('/api/submissions?'+params,{signal:request.signal});const body=await r.json();if(!r.ok)throw new Error(body.message);
     if(id!==serial)return;items.value=body.items;loaded.value=true;page.value=body.page;pages.value=body.pages;total.value=body.total;jump.value=body.page;platforms.value=body.platforms;tags.value=body.tags;
    }catch(e){if(id===serial&&e.name!=='AbortError')error.value=e.message||'读取提交记录失败';}finally{if(id===serial)loading.value=false;}
   }
   const go=()=>{if(Number.isInteger(Number(jump.value))&&jump.value>=1&&jump.value<=pages.value)load(Number(jump.value));};
   watch(()=>props.refreshKey,()=>load());watch(()=>props.routeQuery,applyRoute);onMounted(applyRoute);onBeforeUnmount(()=>{serial++;request?.abort();});
-  return {scoreStyle,loaded,q,status,sort,platform,tag,type,from,to,unique,platforms,tags,statusOptions,verdictLegend,editing,draft,saving,noteError,noteLength,editNote,saveNote,applySearch,items,page,pageSize,pages,total,loading,error,jump,buttons,load,label,problemType,problemTypes,link,go};
+  return {medal,qojMedalLabels,scoreStyle,loaded,q,status,sort,platform,tag,type,from,to,unique,platforms,tags,statusOptions,verdictLegend,editing,draft,saving,noteError,noteLength,editNote,saveNote,applySearch,items,page,pageSize,pages,total,loading,error,jump,buttons,load,label,problemType,problemTypes,link,go};
  },
  template:`<article class="panel recent" aria-label="提交记录列表">
   <div class="panel-head"><h2>提交记录</h2><span>共 {{total}} {{status==='retry'||unique?'道题':'条提交'}}</span></div>
@@ -75,6 +79,7 @@ const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'�
    <label>排序<select v-model="sort" @change="load(1)"><option value="time">时间从新到旧</option><option value="hard">难度从高到低</option><option value="easy">难度从低到高</option></select></label>
    <label v-if="status!=='retry'" class="submission-unique"><input v-model="unique" type="checkbox" @change="load(1)">按题去重</label>
   </div>
+  <p v-if="medal" class="footnote">QOJ 档位：{{qojMedalLabels[medal]}} <button type="button" @click="medal='';load(1)">清除档位筛选</button></p>
   <div class="submission-controls"><label>每页 <select v-model.number="pageSize" @change="load(1)" aria-label="每页提交数量"><option :value="10">10 条</option><option :value="25">25 条</option><option :value="50">50 条</option><option :value="100">100 条</option></select></label></div>
   <p v-if="error" class="error" role="alert">{{error}} <button @click="load()">重试</button></p>
   <LoadingNotice v-if="loading" :skeleton="!loaded">正在读取提交记录…</LoadingNotice>

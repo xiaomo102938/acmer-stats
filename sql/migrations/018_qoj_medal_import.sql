@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS qoj_medal_import (
+  id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+  imported_at DATETIME NOT NULL,
+  catalog_fingerprint CHAR(64) CHARACTER SET ascii NOT NULL
+) ENGINE=InnoDB;

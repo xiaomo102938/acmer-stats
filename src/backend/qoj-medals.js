@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {readFile,stat} from 'node:fs/promises';
 
 export function catalogMedalRows(catalog){
@@ -21,6 +22,8 @@ export function catalogMedalRows(catalog){
 export async function initQojMedalStore(pool,catalogPath){
  const schema=await readFile(new URL('../../sql/migrations/017_qoj_contest_medal.sql',import.meta.url),'utf8');
  await pool.query(schema);
+ await pool.query(await readFile(new URL('../../sql/migrations/018_qoj_medal_import.sql',import.meta.url),'utf8'));
+ let [[previous]]=await pool.query('SELECT catalog_fingerprint FROM qoj_medal_import WHERE id=1');
  let signature;
  let importing=false;
  async function refresh(){
@@ -30,7 +33,10 @@ export async function initQojMedalStore(pool,catalogPath){
    const file=await stat(catalogPath);
    const next=[file.size,file.mtimeMs,file.ctimeMs,file.ino].join(':');
    if(signature===next)return;
-   const rows=catalogMedalRows(JSON.parse(await readFile(catalogPath,'utf8')));
+   const contents=await readFile(catalogPath,'utf8');
+   const fingerprint=createHash('sha256').update(contents).digest('hex');
+   if(previous?.catalog_fingerprint===fingerprint){signature=next;return;}
+   const rows=catalogMedalRows(JSON.parse(contents));
    if(rows.length){
     const connection=await pool.getConnection();
     try{
@@ -42,7 +48,10 @@ export async function initQojMedalStore(pool,catalogPath){
        'AS incoming ON DUPLICATE KEY UPDATE accepted_teams=incoming.accepted_teams,total_teams=incoming.total_teams,'+
        'tier=incoming.tier,board_source=incoming.board_source',[rows.slice(i,i+500)]);
      }
+     await connection.query('INSERT INTO qoj_medal_import (id,imported_at,catalog_fingerprint) VALUES (1,UTC_TIMESTAMP(),?) '+
+      'AS incoming ON DUPLICATE KEY UPDATE imported_at=incoming.imported_at,catalog_fingerprint=incoming.catalog_fingerprint',[fingerprint]);
      await connection.commit();
+     previous={catalog_fingerprint:fingerprint};
     }catch(error){
      await connection.rollback();
      throw error;
@@ -60,12 +69,11 @@ export async function initQojMedalStore(pool,catalogPath){
  return ()=>clearInterval(timer);
 }
 
-export async function readQojMedalCounts(connection,rows){
+export async function readQojMedalAssignments(connection,rows){
  const passed=new Map(rows.filter(row=>row.platform_name==='QOJ'&&Number(row.passed)===1)
   .map(row=>[String(row.source_key||row.problem_id),row]));
- const counts={iron:0,bronze:0,silver:0,gold:0};
- const result={counts,total:passed.size,matched:0};
- if(!passed.size)return result;
+ const assignments=new Map([...passed].map(([key,row])=>[key,{problemId:row.problem_id,tier:'unrated'}]));
+ if(!passed.size)return assignments;
  const keys=[...passed.keys()];
  const candidates=new Map();
  for(let i=0;i<keys.length;i+=500){
@@ -81,8 +89,26 @@ export async function readQojMedalCounts(connection,rows){
   const exact=choices.find(choice=>choice.contest_key===contestId);
   const tiers=new Set(exact?[exact.tier]:choices.map(choice=>choice.tier));
   if(tiers.size!==1)continue;
-  counts[tiers.values().next().value]++;
-  result.matched++;
+  assignments.get(key).tier=tiers.values().next().value;
  }
- return result;
+ return assignments;
+}
+
+export async function readQojMedalCounts(connection,rows){
+ const assignments=await readQojMedalAssignments(connection,rows);
+ const counts={iron:0,bronze:0,silver:0,gold:0};
+ let matched=0;
+ for(const {tier} of assignments.values()){
+  if(tier==='unrated')continue;
+  counts[tier]++;
+  matched++;
+ }
+ return {counts,total:assignments.size,matched};
+}
+
+export async function readQojImportStatus(pool){
+ const [[status]]=await pool.query(`SELECT COUNT(*) AS records,COUNT(DISTINCT contest_key) AS contests,
+  (SELECT DATE_FORMAT(imported_at,'%Y-%m-%dT%H:%i:%sZ') FROM qoj_medal_import WHERE id=1) AS importedAt
+  FROM qoj_contest_medal`);
+ return {...status,configured:Boolean(process.env.QOJ_MEDAL_CATALOG)};
 }
