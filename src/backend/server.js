@@ -58,6 +58,13 @@ app.get('/api/health',async(_req,res)=>{
 app.use('/api/skill-settings',skillSettingsRouter(pool,saveAbilitySnapshot));
 app.use('/api/accounts',accountRouter(pool,saveAbilitySnapshot));
 app.use('/api/ability/trends',abilityTrendsRouter(pool,path.join(root,'.cache','current-ability-trend.json')));
+app.get('/api/qoj-medals',async(_req,res)=>{
+ const connection=await pool.getConnection();
+ try{
+  const qojMedals=await readQojMedalCounts(connection,await readProblemRows(connection));
+  res.set('Cache-Control','no-store').json({qojMedals});
+ }finally{connection.release();}
+});
 app.get('/api/qoj-medals/status',async(_req,res)=>{
  res.set('Cache-Control','no-store').json(await readQojImportStatus(pool));
 });

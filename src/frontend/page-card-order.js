@@ -4,10 +4,11 @@ const cardOrderKey='acmer-page-card-order';
 const cardCatalog={
  analysis:[
   {id:'overall',title:'综合能力参考'},{id:'ability-trend',title:'能力变化趋势'},
-  {id:'practice-trend',title:'练习趋势'},{id:'difficulty',title:'难度分布'},{id:'qoj-medals',title:'QOJ 奖牌题'},{id:'qoj-vp',title:'团队赛场次分析'},
+  {id:'practice-trend',title:'练习趋势'},{id:'difficulty',title:'难度分布'},
   {id:'platforms',title:'各平台练习情况'},{id:'topics',title:'题型能力参考'},
   {id:'recommendation',title:'推荐练习'},{id:'graph',title:'技能图谱'}
  ],
+ team:[{id:'qoj-medals',title:'QOJ 奖牌题'},{id:'qoj-vp',title:'团队赛场次分析'}],
  records:[{id:'submissions',title:'提交记录'}],
  settings:[
   {id:'appearance',title:'外观'},{id:'layout',title:'技能图谱布局偏好'},
@@ -20,7 +21,8 @@ function readCardOrder(){
  try{saved=JSON.parse(localStorage.getItem(cardOrderKey));}catch{}
  return Object.fromEntries(Object.entries(cardCatalog).map(([page,cards])=>{
   const defaults=cards.map(card=>card.id);
-  const previous=Array.isArray(saved?.[page])?saved[page].filter(id=>defaults.includes(id)):[];
+  const savedOrder=saved?.[page]??(page==='team'?saved?.analysis:undefined);
+  const previous=Array.isArray(savedOrder)?savedOrder.filter(id=>defaults.includes(id)):[];
   return [page,[...new Set([...previous,...defaults])]];
  }));
 }

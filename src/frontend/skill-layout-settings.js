@@ -14,7 +14,7 @@ export default {
     saveLayoutPreferences(values.value);
     saved.value = normalizeLayoutPreferences(values.value);
     error.value = false;
-    message.value = '布局偏好已保存。打开详细分析查看效果。';
+    message.value = '布局偏好已保存。打开个人刷题分析查看效果。';
    } catch {
     error.value = true;
     message.value = '浏览器无法保存布局偏好。';
@@ -40,6 +40,6 @@ export default {
    </label>
   </div>
   <p v-if="message" :role="error?'alert':'status'" :class="{error}">{{message}}</p>
-  <ModuleHelp><p class="footnote">偏好保存在当前浏览器，打开详细分析时应用。</p><dl class="footnote"><template v-for="control in layoutControls" :key="control.key"><dt>{{control.label}}</dt><dd>{{control.hint}}</dd></template></dl></ModuleHelp>
+  <ModuleHelp><p class="footnote">偏好保存在当前浏览器，打开个人刷题分析时应用。</p><dl class="footnote"><template v-for="control in layoutControls" :key="control.key"><dt>{{control.label}}</dt><dd>{{control.hint}}</dd></template></dl></ModuleHelp>
  </article>`
 };

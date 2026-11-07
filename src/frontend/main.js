@@ -24,7 +24,8 @@ import {useDashboardCharts} from './dashboard-charts.js';
 import './style.css';
 const pages=[
  {id:'overview',icon:'◫',name:'数据简览'},
- {id:'analysis',icon:'↗',name:'详细分析'},
+ {id:'analysis',icon:'↗',name:'个人刷题分析'},
+ {id:'team',icon:'⚑',name:'团队赛分析'},
  {id:'records',icon:'≡',name:'提交记录'},
  {id:'settings',icon:'⚙',name:'设置'}
 ];
@@ -83,7 +84,8 @@ createApp({
    if(view==='records')return;
    loading.value=true;
    try{
-    const response=await apiFetch(view==='overview'?'/api/dashboard?view=overview':'/api/dashboard');const body=await response.json();
+    const endpoint=view==='team'?'/api/qoj-medals':view==='overview'?'/api/dashboard?view=overview':'/api/dashboard';
+    const response=await apiFetch(endpoint);const body=await response.json();
     if(!response.ok)throw new Error(body.message);
     if(request!==requestNumber||page.value!==view)return;
     pageData.value={...pageData.value,[view]:body};dataVersion.value++;await nextTick();draw();
@@ -108,7 +110,7 @@ createApp({
   }
   watch(editingCards,async editing=>{
    if(editing){disposeCharts();window.scrollTo({top:0,behavior:'instant'});}
-   else{await nextTick();draw();window.dispatchEvent(new Event('resize'));if(page.value==='analysis'&&!data.value)load();}
+   else{await nextTick();draw();window.dispatchEvent(new Event('resize'));if(['analysis','team'].includes(page.value)&&!data.value)load();}
   });
   watch(difficultyPlatform,()=>nextTick(draw));
   watch(page,async()=>{
@@ -127,7 +129,7 @@ createApp({
    nextTick(()=>document.getElementById('tag-analysis')?.scrollIntoView({block:'start'}));
   }
   const bookmarks=computed(()=>{
-   if(editingCards.value||(['overview','analysis'].includes(page.value)&&!data.value))return [];
+   if(editingCards.value||(['overview','analysis','team'].includes(page.value)&&!data.value))return [];
    return page.value==='overview'?overviewBookmarks:cardOrder.editableCards.value;
   });
   const bookmarkMain=ref(null),activeBookmark=ref('');
@@ -229,28 +231,30 @@ createApp({
     </div>
    </section>
 
-   <section v-else-if="page==='analysis'&&data" v-show="!editingCards" key="analysis" class="ordered-cards" aria-label="详细分析">
+   <section v-else-if="page==='analysis'&&data" v-show="!editingCards" key="analysis" class="ordered-cards" aria-label="个人刷题分析">
     <OverallAbility id="bookmark-overall" class="content-ready" :style="cardStyle('overall')" :profile="data.overallAbility" :refresh-key="dataVersion" />
     <AbilityTrends id="bookmark-ability-trend" :style="cardStyle('ability-trend')" :refresh-key="dataVersion" />
     <PracticeTrends id="bookmark-practice-trend" :style="cardStyle('practice-trend')" :refresh-key="dataVersion" />
     <div id="bookmark-difficulty" class="analysis-difficulty" :style="cardStyle('difficulty')">
      <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>{{difficultyScale}}</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name==='全部平台'?'全部平台（排除 QOJ）':p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
     </div>
-    <QojVp id="bookmark-qoj-vp" :style="cardStyle('qoj-vp')" />
-    <article id="bookmark-qoj-medals" class="panel" :style="cardStyle('qoj-medals')">
-     <div class="panel-head"><h2>QOJ 奖牌题 AC 数量</h2><span>按题去重</span></div>
-     <div ref="qojMedalsEl" class="chart" role="img" :aria-label="'铁牌 '+(data.qojMedals?.counts.iron??0)+' 道，铜牌 '+(data.qojMedals?.counts.bronze??0)+' 道，银牌 '+(data.qojMedals?.counts.silver??0)+' 道，金牌 '+(data.qojMedals?.counts.gold??0)+' 道'"></div>
-     <p class="footnote">已分档 {{data.qojMedals?.matched??0}} / {{data.qojMedals?.total??0}} 道 QOJ 通过题。点击柱子或下方档位查看提交记录。</p>
-     <nav v-if="data.qojMedals?.total" class="problem-type-legend" aria-label="查看各档 QOJ 提交记录"><a v-for="(label,tier) in qojMedalLabels" :key="tier" class="problem" :href="qojMedalHref(tier)">{{label}} {{tier==='unrated'?data.qojMedals.total-data.qojMedals.matched:data.qojMedals.counts[tier]}} 道 ↗</a></nav>
-     <p v-if="data.qojMedals?.total && !data.qojMedals?.matched" class="footnote">暂无可匹配的榜单数据。同步 OJ Insight 的公开榜单后，刷新详细分析。</p>
-     <ModuleHelp><p class="footnote">使用 OJ Insight 榜单缓存中的赛时通过队伍比例。金牌不超过 10%，银牌不超过 30%，铜牌不超过 60%，其余为铁牌。缺少可靠榜单匹配的题只计入总题数。QOJ 不计入个人能力分。</p></ModuleHelp>
-    </article>
     <PlatformAnalysis id="bookmark-platforms" :style="cardStyle('platforms')" :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
     <TagAnalysis :style="cardStyle('topics')" :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
     <div v-if="recommendation.open&&!editingCards" id="bookmark-recommendation" ref="recommendationEl" class="recommendation-section" :style="cardStyle('recommendation')"><Practice :key="recommendation.tag" :initial-tag="recommendation.tag" :refresh-key="dataVersion" @close="closeRecommendation" /></div>
     <TagAnalysis id="bookmark-graph" :style="cardStyle('graph')" :skill-config="data.skillConfig" :skill-counts="data.skillCounts" graph-only :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />
    </section>
 
+   <section v-else-if="page==='team'&&data" v-show="!editingCards" key="team" class="ordered-cards" aria-label="团队赛分析">
+    <QojVp id="bookmark-qoj-vp" :style="cardStyle('qoj-vp')" />
+    <article id="bookmark-qoj-medals" class="panel" :style="cardStyle('qoj-medals')">
+     <div class="panel-head"><h2>QOJ 奖牌题 AC 数量</h2><span>按题去重</span></div>
+     <div ref="qojMedalsEl" class="chart" role="img" :aria-label="'铁牌 '+(data.qojMedals?.counts.iron??0)+' 道，铜牌 '+(data.qojMedals?.counts.bronze??0)+' 道，银牌 '+(data.qojMedals?.counts.silver??0)+' 道，金牌 '+(data.qojMedals?.counts.gold??0)+' 道'"></div>
+     <p class="footnote">已分档 {{data.qojMedals?.matched??0}} / {{data.qojMedals?.total??0}} 道 QOJ 通过题。点击柱子或下方档位查看提交记录。</p>
+     <nav v-if="data.qojMedals?.total" class="problem-type-legend" aria-label="查看各档 QOJ 提交记录"><a v-for="(label,tier) in qojMedalLabels" :key="tier" class="problem" :href="qojMedalHref(tier)">{{label}} {{tier==='unrated'?data.qojMedals.total-data.qojMedals.matched:data.qojMedals.counts[tier]}} 道 ↗</a></nav>
+     <p v-if="data.qojMedals?.total && !data.qojMedals?.matched" class="footnote">暂无可匹配的榜单数据。同步 OJ Insight 的公开榜单后，刷新团队赛分析。</p>
+     <ModuleHelp><p class="footnote">使用 OJ Insight 榜单缓存中的赛时通过队伍比例。金牌不超过 10%，银牌不超过 30%，铜牌不超过 60%，其余为铁牌。缺少可靠榜单匹配的题只计入总题数。QOJ 不计入个人能力分。</p></ModuleHelp>
+    </article>
+   </section>
    <section v-else-if="page==='records'" v-show="!editingCards" key="records" aria-label="提交记录"><Submissions id="bookmark-submissions" :route-query="recordsQuery" :refresh-key="dataVersion" /></section>
 
    <section v-else-if="page==='settings'" v-show="!editingCards" key="settings" class="ordered-cards" aria-label="设置">
