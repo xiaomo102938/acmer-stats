@@ -35,7 +35,7 @@ export function submissionRouter(pool){
    const [[user]]=await connection.query('SELECT user_id FROM user ORDER BY user_id LIMIT 1');
    const [platformRows]=await connection.query('SELECT platform_name FROM platform ORDER BY platform_name');
    const platforms=platformRows.map(row=>row.platform_name).filter(name=>scope==='personal'?name!=='QOJ':scope==='qoj'?name==='QOJ':true);
-   let items=[],total=0,pages=1,page=1,tags=[],progress;
+   let items=[],total=0,pages=1,page=1,tags=[],progress,medalAssignments;
    const rates=async rows=>{
     if(!rows.some(row=>row.platform_name==='洛谷'&&/^CF\d+[A-Z]\d?$/i.test(row.source_key||'')))return ratedProblems(rows);
     progress??=await readProblemRows(connection);
@@ -59,8 +59,8 @@ export function submissionRouter(pool){
     if(scope==='personal')conditions.push("p.platform_name<>'QOJ'");
     if(medal){
      progress=await readProblemRows(connection);
-     const assignments=await readQojMedalAssignments(connection,progress,{acceptedOnly:status==='ac'||status==='first'});
-     const ids=[...assignments.values()].filter(item=>item.tier===medal).map(item=>item.problemId);
+     medalAssignments=await readQojMedalAssignments(connection,progress,{acceptedOnly:status==='ac'||status==='first'});
+     const ids=[...medalAssignments.values()].filter(item=>item.tier===medal).map(item=>item.problemId);
      conditions.push(ids.length?'s.problem_id IN (?)':'1=0');
      if(ids.length)args.push(ids);
     }
@@ -119,6 +119,10 @@ export function submissionRouter(pool){
     }
    }
    if(sort==='time'&&!byRating)items=await rates(items);
+   if((scope==='qoj'||platform==='QOJ'||medal)&&items.length){
+    medalAssignments??=await readQojMedalAssignments(connection,items,{acceptedOnly:false});
+    for(const row of items)row.qoj_tier=medalAssignments.get(String(row.source_key||row.problem_id))?.tier??'unrated';
+   }
    await connection.commit();
    res.set('Cache-Control','no-store').json({items,page,pageSize,total,pages,platforms,tags});
   }catch(error){await connection.rollback();throw error;}finally{connection.release();}
