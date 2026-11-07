@@ -4,13 +4,11 @@ import {apiFetch} from './api-fetch.js';
 import {qojMedalLabels} from '../shared/qoj-medal-labels.js';
 
 import * as echarts from 'echarts/core';
-import {BarChart,LineChart} from 'echarts/charts';
+import {BarChart} from 'echarts/charts';
 import {GridComponent,TooltipComponent} from 'echarts/components';
 import {CanvasRenderer} from 'echarts/renderers';
 
-echarts.use([BarChart,LineChart,GridComponent,TooltipComponent,CanvasRenderer]);
-
-const dateLabel=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit'});
+echarts.use([BarChart,GridComponent,TooltipComponent,CanvasRenderer]);
 
 export default {
  props:{refreshKey:Number},
@@ -72,25 +70,22 @@ export default {
    const data=trend.value.map(session=>{
     const percent=topPercent(session);
     return {
-     value:[Date.parse(session.starts_at.replace(' ','T')+'+08:00'),percent==null?null:100-percent],
+     value:percent==null?null:100-percent,
      itemStyle:{color:vpMedal(session.medal).color}
     };
    });
    chart.setOption({
     animation:false,
     grid:{left:76,right:22,top:18,bottom:32},
-    xAxis:{type:'time',axisLabel:{color:token('--muted'),hideOverlap:true,formatter:date=>dateLabel.format(date)},
+    xAxis:{type:'category',data:trend.value.map(key),axisTick:{show:false},
+     axisLabel:{color:token('--muted'),hideOverlap:true,formatter:(_,index)=>trend.value[index].starts_at.slice(5,10)},
      axisLine:{lineStyle:{color:token('--border')}}},
     yAxis:{type:'value',min:0,max:100,interval:25,axisLabel:{color:token('--muted'),formatter:value=>'前 '+(100-value)+'%'},
      splitLine:{lineStyle:{color:token('--rowBorder')}}},
     tooltip:{trigger:'item',renderMode:'richText',confine:true,backgroundColor:token('--panel'),
      borderColor:token('--border'),textStyle:{color:token('--text')},
      formatter:({dataIndex})=>caption(trend.value[dataIndex]).split(' · ').join('\n')},
-    series:[
-     {type:'bar',data,barMaxWidth:12,itemStyle:{opacity:.4},z:1},
-     {type:'line',data,symbol:'circle',symbolSize:8,showSymbol:true,connectNulls:false,
-      lineStyle:{color:token('--green'),width:2},emphasis:{scale:true},z:2}
-    ]
+    series:[{type:'bar',data,barWidth:'70%',barMaxWidth:32}]
    },true);
   }
   function disposeChart(){
@@ -125,9 +120,9 @@ export default {
   <template v-if="visible.length">
    <p>场次 <strong>{{visible.length}}</strong> · 场均赛内通过 <strong>{{average('solved')}}</strong> 道 · 场均赛后补题 <strong>{{average('upsolved')}}</strong> 道</p>
    <h3>场次趋势</h3>
-   <p class="footnote">柱和节点越高，原赛参考排名越靠前。颜色表示模拟奖牌，点击打开复盘。</p>
+   <p class="footnote">场次按日期等距排列。柱越高，原赛参考排名越靠前。颜色表示模拟奖牌，点击打开复盘。</p>
    <p v-if="unranked" class="footnote">{{unranked}} 场暂无可比原赛名次。</p>
-   <div ref="chartEl" class="chart" role="img" aria-label="按日期排列的 QOJ 原赛参考排名柱线图"></div>
+   <div ref="chartEl" class="chart" role="img" aria-label="按日期排列的 QOJ 原赛参考排名柱状图"></div>
    <h3>模拟奖牌分布</h3>
    <div class="vp-medal-distribution">
     <div v-if="medalRing" class="vp-medal-ring" :style="{background:medalRing}" aria-hidden="true"></div>
