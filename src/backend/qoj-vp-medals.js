@@ -40,9 +40,6 @@ export function estimateVpMedal(contest, {items,solved}, completeRoster) {
  if (board.noAward) return {tier:'noAward',place:ahead+1,total:board.total};
 
  const cutoff = board.cutoffs.findIndex(line => line &&
-  (solved > line[0] || solved === line[0] && time <= line[1]));
- // A virtual team has no official row order to resolve a tie at a forced cutoff.
- const tied = cutoff >= 0 && board.noTied &&
-  solved === board.cutoffs[cutoff][0] && time === board.cutoffs[cutoff][1];
- return {tier:tied?'unknown':tiers[cutoff]??'below',place:ahead+1,total:board.total};
+  (solved > line[0] || solved === line[0] && time < line[1]));
+ return {tier:tiers[cutoff]??'below',place:ahead+1,total:board.total};
 }
