@@ -23,8 +23,8 @@ export default{
   return {scoreStyle,scope,effective,limit,changeScope,open,loading,error,problems,page,pages,visible,toggle};
  },
  template:`<article class="panel overall-ability" aria-label="综合能力参考">
-  <div class="panel-head"><h2>{{scope==='specialty'?'专职综合能力参考':'全部题目综合参考'}}</h2><span>全部平台 · 最高难度 {{limit}} 题</span></div>
-  <label>参考范围<select v-model="scope" @change="changeScope" aria-label="综合能力参考范围"><option value="specialty">专职题型</option><option value="all">全部题目参考</option></select></label>
+  <div class="panel-head"><h2>{{scope==='specialty'?'专职综合能力参考':'全部题目综合参考'}}</h2><span>全部平台（排除 QOJ） · 最高难度 {{limit}} 题</span></div>
+  <label>参考范围<select v-model="scope" @change="changeScope" aria-label="综合能力参考范围"><option value="specialty">专职题型</option><option value="all">全部题目参考（排除 QOJ）</option></select></label>
   <p v-if="scope==='specialty'&&!effective.configured" class="footnote">尚未配置专职题型，请前往 <a href="#settings">设置 · 题型与技能图谱</a> 选择。</p>
   <p v-if="error" class="error" role="alert">{{error}}</p>
   <LoadingNotice v-if="loading&&!open">正在读取综合能力…</LoadingNotice>

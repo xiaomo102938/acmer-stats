@@ -19,7 +19,7 @@ export function useDashboardCharts(data,editingCards,isDark){
   const difficultyPlatform=ref('全部平台');
   const difficultyPlatforms=computed(()=>[{platform_name:'全部平台'},...(data.value?.platforms.filter(p=>p.total_count>0&&p.platform_name!=='QOJ')||[])]);
   const difficultyScale=computed(()=>difficultyPlatform.value==='牛客'?'牛客题库原始分':'CF 统一尺度');
-  const difficultyNote=computed(()=>difficultyPlatform.value==='牛客'?'展示牛客题库公布的原始难度，每 400 分一档。题库缺分的题单列。全部平台的 CF 分布采用牛客原分减 300 的经验估分。':'统一按 CF 尺度分段。CF 为官方题目 rating；AT、洛谷和牛客为低置信估分，每个区间按中点着色，暂无估分的题目用中性色单列。原始难度保留在入选题单中。');
+  const difficultyNote=computed(()=>difficultyPlatform.value==='牛客'?'展示牛客题库公布的原始难度，每 400 分一档。题库缺分的题单列。汇总 CF 难度分布时，牛客采用原分减 300 的经验估分。':'QOJ 单独按奖牌档位统计。此图按 CF 尺度分段，排除 QOJ。CF 为官方题目 rating；AT、洛谷和牛客为低置信估分，每个区间按中点着色，暂无估分的题目用中性色单列。原始难度保留在入选题单中。');
   const days=computed(()=>{
    const today=data.value?.serverDate;if(!today)return [];
    return Array.from({length:7},(_,i)=>{
