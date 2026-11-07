@@ -200,7 +200,8 @@ createApp({
    if(!pending)return;
    await nextTick();
    if(pending!==pendingRecordsJump||!bookmarkTarget(pending.target))return;
-   if(pending.target==='qoj-submissions'&&bookmarkTarget('submissions')?.getAttribute('aria-busy')==='true')return;
+   // Both cards affect the scrollable height, including the target's own table.
+   if(['submissions','qoj-submissions'].some(id=>bookmarkTarget(id)?.getAttribute('aria-busy')==='true'))return;
    pendingRecordsJump=null;
    jumpToCard(pending.target,'instant');
   }
@@ -285,7 +286,7 @@ createApp({
    </section>
    <section v-else-if="page==='records'" v-show="!editingCards" key="records" class="ordered-cards records-cards" aria-label="提交记录">
     <Submissions id="bookmark-submissions" scope="personal" @settled="followRecordsLink" :style="cardStyle('submissions')" :route-query="recordsTarget==='submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
-    <Submissions id="bookmark-qoj-submissions" scope="qoj" :style="cardStyle('qoj-submissions')" :route-query="recordsTarget==='qoj-submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
+    <Submissions id="bookmark-qoj-submissions" scope="qoj" @settled="followRecordsLink" :style="cardStyle('qoj-submissions')" :route-query="recordsTarget==='qoj-submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
    </section>
 
    <section v-else-if="page==='settings'" v-show="!editingCards" key="settings" class="ordered-cards" aria-label="设置">
