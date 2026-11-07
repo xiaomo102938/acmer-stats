@@ -8,7 +8,7 @@ import {cfDifficultyBuckets} from './difficulty.js';
 
 import {qojMedalColors,qojMedalLabels} from '../shared/qoj-medal-labels.js';
 
-const qojMedalHref=medal=>'#records?'+new URLSearchParams({platform:'QOJ',status:'ac',unique:'1',medal});
+const qojMedalHref=medal=>'#records?'+new URLSearchParams({scope:'qoj',platform:'QOJ',status:'ac',unique:'1',medal});
 const chartTiers=['iron','bronze','silver','gold'];
 
 echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendComponent,CanvasRenderer]);

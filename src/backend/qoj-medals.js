@@ -69,8 +69,8 @@ export async function initQojMedalStore(pool,catalogPath){
  return ()=>clearInterval(timer);
 }
 
-export async function readQojMedalAssignments(connection,rows){
- const passed=new Map(rows.filter(row=>row.platform_name==='QOJ'&&Number(row.passed)===1)
+export async function readQojMedalAssignments(connection,rows,{acceptedOnly=true}={}){
+ const passed=new Map(rows.filter(row=>row.platform_name==='QOJ'&&(!acceptedOnly||Number(row.passed)===1))
   .map(row=>[String(row.source_key||row.problem_id),row]));
  const assignments=new Map([...passed].map(([key,row])=>[key,{problemId:row.problem_id,tier:'unrated'}]));
  if(!passed.size)return assignments;
