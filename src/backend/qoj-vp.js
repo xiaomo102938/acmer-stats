@@ -1,4 +1,5 @@
 import express from 'express';
+import {problemTypeExpression} from './problem-type-query.js';
 import {readFile} from 'node:fs/promises';
 import {load} from 'cheerio';
 import {decrypt} from './secrets.js';
@@ -139,7 +140,19 @@ export function qojVpRouter(pool){
   const tiers=new Map(medals.map(row=>[row.problem_key,row.tier]));
   roster=roster.map(row=>({...row,tier:tiers.get(String(row.problemId))}));
   const score=scoreVp(session,submissions,roster,next.starts_at);
-  for(const item of score.items)item.tier??=tiers.get(item.key);
+  const types=new Map();
+  if(score.items.length){
+   const expression=problemTypeExpression();
+   const [rows]=await pool.query(
+    'SELECT pr.source_key, '+expression.sql+' AS submission_type FROM problem pr '+
+    "JOIN platform p ON p.platform_id=pr.platform_id WHERE p.platform_name='QOJ' AND pr.source_key IN (?)",
+    [...expression.args,score.items.map(item=>item.key)]);
+   for(const row of rows)types.set(row.source_key,row.submission_type);
+  }
+  for(const item of score.items){
+   item.tier??=tiers.get(item.key);
+   item.submission_type=types.get(item.key)??null;
+  }
   res.set('Cache-Control','no-store').json({...score,completeRoster:roster.length>0});
  });
  router.get('/standings/:contest',async(req,res)=>{
