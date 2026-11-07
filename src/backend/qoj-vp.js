@@ -1,4 +1,5 @@
 import express from 'express';
+import {estimateVpMedal,originalBoard} from './qoj-vp-medals.js';
 import {problemTypeExpression} from './problem-type-query.js';
 import {readFile} from 'node:fs/promises';
 import {load} from 'cheerio';
@@ -122,7 +123,7 @@ export function qojVpRouter(pool){
  });
  router.get('/',async(_req,res)=>{
   const [sessions]=await pool.query('SELECT v.*,a.login_name'+sessionSource+' ORDER BY v.starts_at DESC,v.contest_key');
-  res.set('Cache-Control','no-store').json({sessions});
+  res.set('Cache-Control','no-store').json({sessions:sessions.map(s=>({...s,originalBoard:originalBoard(s.contest_key)}))});
  });
  router.get('/summary',async(_req,res)=>{
   const [sessions]=await pool.query('SELECT v.*,a.login_name'+sessionSource+
@@ -158,7 +159,9 @@ export function qojVpRouter(pool){
     if(item.acSeconds!=null)counts.solved++;
     else if(item.afterAc)counts.upsolved++;
    }
-   return {...session,solved,penalty,upsolved,byTier,completeRoster:roster.length>0};
+   const completeRoster=roster.length>0;
+   const medal=estimateVpMedal(session.contest_key,{items,solved},completeRoster);
+   return {...session,solved,penalty,upsolved,byTier,completeRoster,medal};
   });
   res.set('Cache-Control','no-store').json({sessions:summary});
  });
@@ -193,7 +196,7 @@ export function qojVpRouter(pool){
    item.tier??=tiers.get(item.key);
    item.submission_type=types.get(item.key)??null;
   }
-  res.set('Cache-Control','no-store').json({...score,completeRoster:roster.length>0});
+  res.set('Cache-Control','no-store').json({...score,completeRoster:roster.length>0,medal:estimateVpMedal(contest,score,roster.length>0)});
  });
  router.get('/standings/:contest',async(req,res)=>{
   const contest=req.params.contest;

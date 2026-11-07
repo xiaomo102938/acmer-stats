@@ -31,3 +31,14 @@ test('profile parser reads the VP table and normalizes its explicit offset',()=>
  assert.deepEqual(parseQojVpProfile(html),[{contest:'123',name:'Regional',startsAt:'2026-11-02 17:39:17'}]);
  assert.throws(()=>parseQojVpProfile(html.replace('Participations: 1','Participations: 2')),/Incomplete/);
 });
+
+test('VP medals distinguish an original award line from no award and missing evidence', async () => {
+ const {estimateVpMedal,originalBoard}=await import('../src/backend/qoj-vp-medals.js');
+ const score={solved:12,items:[{acSeconds:59,wrong:0}]};
+ assert.equal(estimateVpMedal('1893',score,true).tier,'gold');
+ assert.equal(estimateVpMedal('1893',score,false).tier,'unknown');
+ assert.equal(estimateVpMedal('1893',{solved:0,items:[]},true).tier,'below');
+ assert.equal(estimateVpMedal('1358',score,true).tier,'noAward');
+ assert.equal(estimateVpMedal('1695',score,true).tier,'unknown');
+ assert.match(originalBoard('1893').url,/icpc2024hangzhou$/);
+});

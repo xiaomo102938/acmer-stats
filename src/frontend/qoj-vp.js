@@ -1,15 +1,18 @@
+import {vpMedal,vpMedalStyle} from './qoj-vp-medals.js';
 import {computed,onMounted,ref,watch} from 'vue';
 import {apiFetch} from './api-fetch.js';
 import {qojMedalColors,qojMedalLabels} from '../shared/qoj-medal-labels.js';
 import {problemType,submissionLabel} from './submission-display.js';
 
 export default {
- props:{requestedSession:String},
+ props:{requestedSession:String,medals:Object},
  emits:['synced'],
  setup(props,{emit}){
   const sessions=ref([]),selected=ref(''),detail=ref(null),loading=ref(false),syncing=ref(false);
   const error=ref(''),syncMessage=ref(''),boardError=ref(''),comparing=ref(false),rank=ref(null);
   const key=s=>[s.account_id,s.contest_key,s.starts_at].join('|');
+  const optionLabel=s=>[s.starts_at.slice(0,10),s.originalBoard?.name||s.contest_name,s.login_name,
+   props.medals?.[key(s)]?vpMedal(props.medals[key(s)]).label:null].filter(Boolean).join(' · ');
   const session=computed(()=>sessions.value.find(s=>key(s)===selected.value));
   let detailRequest=0,boardRequest=0;
   async function json(url,options){
@@ -70,7 +73,7 @@ export default {
   watch(()=>props.requestedSession,value=>{if(value)selected.value=value;});
   watch(selected,loadDetail);
   onMounted(refresh);
-  return {sessions,selected,session,detail,loading,syncing,error,syncMessage,boardError,comparing,rank,key,sync,compare,elapsed,penaltyBreakdown,problemHref,problemType,qojMedalColors,qojMedalLabels,verdict};
+  return {sessions,selected,session,detail,loading,syncing,error,syncMessage,boardError,comparing,rank,key,sync,compare,elapsed,penaltyBreakdown,problemHref,problemType,qojMedalColors,qojMedalLabels,verdict,vpMedal,vpMedalStyle,optionLabel};
  },
  template:`
  <article class="panel" aria-label="团队赛场次分析">
@@ -79,16 +82,18 @@ export default {
   <p v-if="error" role="alert" class="error">{{error}}</p>
   <p v-if="!sessions.length&&!error" class="footnote">同步 QOJ VP 记录后可按场复盘。</p>
   <label v-if="sessions.length" class="difficulty-filter">模拟赛场次
-   <select v-model="selected" aria-label="选择 QOJ 模拟赛场次" style="max-width:100%">
-    <option v-for="s in sessions" :key="key(s)" :value="key(s)">{{s.starts_at.slice(0,10)}} · {{s.contest_name}} · {{s.login_name}}</option>
+   <select v-model="selected" aria-label="选择 QOJ 模拟赛场次" style="max-width:100%" :class="{ 'vp-medal-name':detail }" :style="detail?vpMedalStyle(detail.medal):null">
+    <option v-for="s in sessions" :key="key(s)" :value="key(s)" class="vp-medal-name" :style="vpMedalStyle(medals?.[key(s)])">{{optionLabel(s)}}</option>
    </select>
   </label>
   <p v-if="session" class="footnote">北京时间 {{session.starts_at}} 开赛 · 按 5 小时回算 · 账号 {{session.login_name}} · <a :href="'https://qoj.ac/contest/'+session.contest_key+'/standings'" target="_blank" rel="noopener noreferrer">查看 QOJ 榜单 ↗</a></p>
   <LoadingNotice v-if="loading">正在读取场次成绩…</LoadingNotice>
   <template v-if="detail">
+   <h3 class="vp-medal-name" :style="vpMedalStyle(detail.medal)">{{session.originalBoard?.name||session.contest_name}} <span class="badge vp-medal-name">{{vpMedal(detail.medal).label}}</span></h3>
+   <p v-if="session.originalBoard" class="footnote"><a :href="session.originalBoard.url" target="_blank" rel="noopener noreferrer">查看 RankLand 原赛榜单 ↗</a><template v-if="detail.medal?.place"> · 原赛参考第 {{detail.medal.place}} / {{detail.medal.total}} 名</template></p>
    <p>赛内通过 <strong>{{detail.solved}}</strong> 道 · 总罚时 <strong>{{detail.penalty}}</strong> · 赛后补题 <strong>{{detail.upsolved}}</strong> 道</p>
    <button type="button" :disabled="comparing" @click="compare">{{comparing?'正在读取榜单…':'比较 QOJ 榜单'}}</button>
-   <p v-if="rank" role="status">参考名次 {{rank.place}} / {{rank.total}} · 模拟奖牌暂无已核实的原榜奖牌线</p>
+   <p v-if="rank" role="status">QOJ 榜单参考名次 {{rank.place}} / {{rank.total}}</p>
    <p v-if="boardError" role="alert" class="footnote">{{boardError}}</p>
    <p v-if="!detail.completeRoster" class="footnote">本地暂无整场题单，仅显示能关联到该场的提交。</p>
    <div class="table-wrap qoj-vp-table"><table><thead><tr><th>题目</th><th>档位</th><th>赛内状态</th><th>首次 AC 用时</th><th>计罚次数</th><th>单题罚时</th><th>赛后首次 AC</th></tr></thead><tbody>
