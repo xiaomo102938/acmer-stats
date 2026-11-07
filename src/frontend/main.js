@@ -181,7 +181,7 @@ createApp({
    bookmarkResize?.disconnect();
    cancelAnimationFrame(bookmarkFrame);
   });
-  function jumpToCard(id){
+  function jumpToCard(id,behavior='auto'){
    if(id==='recommendation'&&!recommendation.value.open){
     location.hash='#analysis?recommend=1';
     return;
@@ -191,13 +191,22 @@ createApp({
    lastJump=id;
    target.setAttribute('tabindex','-1');
    target.focus({preventScroll:true});
-   target.scrollIntoView({block:'start'});
+   target.scrollIntoView({block:'start',behavior});
    scheduleBookmarkUpdate();
   }
-  watch([page,recordsQuery,editingCards],async()=>{
-   if(page.value!=='records'||!recordsQuery.value||editingCards.value)return;
+  let pendingRecordsJump;
+  async function followRecordsLink(){
+   const pending=pendingRecordsJump;
+   if(!pending)return;
    await nextTick();
-   jumpToCard(recordsTarget.value);
+   if(pending!==pendingRecordsJump||!bookmarkTarget(pending.target))return;
+   if(pending.target==='qoj-submissions'&&bookmarkTarget('submissions')?.getAttribute('aria-busy')==='true')return;
+   pendingRecordsJump=null;
+   jumpToCard(pending.target,'instant');
+  }
+  watch([page,recordsQuery,editingCards],()=>{
+   pendingRecordsJump=page.value==='records'&&recordsQuery.value&&!editingCards.value?{target:recordsTarget.value}:null;
+   followRecordsLink();
   },{immediate:true});
   watch(sidebarCollapsed,()=>nextTick(resize));
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
@@ -205,7 +214,7 @@ createApp({
   return {
    vpSession,vpSummaryVersion,vpMedals,inspectVp,
    ...cardOrder,...displayPreferences,...dashboardCharts,
-   recordsQuery,recordsTarget,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
+   recordsQuery,recordsTarget,followRecordsLink,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
    animateCardSwitch,switchCardEditing,bookmarks,bookmarkMain,activeBookmark,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
   };
  },
@@ -275,7 +284,7 @@ createApp({
     </article>
    </section>
    <section v-else-if="page==='records'" v-show="!editingCards" key="records" class="ordered-cards records-cards" aria-label="提交记录">
-    <Submissions id="bookmark-submissions" scope="personal" :style="cardStyle('submissions')" :route-query="recordsTarget==='submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
+    <Submissions id="bookmark-submissions" scope="personal" @settled="followRecordsLink" :style="cardStyle('submissions')" :route-query="recordsTarget==='submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
     <Submissions id="bookmark-qoj-submissions" scope="qoj" :style="cardStyle('qoj-submissions')" :route-query="recordsTarget==='qoj-submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
    </section>
 

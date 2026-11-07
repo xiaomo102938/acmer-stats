@@ -6,8 +6,9 @@ import ProblemTypeHelp from './problem-type-help.js';
 import {submissionLabel as label,problemType,problemTypes,problemLink as link} from './submission-display.js';
 export default{
  components:{ProblemTypeHelp},
+ emits:['settled'],
  props:{refreshKey:Number,routeQuery:String,scope:{type:String,default:'personal'}},
- setup(props){
+ setup(props,{emit}){
   const loaded=ref(false);
   const items=ref([]),page=ref(1),pageSize=ref(25),pages=ref(1),total=ref(0),loading=ref(false),error=ref(''),jump=ref(1);let request,serial=0;
   const q=ref(''),search=ref(''),status=ref('all'),sort=ref('time'),platform=ref(''),tag=ref(''),type=ref(''),from=ref(''),to=ref(''),unique=ref(false);
@@ -56,17 +57,16 @@ const statusOptions={all:'全部判定',ac:'只看 AC',failed:'非 AC',first:'�
   async function load(target=page.value){
    request?.abort();request=new AbortController();const id=++serial;loading.value=true;error.value='';
    editing.value=null;
-   if(platform.value!=='QOJ'||status.value!=='ac'||!unique.value)medal.value='';
    const params=new URLSearchParams({scope:scope,medal:scope==='qoj'?medal.value:'',cfMin:cfMin.value,cfMax:cfMax.value,page:String(target),pageSize:String(pageSize.value),q:search.value,status:status.value,sort:sort.value,platform:platform.value,tag:tag.value,type:type.value,from:from.value,to:to.value,unique:unique.value?'1':'0'});
    try{const r=await apiFetch('/api/submissions?'+params,{signal:request.signal});const body=await r.json();if(!r.ok)throw new Error(body.message);
     if(id!==serial)return;items.value=body.items;loaded.value=true;page.value=body.page;pages.value=body.pages;total.value=body.total;jump.value=body.page;platforms.value=body.platforms;tags.value=body.tags;
-   }catch(e){if(id===serial&&e.name!=='AbortError')error.value=e.message||'读取提交记录失败';}finally{if(id===serial)loading.value=false;}
+   }catch(e){if(id===serial&&e.name!=='AbortError')error.value=e.message||'读取提交记录失败';}finally{if(id===serial){loading.value=false;emit('settled');}}
   }
   const go=()=>{if(Number.isInteger(Number(jump.value))&&jump.value>=1&&jump.value<=pages.value)load(Number(jump.value));};
   watch(()=>props.refreshKey,()=>load());watch(()=>props.routeQuery,value=>{if(value!==undefined)applyRoute();});onMounted(applyRoute);onBeforeUnmount(()=>{serial++;request?.abort();});
   return {scope,cfMin,cfMax,medal,qojMedalColors,qojMedalLabels,scoreStyle,loaded,q,status,sort,platform,tag,type,from,to,unique,platforms,tags,statusOptions,verdictLegend,editing,draft,saving,noteError,noteLength,editNote,saveNote,applySearch,items,page,pageSize,pages,total,loading,error,jump,buttons,load,label,problemType,problemTypes,link,go};
  },
- template:`<article class="panel recent" aria-label="提交记录列表">
+ template:`<article class="panel recent" :aria-busy="loading" aria-label="提交记录列表">
   <div class="panel-head"><h2>{{scope==='qoj'?'QOJ 提交':'个人提交'}}</h2><span>共 {{total}} {{status==='retry'||unique?'道题':'条提交'}}</span></div>
   <form class="trend-controls submission-filters" @submit.prevent="applySearch">
    <label>搜索<input v-model="q" type="search" maxlength="200" placeholder="题名、题号或备注"></label>
