@@ -9,7 +9,7 @@ const cardCatalog={
   {id:'recommendation',title:'推荐练习'},{id:'graph',title:'知识图谱'}
  ],
  team:[{id:'qoj-summary',title:'场次总览'},{id:'qoj-medals',title:'QOJ 过题分布'},{id:'qoj-vp',title:'团队赛场次分析'}],
- records:[{id:'submissions',title:'提交记录'}],
+ records:[{id:'submissions',title:'个人提交'},{id:'qoj-submissions',title:'QOJ 提交'}],
  settings:[
   {id:'appearance',title:'外观'},{id:'layout',title:'知识图谱布局偏好'},
   {id:'specialty',title:'专职题型'},{id:'aliases',title:'标签类型归并'},
