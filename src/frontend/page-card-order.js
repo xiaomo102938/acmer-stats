@@ -8,7 +8,7 @@ const cardCatalog={
   {id:'platforms',title:'各平台练习情况'},{id:'topics',title:'题型能力参考'},
   {id:'recommendation',title:'推荐练习'},{id:'graph',title:'技能图谱'}
  ],
- team:[{id:'qoj-medals',title:'QOJ 奖牌题'},{id:'qoj-vp',title:'团队赛场次分析'}],
+ team:[{id:'qoj-summary',title:'场次总览'},{id:'qoj-medals',title:'QOJ 奖牌题'},{id:'qoj-vp',title:'团队赛场次分析'}],
  records:[{id:'submissions',title:'提交记录'}],
  settings:[
   {id:'appearance',title:'外观'},{id:'layout',title:'技能图谱布局偏好'},
@@ -23,6 +23,7 @@ function readCardOrder(){
   const defaults=cards.map(card=>card.id);
   const savedOrder=saved?.[page]??(page==='team'?saved?.analysis:undefined);
   const previous=Array.isArray(savedOrder)?savedOrder.filter(id=>defaults.includes(id)):[];
+  if(page==='team'&&!previous.includes('qoj-summary'))previous.unshift('qoj-summary');
   return [page,[...new Set([...previous,...defaults])]];
  }));
 }

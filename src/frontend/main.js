@@ -1,3 +1,4 @@
+import QojVpSummary from './qoj-vp-summary.js';
 import QojVp from './qoj-vp.js';
 import ProblemTypeSettings from './problem-type-settings.js';
 import {apiFetch} from './api-fetch.js';
@@ -46,7 +47,7 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{QojVp,ProblemTypeSettings,CardOrderEditor,SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,SiteStatus,Accounts,Activity,TagAnalysis,OverallAbility,AbilityTrends},
+ components:{QojVpSummary,QojVp,ProblemTypeSettings,CardOrderEditor,SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,SiteStatus,Accounts,Activity,TagAnalysis,OverallAbility,AbilityTrends},
  setup(){
   const sidebarCollapsed=ref(false),sidebarInteracted=ref(false);
   try { sidebarCollapsed.value=localStorage.getItem('acmer-sidebar-collapsed')==='1'; } catch {}
@@ -132,6 +133,13 @@ createApp({
    if(editingCards.value||(['overview','analysis','team'].includes(page.value)&&!data.value))return [];
    return page.value==='overview'?overviewBookmarks:cardOrder.editableCards.value;
   });
+  const vpSession=ref(''),vpSummaryVersion=ref(0);
+  async function inspectVp(session){
+   vpSession.value='';
+   await nextTick();
+   vpSession.value=session;
+   jumpToCard('qoj-vp');
+  }
   const bookmarkMain=ref(null),activeBookmark=ref('');
   let bookmarkFrame=0,bookmarkResize,lastJump='';
   const bookmarkTarget=id=>document.getElementById(({topics:'tag-analysis',accounts:'accounts'})[id]??'bookmark-'+id);
@@ -186,6 +194,7 @@ createApp({
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
   return {
+   vpSession,vpSummaryVersion,inspectVp,
    ...cardOrder,...displayPreferences,...dashboardCharts,
    recordsQuery,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
    animateCardSwitch,switchCardEditing,bookmarks,bookmarkMain,activeBookmark,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
@@ -245,7 +254,8 @@ createApp({
    </section>
 
    <section v-else-if="page==='team'&&data" v-show="!editingCards" key="team" class="ordered-cards" aria-label="团队赛分析">
-    <QojVp id="bookmark-qoj-vp" :style="cardStyle('qoj-vp')" />
+    <QojVpSummary id="bookmark-qoj-summary" :style="cardStyle('qoj-summary')" :refresh-key="dataVersion+vpSummaryVersion" @inspect="inspectVp" />
+    <QojVp id="bookmark-qoj-vp" :style="cardStyle('qoj-vp')" :requested-session="vpSession" @synced="vpSummaryVersion++" />
     <article id="bookmark-qoj-medals" class="panel" :style="cardStyle('qoj-medals')">
      <div class="panel-head"><h2>QOJ 奖牌题 AC 数量</h2><span>按题去重</span></div>
      <div ref="qojMedalsEl" class="chart" role="img" :aria-label="'铁牌 '+(data.qojMedals?.counts.iron??0)+' 道，铜牌 '+(data.qojMedals?.counts.bronze??0)+' 道，银牌 '+(data.qojMedals?.counts.silver??0)+' 道，金牌 '+(data.qojMedals?.counts.gold??0)+' 道'"></div>

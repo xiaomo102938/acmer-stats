@@ -91,6 +91,14 @@ export function scoreVp(session,submissions,roster=[],nextStart){
 const sessionSource=' FROM qoj_vp_session v JOIN platform_account a ON a.account_id=CAST(v.account_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci '+
  'WHERE a.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)';
 
+async function readContestRosters(){
+ if(!process.env.QOJ_MEDAL_CATALOG)return new Map();
+ try{
+  const catalog=JSON.parse(await readFile(process.env.QOJ_MEDAL_CATALOG,'utf8'));
+  return new Map(catalog.contests.map(row=>[String(row.id),row.problems??[]]));
+ }catch{return new Map();}
+}
+
 export function qojVpRouter(pool){
  const router=express.Router();
  const boards=new Map();
@@ -116,6 +124,44 @@ export function qojVpRouter(pool){
   const [sessions]=await pool.query('SELECT v.*,a.login_name'+sessionSource+' ORDER BY v.starts_at DESC,v.contest_key');
   res.set('Cache-Control','no-store').json({sessions});
  });
+ router.get('/summary',async(_req,res)=>{
+  const [sessions]=await pool.query('SELECT v.*,a.login_name'+sessionSource+
+   ' ORDER BY v.starts_at DESC,v.contest_key,v.account_id');
+  if(!sessions.length)return res.json({sessions:[]});
+  const [submissions]=await pool.query(
+   "SELECT s.account_login,s.submitted_at,s.passed,s.verdict,pr.source_key,pr.problem_name,pr.problem_url FROM synced_submission s "+
+   "JOIN platform p ON p.platform_id=s.platform_id JOIN problem pr ON pr.problem_id=s.problem_id "+
+   "WHERE s.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1) AND p.platform_name='QOJ' AND s.submitted_at>=? "+
+   "ORDER BY s.submitted_at,s.source_id+0,s.source_id",[sessions.at(-1).starts_at]);
+  const [medals]=await pool.query('SELECT contest_key,problem_key,tier FROM qoj_contest_medal WHERE contest_key IN (?)',
+   [[...new Set(sessions.map(session=>session.contest_key))]]);
+  const rosters=await readContestRosters();
+  const tiers=new Map(medals.map(row=>[row.contest_key+'|'+row.problem_key,row.tier]));
+  const submissionsByLogin=new Map();
+  for(const row of submissions){
+   if(!submissionsByLogin.has(row.account_login))submissionsByLogin.set(row.account_login,[]);
+   submissionsByLogin.get(row.account_login).push(row);
+  }
+  const nextStarts=new Map();
+  const summary=sessions.map(session=>{
+   const group=session.account_id+'|'+session.contest_key;
+   const roster=rosters.get(session.contest_key)??[];
+   const rosterKeys=new Set(roster.map(problem=>String(problem.problemId)));
+   const {items,solved,penalty,upsolved}=scoreVp(session,submissionsByLogin.get(session.login_name)??[],roster,nextStarts.get(group));
+   nextStarts.set(group,session.starts_at);
+   const byTier={};
+   for(const item of items){
+    if(!rosterKeys.has(item.key))continue;
+    const tier=tiers.get(session.contest_key+'|'+item.key)??'unrated';
+    const counts=byTier[tier]??={total:0,solved:0,upsolved:0};
+    counts.total++;
+    if(item.acSeconds!=null)counts.solved++;
+    else if(item.afterAc)counts.upsolved++;
+   }
+   return {...session,solved,penalty,upsolved,byTier,completeRoster:roster.length>0};
+  });
+  res.set('Cache-Control','no-store').json({sessions:summary});
+ });
  router.get('/detail',async(req,res)=>{
   const {account,contest,start}=req.query;
   if(typeof account!=='string'||!/^[\da-f-]{36}$/i.test(account)||typeof contest!=='string'||!/^\d{1,20}$/.test(contest)||
@@ -129,13 +175,7 @@ export function qojVpRouter(pool){
    "JOIN platform p ON p.platform_id=s.platform_id JOIN problem pr ON pr.problem_id=s.problem_id "+
    "WHERE s.user_id=? AND p.platform_name='QOJ' AND s.account_login=? AND s.submitted_at>=? "+
    "ORDER BY s.submitted_at,s.source_id+0,s.source_id",[session.user_id,session.login_name,start]);
-  let roster=[];
-  if(process.env.QOJ_MEDAL_CATALOG){
-   try{
-    const catalog=JSON.parse(await readFile(process.env.QOJ_MEDAL_CATALOG,'utf8'));
-    roster=catalog.contests.find(row=>String(row.id)===contest)?.problems??[];
-   }catch{}
-  }
+  let roster=(await readContestRosters()).get(contest)??[];
   const [medals]=await pool.execute('SELECT problem_key,tier FROM qoj_contest_medal WHERE contest_key=?',[contest]);
   const tiers=new Map(medals.map(row=>[row.problem_key,row.tier]));
   roster=roster.map(row=>({...row,tier:tiers.get(String(row.problemId))}));

@@ -4,7 +4,9 @@ import {qojMedalColors,qojMedalLabels} from '../shared/qoj-medal-labels.js';
 import {problemType,submissionLabel} from './submission-display.js';
 
 export default {
- setup(){
+ props:{requestedSession:String},
+ emits:['synced'],
+ setup(props,{emit}){
   const sessions=ref([]),selected=ref(''),detail=ref(null),loading=ref(false),syncing=ref(false);
   const error=ref(''),syncMessage=ref(''),boardError=ref(''),comparing=ref(false),rank=ref(null);
   const key=s=>[s.account_id,s.contest_key,s.starts_at].join('|');
@@ -28,6 +30,7 @@ export default {
     const r=await json('/sync',{method:'POST',headers:{'X-Acmer-Request':'1'}});
     syncMessage.value='已读取 '+r.count+' 条 VP 记录。'+(r.failed.length?' 部分账号暂时无法读取。':'');
     await refresh();
+    emit('synced');
    }catch(e){syncMessage.value=e.message;}finally{syncing.value=false;}
   }
   async function loadDetail(){
@@ -64,6 +67,7 @@ export default {
   }
   const problemHref=p=>p.url&&/^https:\/\/qoj\.ac\/(?:contest\/\d+\/)?problem\/\d+(?:[/?#]|$)/.test(p.url)?p.url:'https://qoj.ac/problem/'+encodeURIComponent(p.key);
   const verdict=problem=>problem.attempts?submissionLabel({passed:problem.acSeconds!=null?1:0,verdict:problem.lastVerdict}):'无赛内记录';
+  watch(()=>props.requestedSession,value=>{if(value)selected.value=value;});
   watch(selected,loadDetail);
   onMounted(refresh);
   return {sessions,selected,session,detail,loading,syncing,error,syncMessage,boardError,comparing,rank,key,sync,compare,elapsed,penaltyBreakdown,problemHref,problemType,qojMedalColors,qojMedalLabels,verdict};
