@@ -133,7 +133,7 @@ createApp({
    if(editingCards.value||(['overview','analysis','team'].includes(page.value)&&!data.value))return [];
    return page.value==='overview'?overviewBookmarks:cardOrder.editableCards.value;
   });
-  const vpSession=ref(''),vpSummaryVersion=ref(0);
+  const vpSession=ref(''),vpSummaryVersion=ref(0),vpMedals=ref({});
   async function inspectVp(session){
    vpSession.value='';
    await nextTick();
@@ -194,7 +194,7 @@ createApp({
   onMounted(()=>{hashChanged();load();window.addEventListener('hashchange',hashChanged);window.addEventListener('resize',resize);});
   onBeforeUnmount(()=>{disposeCharts();window.removeEventListener('hashchange',hashChanged);window.removeEventListener('resize',resize);});
   return {
-   vpSession,vpSummaryVersion,inspectVp,
+   vpSession,vpSummaryVersion,vpMedals,inspectVp,
    ...cardOrder,...displayPreferences,...dashboardCharts,
    recordsQuery,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
    animateCardSwitch,switchCardEditing,bookmarks,bookmarkMain,activeBookmark,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
@@ -254,8 +254,8 @@ createApp({
    </section>
 
    <section v-else-if="page==='team'&&data" v-show="!editingCards" key="team" class="ordered-cards" aria-label="团队赛分析">
-    <QojVpSummary id="bookmark-qoj-summary" :style="cardStyle('qoj-summary')" :refresh-key="dataVersion+vpSummaryVersion" @inspect="inspectVp" />
-    <QojVp id="bookmark-qoj-vp" :style="cardStyle('qoj-vp')" :requested-session="vpSession" @synced="vpSummaryVersion++" />
+    <QojVpSummary id="bookmark-qoj-summary" :style="cardStyle('qoj-summary')" :refresh-key="dataVersion+vpSummaryVersion" @inspect="inspectVp" @medals="vpMedals=$event" />
+    <QojVp id="bookmark-qoj-vp" :style="cardStyle('qoj-vp')" :requested-session="vpSession" :medals="vpMedals" @synced="vpSummaryVersion++" />
     <article id="bookmark-qoj-medals" class="panel" :style="cardStyle('qoj-medals')">
      <div class="panel-head"><h2>QOJ 奖牌题 AC 数量</h2><span>按题去重</span></div>
      <div ref="qojMedalsEl" class="chart" role="img" :aria-label="'铁牌 '+(data.qojMedals?.counts.iron??0)+' 道，铜牌 '+(data.qojMedals?.counts.bronze??0)+' 道，银牌 '+(data.qojMedals?.counts.silver??0)+' 道，金牌 '+(data.qojMedals?.counts.gold??0)+' 道'"></div>
