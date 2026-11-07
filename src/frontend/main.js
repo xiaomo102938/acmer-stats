@@ -32,9 +32,9 @@ const pages=[
 ];
 const overviewBookmarks=[
  {id:'overview-counts',title:'刷题统计'},
- {id:'activity',title:'刷题热力图'},
- {id:'week',title:'最近 7 天的表现'},
- {id:'overview-difficulty',title:'难度一览'}
+ {id:'activity',title:'热力图'},
+ {id:'week',title:'近 7 天练习统计'},
+ {id:'overview-difficulty',title:'难度分布'}
 ];
 const aliases={practice:'analysis',trends:'analysis',tags:'analysis',recent:'records',accounts:'settings'};
 function recommendationRoute(){
@@ -207,7 +207,7 @@ createApp({
     <a class="brand" href="#overview" aria-label="刷题手记首页" title="刷题手记首页">◈ <span>刷题手记<small>ACMER / INSIGHT</small></span></a>
     <button type="button" class="sidebar-toggle" aria-controls="main-navigation" :aria-expanded="!sidebarCollapsed" :aria-label="sidebarCollapsed?'展开侧栏':'折叠侧栏'" :title="sidebarCollapsed?'展开侧栏':'折叠侧栏'" @click="toggleSidebar">{{sidebarCollapsed?'»':'«'}}</button>
    </div>
-   <p class="nav-label">我的练习空间</p>
+   <p class="nav-label">导航</p>
    <nav id="main-navigation" aria-label="主导航"><template v-for="item in pages" :key="item.id"><span v-if="editingCards&&item.id==='overview'" class="nav nav-locked" aria-disabled="true" title="结束卡片位置编辑后可进入"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></span><a v-else :href="'#'+item.id" class="nav" :class="{active:page===item.id}" :aria-current="page===item.id?'page':undefined" :aria-label="item.name" :title="item.name"><span aria-hidden="true">{{item.icon}}</span><span class="nav-text">　{{item.name}}</span></a></template></nav>
    <SiteStatus />
   </aside>
@@ -217,11 +217,11 @@ createApp({
     <span class="page-bookmarks-title">本页书签</span>
     <button v-for="card in bookmarks" :key="card.id" type="button" :aria-current="activeBookmark===card.id?'location':undefined" @click="jumpToCard(card.id)">{{card.title}}</button>
    </nav>
-   <div v-if="editingCards" class="card-order-info" role="status">拖动标题调整本页卡片顺序，松开后自动保存。模块只能在所属页面内移动。</div>
+   <div v-if="editingCards" class="card-order-info" role="status">拖动标题调整本页卡片顺序，松开后自动保存。</div>
    <p v-if="cardOrderError" class="error" role="alert">{{cardOrderError}}</p>
    <CardOrderEditor v-if="editingCards" :key="page" :cards="editableCards" @move="moveCard"><label class="card-order-toggle"><input type="checkbox" role="switch" :checked="editingCards" :class="{'switch-animated':animateCardSwitch}" @change="switchCardEditing" @animationend="animateCardSwitch=false">卡片位置编辑模式</label></CardOrderEditor>
    <div v-if="!editingCards&&error&&page!=='settings'" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
-   <LoadingNotice v-if="!editingCards&&loading&&!data&&!['settings','records'].includes(page)" class="panel" skeleton>正在读取看板…</LoadingNotice>
+   <LoadingNotice v-if="!editingCards&&loading&&!data&&!['settings','records'].includes(page)" class="panel" skeleton>正在读取数据…</LoadingNotice>
 
    <section v-if="page==='overview'&&data" key="overview" aria-label="数据简览">
     <div id="bookmark-overview-counts" class="metrics content-ready">
@@ -231,12 +231,12 @@ createApp({
     <Activity id="bookmark-activity" :refresh-key="dataVersion" />
     <div class="chart-grid">
      <article id="bookmark-week" class="panel">
-      <div class="panel-head"><h2>最近 7 天的表现</h2><span>{{days[0]?.day}} — {{days[6]?.day}}</span></div>
+      <div class="panel-head"><h2>近 7 天练习统计</h2><span>{{days[0]?.day}} — {{days[6]?.day}}</span></div>
       <div class="week-summary"><div><strong>{{week.submissions}}</strong><span>提交次数</span></div><div><strong>{{week.accepted}}</strong><span>AC 次数</span></div><div><strong>{{week.problems}}</strong><span>尝试题目</span></div><div><strong>{{week.activeDays}} / 7</strong><span>活跃天数</span></div></div>
       <div ref="weekEl" class="chart" role="img" aria-label="最近七天提交与 AC 次数趋势"></div>
       <ModuleHelp><p class="footnote">根据已同步的提交明细统计。部分平台仅同步 AC。洛谷公开练习清单、手工记录和示例记录不计入提交趋势。</p></ModuleHelp>
      </article>
-     <article id="bookmark-overview-difficulty" class="panel"><div class="panel-head"><h2>难度一览</h2><a class="text-link" href="#analysis">查看分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name==='全部平台'?'全部平台（排除 QOJ）':p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
+     <article id="bookmark-overview-difficulty" class="panel"><div class="panel-head"><h2>难度分布</h2><a class="text-link" href="#analysis">个人刷题分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name==='全部平台'?'全部平台（排除 QOJ）':p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
     </div>
    </section>
 
@@ -262,7 +262,7 @@ createApp({
      <p class="footnote">已分档 {{data.qojMedals?.matched??0}} / {{data.qojMedals?.total??0}} 道 QOJ 通过题。点击柱子或下方档位查看提交记录。</p>
      <nav v-if="data.qojMedals?.total" class="problem-type-legend" aria-label="查看各档 QOJ 提交记录"><a v-for="(label,tier) in qojMedalLabels" :key="tier" class="problem" :href="qojMedalHref(tier)">{{label}} {{tier==='unrated'?data.qojMedals.total-data.qojMedals.matched:data.qojMedals.counts[tier]}} 道 ↗</a></nav>
      <p v-if="data.qojMedals?.total && !data.qojMedals?.matched" class="footnote">暂无可匹配的榜单数据。同步 OJ Insight 的公开榜单后，刷新团队赛分析。</p>
-     <ModuleHelp><p class="footnote">使用 OJ Insight 榜单缓存中的赛时通过队伍比例。金牌不超过 10%，银牌不超过 30%，铜牌不超过 60%，其余为铁牌。缺少可靠榜单匹配的题只计入总题数。QOJ 不计入个人能力分。</p></ModuleHelp>
+     <ModuleHelp><p class="footnote">使用 OJ Insight 榜单缓存中的赛时通过队伍比例。通过比例 ≤10% 为金牌题，>10% 至 30% 为银牌题，>30% 至 60% 为铜牌题，>60% 为铁牌题。缺少可靠榜单匹配的题只计入总题数。QOJ 不计入个人能力分。</p></ModuleHelp>
     </article>
    </section>
    <section v-else-if="page==='records'" v-show="!editingCards" key="records" aria-label="提交记录"><Submissions id="bookmark-submissions" :route-query="recordsQuery" :refresh-key="dataVersion" /></section>

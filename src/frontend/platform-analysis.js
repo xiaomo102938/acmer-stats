@@ -12,7 +12,7 @@ export default{
   onMounted(load);watch(()=>props.refreshKey,load);
   return {scoreStyle,ratingsReady,ratings,loading,message,error,refresh,own,label};
  },
- template:`<article class="panel platform-analysis" aria-label="各平台练习情况"><div class="panel-head"><h2>各平台练习情况</h2><button @click="refresh" :aria-busy="loading" :disabled="loading">{{loading?'正在更新 Rating…':'更新 Rating'}}</button></div>
+ template:`<article class="panel platform-analysis" aria-label="平台练习统计"><div class="panel-head"><h2>平台练习统计</h2><button @click="refresh" :aria-busy="loading" :disabled="loading">{{loading?'正在更新 Rating…':'更新 Rating'}}</button></div>
   <p v-if="error" class="error" role="alert">{{error}}</p><p v-if="message" class="footnote" role="status">{{message}}</p>
   <LoadingNotice v-if="!ratingsReady&&!error">正在读取平台 Rating…</LoadingNotice>
   <div class="platform-grid"><section v-for="p in platforms" :key="p.platform_id" class="platform-card" :aria-label="p.platform_name+'练习情况'"><h3>{{p.platform_name}}</h3><div class="platform-counts"><div><strong>{{p.passed_count}}</strong><span>通过题数</span></div><div><strong>{{p.total_count}}</strong><span>尝试题数</span></div></div>
