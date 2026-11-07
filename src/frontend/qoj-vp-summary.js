@@ -1,7 +1,16 @@
-import {vpMedals,vpMedal,vpMedalStyle} from './qoj-vp-medals.js';
-import {computed,ref,watch} from 'vue';
+import {vpMedals,vpMedal} from './qoj-vp-medals.js';
+import {computed,ref,watch,onBeforeUnmount} from 'vue';
 import {apiFetch} from './api-fetch.js';
 import {qojMedalLabels} from '../shared/qoj-medal-labels.js';
+
+import * as echarts from 'echarts/core';
+import {LineChart} from 'echarts/charts';
+import {GridComponent,TooltipComponent} from 'echarts/components';
+import {CanvasRenderer} from 'echarts/renderers';
+
+echarts.use([LineChart,GridComponent,TooltipComponent,CanvasRenderer]);
+
+const dateLabel=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit'});
 
 export default {
  props:{refreshKey:Number},
@@ -27,7 +36,7 @@ export default {
   const visible=computed(()=>scope.value==='recent'?sessions.value.slice(0,10):sessions.value);
   const trend=computed(()=>[...visible.value].reverse());
   const average=field=>visible.value.length?(visible.value.reduce((sum,row)=>sum+row[field],0)/visible.value.length).toFixed(1):'—';
-  const maxSolved=computed(()=>Math.max(1,...visible.value.map(row=>row.solved)));
+  const chartEl=ref(null);
   const coverage=computed(()=>visible.value.filter(row=>row.completeRoster).length);
   const tiers=computed(()=>Object.entries(qojMedalLabels).map(([tier,label])=>{
    const counts={total:0,solved:0,upsolved:0};
@@ -53,7 +62,49 @@ export default {
   const caption=s=>[s.contest_name,s.starts_at,'过题 '+s.solved,'罚时 '+s.penalty,
    '模拟奖牌 '+vpMedal(s.medal).label,s.medal?.place?'原赛参考第 '+s.medal.place+' / '+s.medal.total+' 名':null].filter(Boolean).join(' · ');
   const key=s=>[s.account_id,s.contest_key,s.starts_at].join('|');
-  return {sessions,scope,error,loading,visible,trend,average,maxSolved,coverage,tiers,key,load,distribution,medalRing,caption,vpMedalStyle};
+  let chart,resize,themeObserver;
+  function draw(){
+   if(!chart)return;
+   const css=getComputedStyle(document.documentElement);
+   const token=name=>css.getPropertyValue(name).trim();
+   const data=trend.value.map(session=>({
+    value:[Date.parse(session.starts_at.replace(' ','T')+'+08:00'),session.solved],
+    itemStyle:{color:vpMedal(session.medal).color}
+   }));
+   chart.setOption({
+    animation:false,
+    grid:{left:36,right:22,top:18,bottom:32},
+    xAxis:{type:'time',axisLabel:{color:token('--muted'),hideOverlap:true,formatter:date=>dateLabel.format(date)},
+     axisLine:{lineStyle:{color:token('--border')}}},
+    yAxis:{type:'value',minInterval:1,axisLabel:{color:token('--muted')},
+     splitLine:{lineStyle:{color:token('--rowBorder')}}},
+    tooltip:{trigger:'item',renderMode:'richText',confine:true,backgroundColor:token('--panel'),
+     borderColor:token('--border'),textStyle:{color:token('--text')},
+     formatter:({dataIndex})=>caption(trend.value[dataIndex]).split(' · ').join('\n')},
+    series:[{type:'line',data,symbol:'circle',symbolSize:8,showSymbol:true,
+     lineStyle:{color:token('--green'),width:2},emphasis:{scale:true}}]
+   },true);
+  }
+  function disposeChart(){
+   resize?.disconnect();
+   themeObserver?.disconnect();
+   chart?.dispose();
+   chart=null;
+  }
+  watch(chartEl,el=>{
+   disposeChart();
+   if(!el)return;
+   chart=echarts.init(el);
+   chart.on('click',{seriesIndex:0},({dataIndex})=>emit('inspect',key(trend.value[dataIndex])));
+   resize=new ResizeObserver(()=>chart?.resize());
+   resize.observe(el);
+   themeObserver=new MutationObserver(draw);
+   themeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+   draw();
+  },{flush:'post'});
+  watch(trend,draw,{flush:'post'});
+  onBeforeUnmount(disposeChart);
+  return {sessions,scope,error,loading,visible,average,coverage,tiers,load,distribution,medalRing,chartEl};
  },
  template:`
  <article class="panel" aria-label="场次总览">
@@ -66,15 +117,8 @@ export default {
   <template v-if="visible.length">
    <p>场次 <strong>{{visible.length}}</strong> · 场均赛内通过 <strong>{{average('solved')}}</strong> 道 · 场均赛后补题 <strong>{{average('upsolved')}}</strong> 道</p>
    <h3>场次趋势</h3>
-   <p class="footnote">柱高表示赛内过题数，颜色表示模拟奖牌。悬停查看成绩，点击打开复盘。</p>
-   <div class="vp-summary-trend" aria-label="按日期排列的 QOJ 场次趋势">
-    <button v-for="s in trend" :key="key(s)" type="button"
-     :title="caption(s)" :aria-label="caption(s)+'，查看复盘'" :style="vpMedalStyle(s.medal)"
-     @click="$emit('inspect',key(s))">
-     <span class="vp-summary-bar" :style="{height:(s.solved/maxSolved*80)+'px'}">{{s.solved}}</span>
-     <small>{{s.starts_at.slice(5,10)}}</small>
-    </button>
-   </div>
+   <p class="footnote">节点高度表示赛内过题数，颜色表示模拟奖牌。悬停查看成绩，点击打开复盘。</p>
+   <div ref="chartEl" class="chart" role="img" aria-label="按日期排列的 QOJ 场次过题数和模拟奖牌折线图"></div>
    <h3>模拟奖牌分布</h3>
    <div class="vp-medal-distribution">
     <div v-if="medalRing" class="vp-medal-ring" :style="{background:medalRing}" aria-hidden="true"></div>
