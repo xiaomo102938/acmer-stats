@@ -5,6 +5,7 @@ import {applyLeetcodeTotals} from './leetcode.js';
 import {ratingRouter} from './ratings.js';
 import {trendRouter} from './trends.js';
 import {abilityTrendsRouter,captureAbilitySnapshot} from './ability-trends.js';
+import {initQojVpStore,qojVpRouter} from './qoj-vp.js';
 import {submissionRouter} from './submissions.js';
 import {practiceRouter} from './practice.js';
 import {abilityProfiles,abilityProfilesByPlatform,skillSubtreeCounts,shanghaiDay} from './ability.js';
@@ -60,6 +61,7 @@ app.use('/api/ability/trends',abilityTrendsRouter(pool,path.join(root,'.cache','
 app.get('/api/qoj-medals/status',async(_req,res)=>{
  res.set('Cache-Control','no-store').json(await readQojImportStatus(pool));
 });
+app.use('/api/qoj-vp',qojVpRouter(pool));
 app.use('/api/submissions',submissionRouter(pool));
 app.use('/api/problem-types',problemTypesRouter(pool));
 app.use('/api/practice',practiceRouter(pool));
@@ -227,6 +229,7 @@ const port=Number(process.env.PORT || 3000);
 await pool.query("UPDATE platform_account SET sync_status='error',sync_message='上次同步被服务重启中断，请重新同步。' WHERE sync_status='running'");
 const startupConnection=await pool.getConnection();
 try{await saveAbilitySnapshot(startupConnection,'startup');}finally{startupConnection.release();}
+await initQojVpStore(pool);
 const stopQojMedalImport=await initQojMedalStore(pool,process.env.QOJ_MEDAL_CATALOG);
 const server=app.listen(port,'127.0.0.1',()=>console.log('Local: http://127.0.0.1:'+port));
 async function close() { stopQojMedalImport(); server.close(async()=>{await pool.end();process.exit(0);}); }

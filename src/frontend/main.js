@@ -1,3 +1,4 @@
+import QojVp from './qoj-vp.js';
 import ProblemTypeSettings from './problem-type-settings.js';
 import {apiFetch} from './api-fetch.js';
 import CardOrderEditor from './card-order-editor.js';
@@ -44,7 +45,7 @@ function resolvePage(){
  return pages.some(p=>p.id===key)?key:aliases[key]||'overview';
 }
 createApp({
- components:{ProblemTypeSettings,CardOrderEditor,SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,SiteStatus,Accounts,Activity,TagAnalysis,OverallAbility,AbilityTrends},
+ components:{QojVp,ProblemTypeSettings,CardOrderEditor,SkillLayoutSettings,SkillSettings,PlatformAnalysis,PracticeTrends,Submissions,Practice,SiteStatus,Accounts,Activity,TagAnalysis,OverallAbility,AbilityTrends},
  setup(){
   const sidebarCollapsed=ref(false),sidebarInteracted=ref(false);
   try { sidebarCollapsed.value=localStorage.getItem('acmer-sidebar-collapsed')==='1'; } catch {}
@@ -235,6 +236,7 @@ createApp({
     <div id="bookmark-difficulty" class="analysis-difficulty" :style="cardStyle('difficulty')">
      <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>{{difficultyScale}}</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name==='全部平台'?'全部平台（排除 QOJ）':p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
     </div>
+    <QojVp id="bookmark-qoj-vp" :style="cardStyle('qoj-vp')" />
     <article id="bookmark-qoj-medals" class="panel" :style="cardStyle('qoj-medals')">
      <div class="panel-head"><h2>QOJ 奖牌题 AC 数量</h2><span>按题去重</span></div>
      <div ref="qojMedalsEl" class="chart" role="img" :aria-label="'铁牌 '+(data.qojMedals?.counts.iron??0)+' 道，铜牌 '+(data.qojMedals?.counts.bronze??0)+' 道，银牌 '+(data.qojMedals?.counts.silver??0)+' 道，金牌 '+(data.qojMedals?.counts.gold??0)+' 道'"></div>
