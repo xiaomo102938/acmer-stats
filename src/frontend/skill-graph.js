@@ -1,5 +1,5 @@
 import {graphScoreStyle,scoreStyle} from './score-color.js';
-import {ref,computed,watch,onMounted,onBeforeUnmount,useId} from 'vue';
+import {ref,shallowRef,computed,watch,onMounted,onBeforeUnmount,useId} from 'vue';
 import {clampGraphAxis} from './graph-pan.js';
 import {readLayoutPreferences} from './skill-layout-preferences.js';
 import {createSkillLayout,skillLayoutBounds,skillViewSize} from './skill-layout.js';
@@ -10,8 +10,8 @@ export default{
   const gradientId=useId()+'-skill-fill-';
   const preferences=readLayoutPreferences();
   const expanded=ref(['dp']),selected=ref('dp'),zoom=ref(100);
-  const raw=computed(()=>props.config?customSkillGraph(props.profiles,expanded.value,props.config,props.counts):skillGraph(props.profiles,expanded.value)),positions=ref(new Map()),arranging=ref(false),layoutState=ref('idle'),iterations=ref(0);
-  const displayed=ref({nodes:[],edges:[]});
+  const raw=computed(()=>props.config?customSkillGraph(props.profiles,expanded.value,props.config,props.counts):skillGraph(props.profiles,expanded.value)),positions=shallowRef(new Map()),arranging=ref(false),layoutState=ref('idle'),iterations=ref(0);
+  const displayed=shallowRef({nodes:[],edges:[]});
   const layoutBounds=computed(()=>skillLayoutBounds(raw.value.nodes.length));
   let timer,frame;
   function cancelLayout(){
@@ -25,7 +25,7 @@ export default{
    const animate=positions.value.size>0&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
    arranging.value=true;
    layoutState.value='running';
-   let lastFrame=-Infinity;
+   let lastPaint=-Infinity;
 
    function publish(){
     positions.value=simulation.positions();
@@ -33,17 +33,16 @@ export default{
    }
 
    function batch(timestamp){
-    if(animate&&timestamp-lastFrame<32){
-     frame=requestAnimationFrame(batch);
-     return;
-    }
-    lastFrame=timestamp;
     const start=performance.now();
     let state;
     do{state=simulation.step(4);}
-    while(!state.done&&performance.now()-start<4&&(!animate||state.steps%12!==0));
+    while(!state.done&&performance.now()-start<4&&(!animate||state.steps%20!==0));
 
-    if(animate||state.done)publish();
+    // Keep advancing the simulation between SVG updates.
+    if(state.done||(animate&&timestamp-lastPaint>=48)){
+     publish();
+     lastPaint=timestamp;
+    }
     if(state.done){
      iterations.value=state.steps;
      layoutState.value=state.reason;
