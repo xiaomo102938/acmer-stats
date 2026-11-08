@@ -63,13 +63,13 @@ export default {
   })));
   const medalRows=computed(()=>distribution.value.slice(0,4));
   const difficultyRows=computed(()=>tiers.value.map(row=>({
-   tier:row.tier,label:row.label,count:row.total,color:qojMedalColors[row.tier]??'var(--muted)'
+   tier:row.tier,label:row.label,count:row.solved+row.upsolved,color:qojMedalColors[row.tier]??'var(--muted)'
   })));
   const distributions=computed(()=>[
    {title:'场次奖牌分布',rows:medalRows.value,unit:'场',
     note:distribution.value.slice(4).map(row=>row.label+' '+row.count+' 场').join(' · ')},
    {title:'题目难度分布',rows:difficultyRows.value,unit:'道',
-    note:'有完整题单的场次 '+coverage.value+' / '+visible.value.length}
+    note:'赛内及赛后 AC · 有完整题单的场次 '+coverage.value+' / '+visible.value.length}
   ].map(group=>({...group,ring:ringBackground(group.rows)})));
   const caption=s=>[s.contest_name,s.starts_at,'过题 '+s.solved,'罚时 '+s.penalty,
    '模拟奖牌 '+vpMedal(s.medal).label,s.medal?.place?'原赛参考第 '+s.medal.place+' / '+s.medal.total+' 名（前 '+topPercent(s).toFixed(1)+'%）':null].filter(Boolean).join(' · ');
@@ -152,7 +152,7 @@ export default {
    <div v-if="coverage" class="table-wrap"><table><thead><tr><th>档位</th><th>出题数</th><th>赛内通过</th><th>赛后补题</th></tr></thead>
     <tbody><tr v-for="row in tiers" :key="row.tier"><td>{{row.label}}</td><td>{{row.total}}</td><td>{{row.solved}}</td><td>{{row.upsolved}}</td></tr></tbody>
    </table></div>
-   <ModuleHelp><p class="footnote">模拟奖牌依据 VP 过题数和罚时，与 RankLand 原赛正式队伍的奖牌线比较。过题数超过牌线，或题数相同且总罚时更低，才达到该档。成绩打平时继续比较下一档。场次奖牌分布只统计可判定奖牌的场次。题目难度分布统计当前范围内完整题单的出题数，包含未分档题。同一道题出现在不同场次时分别计数。缺少整场题单或可核验奖牌线时标为待核实。</p></ModuleHelp>
+   <ModuleHelp><p class="footnote">模拟奖牌依据 VP 过题数和罚时，与 RankLand 原赛正式队伍的奖牌线比较。过题数超过牌线，或题数相同且总罚时更低，才达到该档。成绩打平时继续比较下一档。场次奖牌分布只统计可判定奖牌的场次。题目难度分布只统计当前范围内完整题单中赛内通过和赛后补题通过的题目，包含已 AC 的未分档题。同一道题出现在不同场次时分别计数。缺少整场题单或可核验奖牌线时标为待核实。</p></ModuleHelp>
   </template>
  </article>`
 };
