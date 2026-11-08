@@ -1,4 +1,4 @@
-import {apiFetch} from './api-fetch.js';
+import {cachedApiFetch} from './api-fetch.js';
 import {ref,computed,onMounted,watch} from 'vue';
 import {buildCalendar,buildRollingCalendar} from './activity-calendar.js';
 export default{
@@ -9,7 +9,7 @@ export default{
   async function load(){
    const id=++serial;loading.value=true;error.value='';
    try{
-    const response=await apiFetch('/api/activity'+(year.value!=='rolling'?'?year='+year.value:''));
+    const response=await cachedApiFetch('/api/activity'+(year.value!=='rolling'?'?year='+year.value:''));
     const body=await response.json();if(!response.ok)throw new Error(body.message);
     if(id!==serial)return;
     result.value=body;selected.value=null;focusDay.value=body.mode==='rolling'||String(body.year)===body.serverDate.slice(0,4)?body.serverDate:body.year+'-01-01';

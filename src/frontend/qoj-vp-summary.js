@@ -1,6 +1,6 @@
 import {vpMedals,vpMedal} from './qoj-vp-medals.js';
 import {computed,ref,shallowRef,watch,onBeforeUnmount} from 'vue';
-import {apiFetch} from './api-fetch.js';
+import {cachedApiFetch} from './api-fetch.js';
 import {qojMedalColors,qojMedalLabels} from '../shared/qoj-medal-labels.js';
 
 import * as echarts from 'echarts/core';
@@ -40,7 +40,7 @@ export default {
    const id=++request;
    loading.value=true;error.value='';
    try{
-    const response=await apiFetch('/api/qoj-vp/summary');
+    const response=await cachedApiFetch('/api/qoj-vp/summary');
     if(!response.ok)throw Error('暂时无法读取场次总览。');
     const result=await response.json();
     if(id===request){

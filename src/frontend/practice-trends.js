@@ -1,4 +1,4 @@
-import {apiFetch} from './api-fetch.js';
+import {apiFetch,cachedApiFetch} from './api-fetch.js';
 import {ref,computed,onMounted,onBeforeUnmount,nextTick,watch} from 'vue';
 import * as echarts from 'echarts/core';
 import {BarChart} from 'echarts/charts';
@@ -34,17 +34,17 @@ export default{
     dataZoom:zoom?[{type:'slider',startValue:Math.max(0,b.length-90),endValue:b.length-1,bottom:10,height:22,filterMode:'filter',textStyle:{color:token('--muted')},borderColor:token('--border'),backgroundColor:token('--track')},{type:'inside',startValue:Math.max(0,b.length-90),endValue:b.length-1}]:[],
     series:[{name:metrics[metric.value],type:'bar',barMaxWidth:34,itemStyle:{borderRadius:[4,4,0,0]},data:b.map(({start,end,[activeMetric]:value})=>({start,end,value,href:value?'#records?'+new URLSearchParams({from:start,to:end,status:recordStatuses[activeMetric],platform:data.value.platform==='all'?'':data.value.platform}):''}))}]},true);
   }
-  async function load(){
+  async function load(useCache=false){
    request?.abort();request=new AbortController();const id=++serial;loading.value=true;error.value='';
    const params=new URLSearchParams({mode:mode.value,grain:grain.value,platform:platform.value});
    if(mode.value==='month'&&month.value)params.set('month',month.value);if(mode.value==='year'&&year.value)params.set('year',year.value);
-   try{const r=await apiFetch('/api/trends?'+params,{signal:request.signal});const body=await r.json();if(!r.ok)throw new Error(body.message);if(id!==serial)return;
+   try{const fetchTrend=useCache===true?cachedApiFetch:apiFetch;const r=await fetchTrend('/api/trends?'+params,{signal:request.signal});const body=await r.json();if(!r.ok)throw new Error(body.message);if(id!==serial)return;
     data.value=body;if(!month.value)month.value=body.serverDate.slice(0,7);if(!year.value)year.value=body.serverDate.slice(0,4);await nextTick();draw();
    }catch(e){if(id===serial&&e.name!=='AbortError')error.value=e.message||'趋势读取失败';}finally{if(id===serial)loading.value=false;}
   }
   function changeMode(){grain.value=mode.value==='month'?'day':'month';load();}
   watch(()=>props.refreshKey,()=>load());
-  onMounted(()=>{load();resize=new ResizeObserver(()=>chart?.resize());resize.observe(chartEl.value);observer=new MutationObserver(draw);observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});});
+  onMounted(()=>{load(true);resize=new ResizeObserver(()=>chart?.resize());resize.observe(chartEl.value);observer=new MutationObserver(draw);observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});});
   onBeforeUnmount(()=>{serial++;request?.abort();resize?.disconnect();observer?.disconnect();chart?.dispose();});
   return {mode,month,year,grain,platform,metric,data,loading,error,chartEl,available,labels,metrics,total,load,changeMode,draw};
  },

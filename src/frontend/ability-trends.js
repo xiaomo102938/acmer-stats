@@ -1,5 +1,5 @@
 import {scoreStyle,scoreColor,scoreAxisColor} from './score-color.js';
-import {apiFetch} from './api-fetch.js';
+import {cachedApiFetch} from './api-fetch.js';
 import {ref,computed,onMounted,onBeforeUnmount,watch} from 'vue';
 import * as echarts from 'echarts/core';
 import {LineChart} from 'echarts/charts';
@@ -101,7 +101,7 @@ export default{
    request?.abort();
    const active=new AbortController();request=active;loading.value=true;error.value='';
    try{
-    const response=await apiFetch('/api/ability/trends?mode='+mode.value,{signal:active.signal}),body=await response.json();
+    const response=await cachedApiFetch('/api/ability/trends?mode='+mode.value,{signal:active.signal}),body=await response.json();
     if(!response.ok)throw new Error(body.message);
     if(active.signal.aborted)return;
     snapshots.value=body.snapshots;historyLimit.value=body.historyLimit;

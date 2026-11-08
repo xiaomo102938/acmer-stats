@@ -1,7 +1,7 @@
 import QojVpSummary from './qoj-vp-summary.js';
 import QojVp from './qoj-vp.js';
 import ProblemTypeSettings from './problem-type-settings.js';
-import {apiFetch} from './api-fetch.js';
+import {cachedApiFetch,invalidateApiReads} from './api-fetch.js';
 import CardOrderEditor from './card-order-editor.js';
 import LoadingNotice from './loading-notice.js';
 import ModuleHelp from './module-help.js';
@@ -86,17 +86,30 @@ createApp({
    const view=page.value;
    const request=++requestNumber;
    loading.value=false;error.value='';
-   if(view==='settings'){pageData.value={};return;}
+   if(view==='settings')return;
    if(view==='records')return;
    loading.value=true;
    try{
     const endpoint=view==='team'?'/api/qoj-medals':view==='overview'?'/api/dashboard?view=overview':'/api/dashboard?view=analysis';
-    const response=await apiFetch(endpoint);const body=await response.json();
+    const response=await cachedApiFetch(endpoint);const body=await response.json();
     if(!response.ok)throw new Error(body.message);
     if(request!==requestNumber||page.value!==view)return;
-    pageData.value={...pageData.value,[view]:body};dataVersion.value++;await nextTick();draw();
+    pageData.value={...pageData.value,[view]:body};await nextTick();draw();
    }catch(e){if(request===requestNumber)error.value=e.message||'加载失败';}
    finally{if(request===requestNumber)loading.value=false;}
+  }
+  function refreshData(){
+   invalidateApiReads();
+   dataVersion.value++;
+   return load();
+  }
+  function invalidateDashboard(){
+   invalidateApiReads();
+   pageData.value={};
+  }
+  function refreshVpSummary(){
+   invalidateApiReads();
+   vpSummaryVersion.value++;
   }
   function hashChanged(){
    const requested=resolvePage();
@@ -232,7 +245,7 @@ createApp({
    vpSession,vpSummaryVersion,vpMedals,inspectVp,
    ...cardOrder,...displayPreferences,...dashboardCharts,
    recordsQuery,recordsTarget,recordsForBoth,followRecordsLink,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
-   animateCardSwitch,switchCardEditing,bookmarks,bookmarkMain,activeBookmark,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
+   animateCardSwitch,switchCardEditing,bookmarks,bookmarkMain,activeBookmark,jumpToCard,pages,page,current,data,dataVersion,loading,error,refreshData,invalidateDashboard,refreshVpSummary,theme
   };
  },
  template:`
@@ -247,7 +260,7 @@ createApp({
    <SiteStatus />
   </aside>
   <main ref="bookmarkMain" :class="{'has-bookmarks':bookmarks.length}">
-   <header><h1>{{current.name}}</h1><button v-if="editingCards&&page!=='settings'" @click="editingCards=false">结束卡片编辑</button><button v-else-if="page!=='settings'" @click="load" :aria-busy="loading" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
+   <header><h1>{{current.name}}</h1><button v-if="editingCards&&page!=='settings'" @click="editingCards=false">结束卡片编辑</button><button v-else-if="page!=='settings'" @click="refreshData" :aria-busy="loading" :disabled="loading">{{loading?'正在读取…':'↻ 刷新数据'}}</button></header>
    <nav v-if="bookmarks.length" class="page-bookmarks" aria-label="本页模块书签">
     <span class="page-bookmarks-title">本页书签</span>
     <button v-for="card in bookmarks" :key="card.id" type="button" :aria-current="activeBookmark===card.id?'location':undefined" @click="jumpToCard(card.id)">{{card.title}}</button>
@@ -255,7 +268,7 @@ createApp({
    <div v-if="editingCards" class="card-order-info" role="status">拖动标题调整本页卡片顺序，松开后自动保存。</div>
    <p v-if="cardOrderError" class="error" role="alert">{{cardOrderError}}</p>
    <CardOrderEditor v-if="editingCards" :key="page" :cards="editableCards" @move="moveCard"><label class="card-order-toggle"><input type="checkbox" role="switch" :checked="editingCards" :class="{'switch-animated':animateCardSwitch}" @change="switchCardEditing" @animationend="animateCardSwitch=false">卡片位置编辑模式</label></CardOrderEditor>
-   <div v-if="!editingCards&&error&&page!=='settings'" role="alert" class="error">{{error}} <button @click="load">重试</button></div>
+   <div v-if="!editingCards&&error&&page!=='settings'" role="alert" class="error">{{error}} <button @click="refreshData">重试</button></div>
    <LoadingNotice v-if="!editingCards&&loading&&!data&&!['settings','records'].includes(page)" class="panel" skeleton>正在读取数据…</LoadingNotice>
 
    <section v-if="page==='overview'&&data" key="overview" aria-label="数据简览">
@@ -293,7 +306,7 @@ createApp({
 
    <section v-else-if="page==='team'&&data" v-show="!editingCards" key="team" class="ordered-cards" aria-label="团队赛分析">
     <QojVpSummary id="bookmark-qoj-summary" :style="cardStyle('qoj-summary')" :refresh-key="dataVersion+vpSummaryVersion" @inspect="inspectVp" @medals="vpMedals=$event" />
-    <QojVp id="bookmark-qoj-vp" :style="cardStyle('qoj-vp')" :requested-session="vpSession" :medals="vpMedals" @synced="vpSummaryVersion++" />
+    <QojVp id="bookmark-qoj-vp" :style="cardStyle('qoj-vp')" :requested-session="vpSession" :medals="vpMedals" @synced="refreshVpSummary" />
     <article id="bookmark-qoj-medals" class="panel" :style="cardStyle('qoj-medals')">
      <div class="panel-head"><h2>QOJ 过题分布</h2><span>按题去重</span></div>
      <div ref="qojMedalsEl" class="chart" role="img" :aria-label="'铁牌 '+(data.qojMedals?.counts.iron??0)+' 道，铜牌 '+(data.qojMedals?.counts.bronze??0)+' 道，银牌 '+(data.qojMedals?.counts.silver??0)+' 道，金牌 '+(data.qojMedals?.counts.gold??0)+' 道'"></div>
@@ -320,9 +333,9 @@ createApp({
      <ModuleHelp><p class="footnote">主题可手动选择，也可以跟随系统。主题、字号和卡片间距保存在当前浏览器。开启卡片位置编辑模式后，可以拖动标题调整同一页面的卡片顺序，松开后自动保存。</p></ModuleHelp>
     </article>
     <SkillLayoutSettings id="bookmark-layout" :style="cardStyle('layout')" />
-    <SkillSettings :card-positions="cardPositions" @saved="load" />
+    <SkillSettings :card-positions="cardPositions" @saved="invalidateDashboard" />
     <ProblemTypeSettings id="bookmark-problem-types" :style="cardStyle('problem-types')" />
-    <Accounts :style="cardStyle('accounts')" @synced="load" />
+    <Accounts :style="cardStyle('accounts')" @synced="invalidateDashboard" />
    </section>
    <footer>刷题手记 · 数据来自本机 MySQL</footer>
   </main>
