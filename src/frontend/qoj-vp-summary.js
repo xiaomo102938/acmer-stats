@@ -1,7 +1,7 @@
 import {vpMedals,vpMedal} from './qoj-vp-medals.js';
 import {computed,ref,watch,onBeforeUnmount} from 'vue';
 import {apiFetch} from './api-fetch.js';
-import {qojMedalLabels} from '../shared/qoj-medal-labels.js';
+import {qojMedalColors,qojMedalLabels} from '../shared/qoj-medal-labels.js';
 
 import * as echarts from 'echarts/core';
 import {BarChart} from 'echarts/charts';
@@ -9,6 +9,18 @@ import {GridComponent,TooltipComponent} from 'echarts/components';
 import {CanvasRenderer} from 'echarts/renderers';
 
 echarts.use([BarChart,GridComponent,TooltipComponent,CanvasRenderer]);
+
+function ringBackground(rows){
+ const total=rows.reduce((sum,row)=>sum+row.count,0);
+ if(!total)return null;
+ let cumulative=0;
+ const stops=rows.filter(row=>row.count>0).map(row=>{
+  const start=cumulative/total*100;
+  cumulative+=row.count;
+  return row.color+' '+start+'% '+(cumulative/total*100)+'%';
+ });
+ return 'conic-gradient('+stops.join(',')+')';
+}
 
 export default {
  props:{refreshKey:Number},
@@ -49,16 +61,16 @@ export default {
   const distribution=computed(()=>Object.entries(vpMedals).map(([tier,meta])=>({
    tier,...meta,count:visible.value.filter(s=>(s.medal?.tier??'unknown')===tier).length
   })));
-  const medalRing=computed(()=>{
-   let end=0;
-   const stops=distribution.value.slice(0,4).filter(row=>row.count);
-   const total=stops.reduce((sum,row)=>sum+row.count,0);
-   return total?'conic-gradient('+stops.map(row=>{
-    const start=end;
-    end+=row.count/total*100;
-    return row.color+' '+start+'% '+end+'%';
-   }).join(',')+')':null;
-  });
+  const medalRows=computed(()=>distribution.value.slice(0,4));
+  const difficultyRows=computed(()=>tiers.value.map(row=>({
+   tier:row.tier,label:row.label,count:row.total,color:qojMedalColors[row.tier]??'var(--muted)'
+  })));
+  const distributions=computed(()=>[
+   {title:'场次奖牌分布',rows:medalRows.value,unit:'场',
+    note:distribution.value.slice(4).map(row=>row.label+' '+row.count+' 场').join(' · ')},
+   {title:'题目难度分布',rows:difficultyRows.value,unit:'道',
+    note:'有完整题单的场次 '+coverage.value+' / '+visible.value.length}
+  ].map(group=>({...group,ring:ringBackground(group.rows)})));
   const caption=s=>[s.contest_name,s.starts_at,'过题 '+s.solved,'罚时 '+s.penalty,
    '模拟奖牌 '+vpMedal(s.medal).label,s.medal?.place?'原赛参考第 '+s.medal.place+' / '+s.medal.total+' 名（前 '+topPercent(s).toFixed(1)+'%）':null].filter(Boolean).join(' · ');
   const key=s=>[s.account_id,s.contest_key,s.starts_at].join('|');
@@ -107,7 +119,7 @@ export default {
   },{flush:'post'});
   watch(trend,draw,{flush:'post'});
   onBeforeUnmount(disposeChart);
-  return {sessions,scope,error,loading,visible,average,coverage,tiers,load,distribution,medalRing,chartEl,unranked};
+  return {sessions,scope,error,loading,visible,average,coverage,tiers,load,distributions,chartEl,unranked};
  },
  template:`
  <article class="panel vp-summary" aria-label="场次总览">
@@ -123,20 +135,24 @@ export default {
    <p class="footnote">场次按日期等距排列。柱越高，原赛参考排名越靠前。颜色表示模拟奖牌，点击打开复盘。</p>
    <p v-if="unranked" class="footnote">{{unranked}} 场暂无可比原赛名次。</p>
    <div ref="chartEl" class="chart" role="img" aria-label="按日期排列的 QOJ 原赛参考排名柱状图"></div>
-   <h3>模拟奖牌分布</h3>
-   <div class="vp-medal-distribution">
-    <div v-if="medalRing" class="vp-medal-ring" :style="{background:medalRing}" aria-hidden="true"></div>
-    <ul class="vp-medal-legend">
-     <li v-for="row in distribution.slice(0,4)" :key="row.tier"><span :style="{background:row.color}"></span>{{row.label}} {{row.count}} 场</li>
-    </ul>
+   <div class="vp-distributions">
+    <section v-for="group in distributions" :key="group.title">
+     <h3>{{group.title}}</h3>
+     <div class="vp-medal-distribution">
+      <div v-if="group.ring" class="vp-medal-ring" :style="{background:group.ring}" aria-hidden="true"></div>
+      <ul class="vp-medal-legend">
+       <li v-for="row in group.rows" :key="row.tier"><span :style="{background:row.color}"></span>{{row.label}} {{row.count}} {{group.unit}}</li>
+      </ul>
+     </div>
+     <p class="footnote">{{group.note}}</p>
+    </section>
    </div>
-   <p class="footnote">{{distribution[4].label}} {{distribution[4].count}} 场 · {{distribution[5].label}} {{distribution[5].count}} 场</p>
    <h3>按题目档位统计</h3>
    <p class="footnote">有完整题单的场次 {{coverage}} / {{visible.length}}。同一道题在不同场次分别计数。</p>
    <div v-if="coverage" class="table-wrap"><table><thead><tr><th>档位</th><th>出题数</th><th>赛内通过</th><th>赛后补题</th></tr></thead>
     <tbody><tr v-for="row in tiers" :key="row.tier"><td>{{row.label}}</td><td>{{row.total}}</td><td>{{row.solved}}</td><td>{{row.upsolved}}</td></tr></tbody>
    </table></div>
-   <ModuleHelp><p class="footnote">模拟奖牌依据 VP 过题数和罚时，与 RankLand 原赛正式队伍的奖牌线比较。过题数超过牌线，或题数相同且总罚时更低，才达到该档。成绩打平时继续比较下一档。环形图仅统计可判定奖牌的场次。缺少整场题单或可核验奖牌线时标为待核实。</p></ModuleHelp>
+   <ModuleHelp><p class="footnote">模拟奖牌依据 VP 过题数和罚时，与 RankLand 原赛正式队伍的奖牌线比较。过题数超过牌线，或题数相同且总罚时更低，才达到该档。成绩打平时继续比较下一档。场次奖牌分布只统计可判定奖牌的场次。题目难度分布统计当前范围内完整题单的出题数，包含未分档题。同一道题出现在不同场次时分别计数。缺少整场题单或可核验奖牌线时标为待核实。</p></ModuleHelp>
   </template>
  </article>`
 };
