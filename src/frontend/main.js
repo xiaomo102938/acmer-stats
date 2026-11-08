@@ -145,11 +145,19 @@ createApp({
    jumpToCard('qoj-vp');
   }
   const bookmarkMain=ref(null),activeBookmark=ref('');
-  let bookmarkFrame=0,bookmarkResize,lastJump='';
+  let bookmarkFrame=0,bookmarkResize,lastJump='',bookmarkPosition;
   const bookmarkTarget=id=>document.getElementById(({topics:'tag-analysis',accounts:'accounts'})[id]??'bookmark-'+id);
   function updateActiveBookmark(){
    bookmarkFrame=0;
    const viewport=document.scrollingElement;
+   const bar=bookmarkMain.value?.querySelector('.page-bookmarks');
+   const dock=bar?getComputedStyle(bar).position:null;
+   const previous=bookmarkPosition;
+   if(previous?.scrollTop>0&&dock&&dock!==previous.dock&&previous.target.isConnected){
+    const top=previous.target.getBoundingClientRect().top;
+    const margin=parseFloat(getComputedStyle(previous.target).scrollMarginTop)||0;
+    window.scrollBy({top:top-margin-previous.offset,behavior:'instant'});
+   }
    const atBottom=viewport.scrollTop>0&&viewport.scrollHeight-viewport.clientHeight-viewport.scrollTop<=2;
    let first='',current='',currentTop=-Infinity;
    for(const {id} of bookmarks.value){
@@ -164,20 +172,27 @@ createApp({
     }
    }
    activeBookmark.value=current||first;
+   const target=activeBookmark.value&&bookmarkTarget(activeBookmark.value);
+   bookmarkPosition=dock&&target?{
+    dock,target,scrollTop:viewport.scrollTop,
+    offset:target.getBoundingClientRect().top-(parseFloat(getComputedStyle(target).scrollMarginTop)||0)
+   }:null;
   }
   function scheduleBookmarkUpdate(){
    if(!bookmarkFrame)bookmarkFrame=requestAnimationFrame(updateActiveBookmark);
   }
   watch([bookmarks,()=>recommendation.value.open],scheduleBookmarkUpdate,{flush:'post'});
-  watch(page,()=>{lastJump='';activeBookmark.value='';});
+  watch(page,()=>{lastJump='';activeBookmark.value='';bookmarkPosition=null;});
   onMounted(()=>{
    window.addEventListener('scroll',scheduleBookmarkUpdate,{passive:true});
+   window.addEventListener('resize',scheduleBookmarkUpdate);
    bookmarkResize=new ResizeObserver(scheduleBookmarkUpdate);
    bookmarkResize.observe(bookmarkMain.value);
    scheduleBookmarkUpdate();
   });
   onBeforeUnmount(()=>{
    window.removeEventListener('scroll',scheduleBookmarkUpdate);
+   window.removeEventListener('resize',scheduleBookmarkUpdate);
    bookmarkResize?.disconnect();
    cancelAnimationFrame(bookmarkFrame);
   });
