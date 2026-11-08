@@ -71,6 +71,10 @@ export default{
     <button :disabled="loading||result.page>=result.pages" @click="load(result.page+1)">下一页</button>
    </nav>
   </template>
-  <ModuleHelp><p class="footnote">按所选算法标签从 Codeforces 题库推荐有官方难度的题，优先展示最接近目标分的题。默认目标取实际入选能力样本的平均难度，也可手动填写目标。题单排除本机已有提交记录的题。</p></ModuleHelp>
+  <ModuleHelp>
+  <h4>推荐范围</h4><p>从 Codeforces 题库挑选带有所选算法标签和官方难度的题目，排除本机已有提交记录的题。</p>
+  <h4>目标难度</h4><p>默认使用实际入选能力样本的平均难度，也可手动填写目标。结果优先展示难度最接近目标的题目。</p>
+  <h4>使用方法</h4><p>选择题型和难度后查看题单。推荐理由显示题目与目标难度的分差，点击题名可打开原题。</p>
+  </ModuleHelp>
  </article>`
 };

@@ -64,6 +64,10 @@ export default{
   <p v-if="data" class="trend-summary" aria-live="polite">{{data.start}} — {{data.end}} · {{metrics[metric]}}：{{total}} · {{data.buckets.length}} 个分组 · 点击柱子查看提交</p>
   <div ref="chartEl" v-show="data" :class="{'content-ready':data}" class="chart trend-chart" role="img" :aria-label="'按'+labels[grain]+'统计的'+metrics[metric]" :aria-busy="loading"></div>
   <p v-if="grain==='day'&&(data?.buckets.length||0)>90" class="footnote">初始显示最后 90 天，可拖动底部缩放条查看其他日期，也可在图内缩放。</p>
-  <ModuleHelp><p class="footnote">周一至周日为一周，季度按自然季度；3 年分组从所选平台生涯首条已同步记录所在年份起算。边缘分组仅计入所选日期，当前月／年截至今天。首次 AC 按完整已同步历史中每题的首次通过计算，同题重复 AC 不重复计新题。仅统计已同步提交，历史缺失及仅提供 AC 的平台会影响结果；洛谷清单和手工汇总不推算逐题时间。</p></ModuleHelp>
+  <ModuleHelp>
+  <h4>时间分组</h4><p>一周从周一到周日，季度采用自然季度。按 3 年分组时，从所选平台最早一条已同步记录所在年份起算。月、年或生涯范围的边缘分组只计入所选日期，当前月或年截至今天。</p>
+  <h4>首次 AC</h4><p>按完整已同步历史查找每道题第一次通过的日期。同一道题后来重复通过，不会在其他日期再次计为新题。</p>
+  <h4>查看明细</h4><p>点击柱子可打开对应日期范围的提交记录。部分平台只提供 AC 明细，洛谷清单和手工汇总也没有逐题时间，因此图表可能少于平台显示的历史总量。</p>
+  </ModuleHelp>
  </article>`
 };

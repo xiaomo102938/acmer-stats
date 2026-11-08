@@ -269,9 +269,11 @@ createApp({
       <div class="panel-head"><h2>近 7 天练习统计</h2><span>{{days[0]?.day}} — {{days[6]?.day}}</span></div>
       <div class="week-summary"><div><strong>{{week.submissions}}</strong><span>提交次数</span></div><div><strong>{{week.accepted}}</strong><span>AC 次数</span></div><div><strong>{{week.problems}}</strong><span>尝试题目</span></div><div><strong>{{week.activeDays}} / 7</strong><span>活跃天数</span></div></div>
       <div ref="weekEl" class="chart" role="img" aria-label="最近七天提交与 AC 次数趋势"></div>
-      <ModuleHelp><p class="footnote">根据已同步的提交明细统计。部分平台仅同步 AC。洛谷公开练习清单、手工记录和示例记录不计入提交趋势。</p></ModuleHelp>
+      <ModuleHelp><h4>图表指标</h4><p>柱形表示当日提交次数，折线表示其中 AC 的次数。同一道题的多次提交分别计数。</p>
+  <h4>数据范围</h4><p>按最近 7 天的已同步提交明细统计。部分平台只提供 AC 明细。洛谷公开练习清单、手工记录和示例记录不计入图表。</p></ModuleHelp>
      </article>
-     <article id="bookmark-overview-difficulty" class="panel"><div class="panel-head"><h2>难度分布</h2><a class="text-link" href="#analysis">个人刷题分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name==='全部平台'?'全部平台（排除 QOJ）':p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
+     <article id="bookmark-overview-difficulty" class="panel"><div class="panel-head"><h2>难度分布</h2><a class="text-link" href="#analysis">个人刷题分析 →</a></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name==='全部平台'?'全部平台（排除 QOJ）':p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart overview-pie" role="img" aria-label="刷题难度分布"></div><ModuleHelp><h4>分数尺度</h4><p>{{difficultyNote}}</p>
+  <h4>读取图表</h4><p>每档跨度为 400 分。悬停可查看题数及该档占图中总题数的比例。选择平台后，占比按当前平台重新计算。</p></ModuleHelp></article>
     </div>
    </section>
 
@@ -280,7 +282,8 @@ createApp({
     <AbilityTrends id="bookmark-ability-trend" :style="cardStyle('ability-trend')" :refresh-key="dataVersion" />
     <PracticeTrends id="bookmark-practice-trend" :style="cardStyle('practice-trend')" :refresh-key="dataVersion" />
     <div id="bookmark-difficulty" class="analysis-difficulty" :style="cardStyle('difficulty')">
-     <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>{{difficultyScale}}</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name==='全部平台'?'全部平台（排除 QOJ）':p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><ModuleHelp><p class="footnote">{{difficultyNote}}</p></ModuleHelp></article>
+     <article class="panel"><div class="panel-head"><h2>难度分布</h2><span>{{difficultyScale}}</span></div><label class="difficulty-filter"><span>平台</span><select v-model="difficultyPlatform" aria-label="难度统计平台"><option v-for="p in difficultyPlatforms" :key="p.platform_id" :value="p.platform_name">{{p.platform_name==='全部平台'?'全部平台（排除 QOJ）':p.platform_name}}</option></select></label><div ref="difficultyEl" class="chart" role="img" aria-label="刷题难度分布"></div><ModuleHelp><h4>分数尺度</h4><p>{{difficultyNote}}</p>
+  <h4>读取图表</h4><p>每档跨度为 400 分。悬停可查看题数及该档占图中总题数的比例。选择平台后，占比按当前平台重新计算。</p></ModuleHelp></article>
     </div>
     <PlatformAnalysis id="bookmark-platforms" :style="cardStyle('platforms')" :platforms="data.platforms" :snapshots="data.platformSnapshots||[]" :refresh-key="dataVersion" />
     <TagAnalysis :style="cardStyle('topics')" :profiles="data.tagAbility||[]" :refresh-key="dataVersion" />

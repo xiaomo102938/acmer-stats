@@ -175,7 +175,11 @@ export default {
    <div v-if="coverage" class="table-wrap"><table><thead><tr><th>档位</th><th>出题数</th><th>赛内通过</th><th>赛后补题</th></tr></thead>
     <tbody><tr v-for="row in tiers" :key="row.tier"><td>{{row.label}}</td><td>{{row.total}}</td><td>{{row.solved}}</td><td>{{row.upsolved}}</td></tr></tbody>
    </table></div>
-   <ModuleHelp><p class="footnote">模拟奖牌依据 VP 过题数和罚时，与 RankLand 原赛正式队伍的奖牌线比较。过题数超过牌线，或题数相同且总罚时更低，才达到该档。成绩打平时继续比较下一档。场次奖牌分布只统计可判定奖牌的场次。题目难度分布只统计当前范围内完整题单中赛内通过和赛后补题通过的题目，包含已 AC 的未分档题。同一道题出现在不同场次时分别计数。缺少整场题单或可核验奖牌线时标为待核实。</p></ModuleHelp>
+   <ModuleHelp>
+  <h4>场次趋势</h4><p>场次按日期等距排列。柱越高，原赛参考排名越靠前。点击柱子可打开该场复盘。</p>
+  <h4>奖牌怎么判</h4><p>使用 RankLand 原赛正式队伍的奖牌线。过题更多，或过题数相同且总罚时更低，才达到该档。与牌线打平时继续比较下一档。缺少整场题单或可核验牌线时标为待核实。</p>
+  <h4>两张环形图</h4><p>场次奖牌分布以可判定奖牌的场次为分母。题目难度分布以所选范围内完整题单中已 AC 的题目为分母，包含赛内通过、赛后补题和已通过的未分档题。同一道题出现在不同场次时分别计数。悬停扇区可查看数量和占比。</p>
+  </ModuleHelp>
   </template>
  </article>`
 };

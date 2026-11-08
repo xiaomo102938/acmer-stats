@@ -76,13 +76,17 @@ export default{
    <div v-if="!loading&&!error" class="table-wrap content-ready"><table><thead><tr><th>题目</th><th>平台</th><th>CF 尺度</th><th>原始难度</th><th>评分依据</th><th>{{currentSample?'最近 AC 日期':'记录日期'}}</th><th v-if="currentSample">衰减后分数</th><th v-if="currentSample">相对权重</th></tr></thead><tbody><tr v-for="p in problems" :key="p.problem_id"><td><a v-if="p.problem_url" :href="p.problem_url" target="_blank" rel="noopener noreferrer">{{p.problem_name}} ↗</a><span v-else>{{p.problem_name}}</span></td><td>{{p.platform_name}}</td><td><span :class="{'score-chip':scoreStyle(p.rating)}" :style="scoreStyle(p.rating)">{{(p.estimated?'≈ ':'')+p.rating}}</span></td><td>{{p.native_difficulty ?? '—'}}</td><td>{{p.method}} · {{p.confidence}}</td><td>{{(currentSample?p.last_accepted_date:p.solve_date) || '未提供逐题日期'}}</td><td v-if="currentSample"><span :class="{'score-chip':scoreStyle(p.adjusted_rating)}" :style="scoreStyle(p.adjusted_rating)">{{p.adjusted_rating}}</span></td><td v-if="currentSample">{{(p.relative_weight*100).toFixed(1)}}%</td></tr></tbody></table></div>
   </section>
   <ModuleHelp v-if="!graphOnly">
+  <h4>范围与历史能力</h4>
   <p class="footnote">QOJ 不参与 CF 尺度计分。通过题数仍按所选平台的已同步记录统计。</p>
   <p v-if="!graphOnly" class="ability-description">将所选平台同一题型已通过且有评分依据的题目换算到 CF 尺度，合并可识别的同源题目后去重，取难度最高的 15%（向上取整），至少 20 道，缺额按零分计入。</p>
-  <p v-if="!graphOnly" class="footnote">当前分只使用有 AC 日期的题，最近一次 AC 后前 20 天不扣分，第 21 天起开始扣分，之后每 365 天，距离扣满 250 分的差额减半，难度超过 800 分的题最多扣至 800 分。调整后按同样规则选题，再按最近一次 AC 加权平均，并按实际题数占目标题数的比例折算。AC 日期每早 183 天，权重减半。点击历史分或当前分查看各自的入选题单。当前题单的权重以入选样本中最近的 AC 为 100%。CF 使用官方题目 rating；AT、洛谷和牛客为低置信估计。牛客按题库原分减 300 后纳入能力参考。缺少可用难度依据的题目暂不计分。此值不是个人 CF rating。</p>
-  <h3>换算规则与来源</h3><p>版本 acmer-cf-v2。牛客采用个人刷题经验换算，CF 估分等于牛客题库原分减 300。AT：round100(clamp(3900 × (AT难度 + 940) / 5155, 800, 3900))。这是将选手 rating 相关关系用于题目尺度的实验性外推，尚未经过题目配对校准。</p><p>洛谷八档由低到高：800 / 1000 / 1400 / 1800 / 2000 / 2200 / 2700 / 3200。新增“提高”档 2000 为本项目插值，其余参考旧七档社区映射，全部属于粗估；未评定不计分。</p><p><a href="https://silverfoxxxy.github.io/rating-converter" target="_blank" rel="noopener noreferrer">AT–CF Rating Converter</a> · <a href="https://github.com/EndeavourChiu/Luogu-Rating-Predictor" target="_blank" rel="noopener noreferrer">洛谷映射参考</a></p>
+  <h4>当前能力与题单</h4>
+  <p class="footnote">当前分只使用有 AC 日期的题，最近一次 AC 后前 20 天不扣分，第 21 天起开始扣分，之后每 365 天，距离扣满 250 分的差额减半，难度超过 800 分的题最多扣至 800 分。调整后按同样规则选题，再按最近一次 AC 加权平均，并按实际题数占目标题数的比例折算。AC 日期每早 183 天，权重减半。</p><p>点击历史分或当前分查看各自的入选题单。当前题单的权重以入选样本中最近的 AC 为 100%。CF 使用官方题目 rating；AT、洛谷和牛客为低置信估计。牛客按题库原分减 300 后纳入能力参考。缺少可用难度依据的题目暂不计分。此值不是个人 CF rating。</p>
+  <h4>换算规则与来源</h4><p>版本 acmer-cf-v2。牛客采用个人刷题经验换算，CF 估分等于牛客题库原分减 300。AT：round100(clamp(3900 × (AT难度 + 940) / 5155, 800, 3900))。这是将选手 rating 相关关系用于题目尺度的实验性外推，尚未经过题目配对校准。</p><p>洛谷八档由低到高：800 / 1000 / 1400 / 1800 / 2000 / 2200 / 2700 / 3200。新增“提高”档 2000 为本项目插值，其余参考旧七档社区映射，全部属于粗估；未评定不计分。</p><p><a href="https://silverfoxxxy.github.io/rating-converter" target="_blank" rel="noopener noreferrer">AT–CF Rating Converter</a> · <a href="https://github.com/EndeavourChiu/Luogu-Rating-Predictor" target="_blank" rel="noopener noreferrer">洛谷映射参考</a></p>
   </ModuleHelp>
   <ModuleHelp v-else>
+  <h4>操作与连线</h4>
   <p class="footnote">拖动空白处平移，滑块可调整缩放。点击节点查看详情，点击空白处或按 Esc 清除选择。节点越大，去重通过题数越多；实线为基础与分支，虚线为跨方向关联。它们是人工整理的知识关系，不代表严格学习前置。</p>
+  <h4>节点题数和颜色</h4>
   <p class="footnote">当前关系图共 {{skillGraphEl?.graph.known.size ?? 0}} 个节点；当前筛选还有 {{skillGraphEl?.missing ?? 0}} 个标签未纳入关系图，可在表格中查看。节点题数包含自身与全部实线下级的去重通过题，虚线关联不计入。能力参考与入选题单仍按当前题型计算。灰色表示暂无评分，白色对应 0 分。节点内的题数根据底色自动使用黑字或白字。评分沿用题型能力参考，不是个人 CF rating。</p>
   </ModuleHelp>
  </article>`

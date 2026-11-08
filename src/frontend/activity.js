@@ -69,6 +69,10 @@ export default{
    </div>
    <div class="activity-bottom"><p class="activity-selection" role="status">{{selected?selected.label:'点击日期查看当天的提交记录。'}}</p><div class="activity-legend" aria-label="颜色由浅到深表示 0、1 至 2、3 至 5、6 至 9、10 及以上"><span>少</span><i v-for="level in 5" :key="level" class="activity-cell" :class="'level-'+(level-1)"></i><span>多</span></div></div>
   </template>
-  <ModuleHelp><p class="footnote">颜色表示每天的{{metricLabel}}，周日到周六从上往下排列。默认显示截至今天的近一年，也可以按自然年查看。AC 和尝试题目当日去重，同题跨天分别统计。站点活动是洛谷独立口径，不推算提交、AC 或逐题日期。仅统计已同步数据；缺失历史不等于未练习，不含手工和示例记录。</p></ModuleHelp>
+  <ModuleHelp>
+  <h4>日期与颜色</h4><p>默认显示截至今天的近一年，也可按自然年查看。每列是一周，从上到下为周日到周六。颜色深浅表示当日的{{metricLabel}}。</p>
+  <h4>统计口径</h4><p>提交次数按已同步提交逐条计算。AC 题目和尝试题目在同一天内按题去重，同一道题在不同日期可以分别计入。</p>
+  <h4>数据范围</h4><p>洛谷的站点活动是单独的指标，无法用来推算逐题提交或 AC 日期。热力图使用已同步明细，手工和示例记录不计入。空白日期也可能是历史明细缺失。</p>
+  </ModuleHelp>
  </article>`
 };

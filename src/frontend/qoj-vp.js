@@ -100,6 +100,10 @@ export default {
     <tr v-for="p in detail.items" :key="p.key" :style="qojMedalColors[p.tier]?{'--vp-medal-color':qojMedalColors[p.tier]}:undefined"><td class="submission-problem" :data-problem-type="problemType(p).id"><svg class="problem-type-icon" viewBox="0 0 24 24" role="img" :aria-label="problemType(p).name"><title>{{problemType(p).name}}</title><path :d="problemType(p).icon" /></svg><a class="problem" :href="problemHref(p)" target="_blank" rel="noopener noreferrer">{{p.index?p.index+' · ':''}}{{p.name}} ↗</a></td><td>{{qojMedalLabels[p.tier]||'未分档'}}</td><td><span class="badge submission-verdict" :data-verdict="verdict(p)" :title="p.attempts&&p.acSeconds==null?'最后一次赛内提交的判定':undefined">{{verdict(p)}}</span></td><td>{{p.acSeconds!=null?elapsed(p.acSeconds):'—'}}</td><td>{{p.acSeconds!=null?p.wrong:'—'}}</td><td>{{p.penalty!=null?penaltyBreakdown(p):'—'}}</td><td>{{p.acSeconds==null?p.afterAc||'—':'—'}}</td></tr>
    </tbody></table></div>
   </template>
-  <ModuleHelp><p class="footnote">按该场 VP 的开赛时间和所选账号已同步的提交回算。总罚时和单题罚时均以分钟计。单题罚时显示为首次 AC 的整分钟用时 + 惩罚罚时，每次计罚提交加 20 分钟。编译错误、评测异常和未通过的题不计入总罚时。只覆盖该账号的已同步记录。参考名次按过题数和总罚时与当前 QOJ 榜单比较，榜单可能包含其他 VP。</p></ModuleHelp>
+  <ModuleHelp>
+  <h4>复盘范围</h4><p>按该场 VP 的开赛时间和所选账号已同步的提交回算。结果覆盖该账号的已同步记录。</p>
+  <h4>罚时规则</h4><p>总罚时和单题罚时均以分钟计。每道通过题的罚时为首次 AC 用时向下取整到分钟，再加上此前计罚提交的次数乘以 20。编译错误和评测异常不计罚，未通过题不计入总罚时。</p>
+  <h4>参考名次</h4><p>QOJ 参考名次按过题数和总罚时与当前榜单比较，榜单可能包含其他 VP。模拟奖牌使用场次总览所说明的原赛奖牌线。</p>
+  </ModuleHelp>
  </article>`
 };

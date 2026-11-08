@@ -87,6 +87,10 @@ export default{
  <svg ref="svg" class="topology-canvas" :viewBox="viewBox" role="group" aria-label="技能拓扑编辑画布" @pointerdown="background" @pointermove="move" @pointerup="up" @pointercancel="up" tabindex="0"><defs><marker id="editor-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="context-stroke" /></marker></defs>
  <g v-for="e in edges" :key="edgeKey(e)" class="editor-edge" :class="{secondary:e.kind==='secondary',chosen:selectedEdge===edgeKey(e)||selected===e.from||selected===e.to}" @pointerdown.stop="selectEdge(e)" @click.stop="selectEdge(e)" role="button" tabindex="0" :aria-label="(e.kind==='primary'?'主前驱':'副前驱')+'连线：'+name(e.from)+' → '+name(e.to)" @keydown.enter="selectEdge(e)"><path :d="line(e)" class="edge-hit"/><path :d="line(e)" marker-end="url(#editor-arrow)" /></g>
  <g v-for="n in nodes" :key="n.id" class="editor-node" :class="{selected:selected===n.id,start:from===n.id}" :transform="'translate('+positions[n.id].x+','+positions[n.id].y+')'" role="button" tabindex="0" :aria-label="'编辑节点：'+name(n.id)" @pointerdown.stop="down($event,n)" @keydown.enter.prevent="activate(n)"><rect x="-80" y="-32" width="160" height="64" rx="10"/><text y="-3" text-anchor="middle">{{name(n.id).split(' / ')[0].slice(0,12)}}</text><text y="17" text-anchor="middle" class="editor-node-key">{{n.parent===null?'根节点 · ':''}}{{n.id.slice(0,21)}}</text><title>{{name(n.id)}} · {{n.id}}</title></g></svg>
- <ModuleHelp><p class="footnote">各棵树按实线主前驱独立排列，虚线只表示关联。拖节点移动，拖空白处平移。点击空白或按 Esc 取消选择。选中节点后可发起连线，再点击后继节点。编辑时不运行物理模拟。</p></ModuleHelp>
+ <ModuleHelp>
+  <h4>实线和虚线</h4><p>各棵树按实线主前驱独立排列，虚线表示关联。</p>
+  <h4>移动和选中</h4><p>拖节点可移动节点，拖空白处可平移画布。点击空白处或按 Esc 可取消选择。</p>
+  <h4>连接节点</h4><p>先选中前驱并发起连线，再点选后继节点。编辑时使用静态布局。</p>
+  </ModuleHelp>
  </section>`
 };
