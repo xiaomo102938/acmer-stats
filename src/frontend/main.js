@@ -69,6 +69,7 @@ createApp({
   }
   const displayPreferences=useDisplayPreferences();
   const recordsQuery=ref(page.value==='records'?location.hash.split('?')[1]||'':'');
+  const recordsForBoth=computed(()=>new URLSearchParams(recordsQuery.value).get('scope')==='all');
   const recordsTarget=computed(()=>{
    const params=new URLSearchParams(recordsQuery.value);
    return params.get('scope')==='qoj'||params.get('platform')==='QOJ'||params.has('medal')?'qoj-submissions':'submissions';
@@ -230,7 +231,7 @@ createApp({
   return {
    vpSession,vpSummaryVersion,vpMedals,inspectVp,
    ...cardOrder,...displayPreferences,...dashboardCharts,
-   recordsQuery,recordsTarget,followRecordsLink,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
+   recordsQuery,recordsTarget,recordsForBoth,followRecordsLink,recommendation,recommendationEl,closeRecommendation,sidebarCollapsed,sidebarInteracted,toggleSidebar,
    animateCardSwitch,switchCardEditing,bookmarks,bookmarkMain,activeBookmark,jumpToCard,pages,page,current,data,dataVersion,loading,error,load,theme
   };
  },
@@ -301,7 +302,7 @@ createApp({
    </section>
    <section v-else-if="page==='records'" v-show="!editingCards" key="records" class="ordered-cards records-cards" aria-label="提交记录">
     <Submissions id="bookmark-submissions" scope="personal" @settled="followRecordsLink" :style="cardStyle('submissions')" :route-query="recordsTarget==='submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
-    <Submissions id="bookmark-qoj-submissions" scope="qoj" @settled="followRecordsLink" :style="cardStyle('qoj-submissions')" :route-query="recordsTarget==='qoj-submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
+    <Submissions id="bookmark-qoj-submissions" scope="qoj" @settled="followRecordsLink" :style="cardStyle('qoj-submissions')" :route-query="recordsForBoth||recordsTarget==='qoj-submissions'?recordsQuery:undefined" :refresh-key="dataVersion" />
    </section>
 
    <section v-else-if="page==='settings'" v-show="!editingCards" key="settings" class="ordered-cards" aria-label="设置">

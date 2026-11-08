@@ -22,6 +22,9 @@ export default{
    const cells=calendar.value.cells.filter(d=>d.inside&&!d.future);
    return {submissions:cells.reduce((n,d)=>n+d.submission_count,0),activities:cells.reduce((n,d)=>n+d.activity_count,0),acProblems:cells.reduce((n,d)=>n+d.accepted_problem_count,0),activeDays:cells.filter(d=>d.value>0).length};
   });
+  function openSubmissions(day){
+   location.hash='#records?'+new URLSearchParams({scope:'all',from:day,to:day});
+  }
   function navigate(event,day){
    const delta={ArrowLeft:-7,ArrowRight:7,ArrowUp:-1,ArrowDown:1}[event.key];if(!delta)return;
    const date=new Date(day+'T00:00:00Z');date.setUTCDate(date.getUTCDate()+delta);
@@ -40,7 +43,7 @@ export default{
   });
   watch(metric,()=>{selected.value=null;});
   onMounted(load);
-  return {result,year,platform,metric,loading,error,selected,rows,calendar,summary,metricLabel,choose,load,focusDay,navigate};
+  return {result,year,platform,metric,loading,error,selected,rows,calendar,summary,metricLabel,choose,load,focusDay,navigate,openSubmissions};
  },
  template:`
  <article class="panel activity-panel" aria-label="刷题热力图">
@@ -60,11 +63,11 @@ export default{
     <div class="activity-scroll" tabindex="0" aria-label="年度活动日历，可横向滚动">
      <div class="activity-months" :style="{'--weeks':calendar.columns}" aria-hidden="true"><span v-for="m in calendar.months" :key="m.key" :style="{gridColumn:m.column}">{{m.name}}</span></div>
      <div class="activity-grid" :style="{'--weeks':calendar.columns}" role="group" :aria-label="(year==='rolling'?'最近365天':year+'年')+'每日'+metricLabel">
-      <template v-for="d in calendar.cells" :key="d.day"><button v-if="d.inside&&!d.future" type="button" class="activity-cell" :class="'level-'+d.level" :title="d.label" :aria-label="d.label" :data-day="d.day" :tabindex="focusDay===d.day?0:-1" @focus="focusDay=d.day;selected=d" @keydown="navigate($event,d.day)" :aria-pressed="selected?.day===d.day" @click="selected=d"></button><span v-else class="activity-cell activity-placeholder" :class="{future:d.inside}" aria-hidden="true"></span></template>
+      <template v-for="d in calendar.cells" :key="d.day"><button v-if="d.inside&&!d.future" type="button" class="activity-cell" :class="'level-'+d.level" :title="d.label" :aria-label="d.label" :data-day="d.day" :tabindex="focusDay===d.day?0:-1" @focus="focusDay=d.day;selected=d" @keydown="navigate($event,d.day)" @click="openSubmissions(d.day)"></button><span v-else class="activity-cell activity-placeholder" :class="{future:d.inside}" aria-hidden="true"></span></template>
      </div>
     </div>
    </div>
-   <div class="activity-bottom"><p class="activity-selection" role="status">{{selected?selected.label:'选择日期查看当日数据。'}}</p><div class="activity-legend" aria-label="颜色由浅到深表示 0、1 至 2、3 至 5、6 至 9、10 及以上"><span>少</span><i v-for="level in 5" :key="level" class="activity-cell" :class="'level-'+(level-1)"></i><span>多</span></div></div>
+   <div class="activity-bottom"><p class="activity-selection" role="status">{{selected?selected.label:'点击日期查看当天的提交记录。'}}</p><div class="activity-legend" aria-label="颜色由浅到深表示 0、1 至 2、3 至 5、6 至 9、10 及以上"><span>少</span><i v-for="level in 5" :key="level" class="activity-cell" :class="'level-'+(level-1)"></i><span>多</span></div></div>
   </template>
   <ModuleHelp><p class="footnote">颜色表示每天的{{metricLabel}}，周日到周六从上往下排列。默认显示截至今天的近一年，也可以按自然年查看。AC 和尝试题目当日去重，同题跨天分别统计。站点活动是洛谷独立口径，不推算提交、AC 或逐题日期。仅统计已同步数据；缺失历史不等于未练习，不含手工和示例记录。</p></ModuleHelp>
  </article>`
