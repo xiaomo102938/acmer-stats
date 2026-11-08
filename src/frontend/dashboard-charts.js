@@ -1,8 +1,4 @@
 import {computed,ref} from 'vue';
-import * as echarts from 'echarts/core';
-import {BarChart,LineChart,PieChart} from 'echarts/charts';
-import {GridComponent,TooltipComponent,LegendComponent} from 'echarts/components';
-import {CanvasRenderer} from 'echarts/renderers';
 import {scoreColor} from './score-color.js';
 import {cfDifficultyBuckets} from './difficulty.js';
 
@@ -11,11 +7,10 @@ import {qojMedalColors,qojMedalLabels} from '../shared/qoj-medal-labels.js';
 const qojMedalHref=medal=>'#records?'+new URLSearchParams({scope:'qoj',platform:'QOJ',status:'ac',unique:'1',medal});
 const chartTiers=['iron','bronze','silver','gold'];
 
-echarts.use([BarChart,LineChart,PieChart,GridComponent,TooltipComponent,LegendComponent,CanvasRenderer]);
-
 export function useDashboardCharts(data,editingCards,isDark){
   const difficultyEl=ref(null),weekEl=ref(null),qojMedalsEl=ref(null);
   const charts=new Map();
+  let initChart,loadingEngine=false;
   const difficultyPlatform=ref('全部平台');
   const difficultyPlatforms=computed(()=>[{platform_name:'全部平台'},...(data.value?.platforms?.filter(p=>p.total_count>0&&p.platform_name!=='QOJ')||[])]);
   const difficultyScale=computed(()=>difficultyPlatform.value==='牛客'?'牛客题库原始分':'CF 统一尺度');
@@ -38,13 +33,24 @@ export function useDashboardCharts(data,editingCards,isDark){
   function render(element,option){
    if(!element)return;
    let chart=charts.get(element);
-   if(!chart){chart=echarts.init(element);charts.set(element,chart);}
+   if(!chart){chart=initChart(element);charts.set(element,chart);}
    chart.setOption(option,true);
    return chart;
   }
   function draw(){
    charts.forEach((chart,element)=>{if(!element.isConnected){chart.dispose();charts.delete(element);}});
    if(!data.value||editingCards.value)return;
+   if(![difficultyEl.value,weekEl.value,qojMedalsEl.value].some(el=>el?.isConnected))return;
+   if(!initChart){
+    if(!loadingEngine){
+     loadingEngine=true;
+     import('./dashboard-chart-engine.js').then(engine=>{
+      initChart=engine.initChart;
+      draw();
+     }).catch(error=>console.error('图表加载失败',error)).finally(()=>{loadingEngine=false;});
+    }
+    return;
+   }
    const dark=isDark();
    const colors=dark?['#83bc9c','#9faedb','#c4ce93','#d9b77f','#7d9289']:['#376c58','#86a895','#c4d5b8','#dfbf82','#b0b9aa'];
    const css=getComputedStyle(document.documentElement),token=name=>css.getPropertyValue(name).trim();

@@ -1,4 +1,3 @@
-import QojVpSummary from './qoj-vp-summary.js';
 import QojVp from './qoj-vp.js';
 import ProblemTypeSettings from './problem-type-settings.js';
 import {cachedApiFetch,invalidateApiReads} from './api-fetch.js';
@@ -8,21 +7,22 @@ import ModuleHelp from './module-help.js';
 import SkillLayoutSettings from './skill-layout-settings.js';
 import SkillSettings from './skill-settings.js';
 import PlatformAnalysis from './platform-analysis.js';
-import PracticeTrends from './practice-trends.js';
 import Submissions from './submissions.js';
 import Practice from './practice.js';
 import SiteStatus from './site-status.js';
-import {createApp,onMounted,onBeforeUnmount,ref,shallowRef,computed,watch,nextTick} from 'vue';
+import {createApp,defineAsyncComponent,onMounted,onBeforeUnmount,ref,shallowRef,computed,watch,nextTick} from 'vue';
 import Accounts from './accounts.js';
 import TagAnalysis from './tag-analysis.js';
 import OverallAbility from './overall-ability.js';
-import AbilityTrends from './ability-trends.js';
 import Activity from './activity.js';
 import {useTheme} from './theme.js';
 import {useCardOrder} from './page-card-order.js';
 import {useDisplayPreferences} from './display-preferences.js';
 import {useDashboardCharts} from './dashboard-charts.js';
 import './style.css';
+const QojVpSummary=defineAsyncComponent(()=>import('./qoj-vp-summary.js'));
+const PracticeTrends=defineAsyncComponent(()=>import('./practice-trends.js'));
+const AbilityTrends=defineAsyncComponent(()=>import('./ability-trends.js'));
 const pages=[
  {id:'overview',icon:'◫',name:'数据简览'},
  {id:'analysis',icon:'↗',name:'个人刷题分析'},
