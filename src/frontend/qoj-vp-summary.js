@@ -1,5 +1,5 @@
 import {vpMedals,vpMedal} from './qoj-vp-medals.js';
-import {computed,ref,watch,onBeforeUnmount} from 'vue';
+import {computed,ref,shallowRef,watch,onBeforeUnmount} from 'vue';
 import {apiFetch} from './api-fetch.js';
 import {qojMedalColors,qojMedalLabels} from '../shared/qoj-medal-labels.js';
 
@@ -55,6 +55,8 @@ export default {
   const trend=computed(()=>[...visible.value].reverse());
   const average=field=>visible.value.length?(visible.value.reduce((sum,row)=>sum+row[field],0)/visible.value.length).toFixed(1):'—';
   const chartEl=ref(null);
+  const hoveredSlice=shallowRef(null),focusedSlice=shallowRef(null);
+  const activeSlice=computed(()=>hoveredSlice.value??focusedSlice.value);
   const topPercent=s=>s.medal?.place&&s.medal.total?Math.min(100,100*s.medal.place/s.medal.total):null;
   const unranked=computed(()=>visible.value.filter(s=>topPercent(s)==null).length);
   const coverage=computed(()=>visible.value.filter(row=>row.completeRoster).length);
@@ -127,7 +129,7 @@ export default {
   },{flush:'post'});
   watch(trend,draw,{flush:'post'});
   onBeforeUnmount(disposeChart);
-  return {sessions,scope,error,loading,visible,average,coverage,tiers,load,distributions,chartEl,unranked};
+  return {sessions,scope,error,loading,visible,average,coverage,tiers,load,distributions,hoveredSlice,focusedSlice,activeSlice,chartEl,unranked};
  },
  template:`
  <article class="panel vp-summary" aria-label="场次总览">
@@ -147,12 +149,20 @@ export default {
     <section v-for="group in distributions" :key="group.title">
      <h3>{{group.title}}</h3>
      <div class="vp-medal-distribution">
-      <svg v-if="group.slices.length" class="vp-medal-ring" viewBox="0 0 140 140" role="img" :aria-label="group.title">
-       <template v-for="slice in group.slices" :key="slice.tier">
-        <path v-if="slice.path" :d="slice.path" :fill="slice.color"><title>{{slice.label}} {{slice.count}} {{group.unit}}（{{slice.percent}}）</title></path>
-        <circle v-else cx="70" cy="70" r="52.5" fill="none" :stroke="slice.color" stroke-width="23"><title>{{slice.label}} {{slice.count}} {{group.unit}}（{{slice.percent}}）</title></circle>
-       </template>
-      </svg>
+      <div v-if="group.slices.length" class="vp-ring-wrap">
+       <svg class="vp-medal-ring" viewBox="0 0 140 140" role="group" :aria-label="group.title">
+        <g v-for="slice in group.slices" :key="slice.tier" tabindex="0"
+           :aria-label="slice.label+' '+slice.count+' '+group.unit+'（'+slice.percent+'）'"
+           @pointerenter="hoveredSlice=slice" @pointerleave="hoveredSlice=null"
+           @focus="focusedSlice=slice" @blur="focusedSlice=null">
+         <path v-if="slice.path" :d="slice.path" :fill="slice.color" />
+         <circle v-else cx="70" cy="70" r="52.5" fill="none" :stroke="slice.color" stroke-width="23" />
+        </g>
+       </svg>
+       <div v-if="group.slices.includes(activeSlice)" class="vp-ring-tooltip" aria-hidden="true">
+        {{activeSlice.label}} · {{activeSlice.count}} {{group.unit}} · {{activeSlice.percent}}
+       </div>
+      </div>
       <ul class="vp-medal-legend">
        <li v-for="row in group.rows" :key="row.tier"><span :style="{background:row.color}"></span>{{row.label}} {{row.count}} {{group.unit}}</li>
       </ul>

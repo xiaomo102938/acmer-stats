@@ -313,7 +313,10 @@ html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) [data-prob
 .vp-distributions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:16px 24px}
 .vp-medal-distribution{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
 .vp-medal-ring{width:136px;aspect-ratio:1}
-.vp-medal-ring :is(path,circle):hover{filter:brightness(1.2)}
+.vp-ring-wrap{position:relative}
+.vp-medal-ring{display:block}
+.vp-medal-ring g:is(:hover,:focus-visible){filter:brightness(1.2)}
+.vp-ring-tooltip{position:absolute;z-index:1;left:0;bottom:0;transform:translateY(50%);pointer-events:none;white-space:nowrap;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);box-shadow:0 2px 8px #0003}
 .vp-medal-legend{list-style:none;padding:0;margin:0;display:grid;gap:5px}
 .vp-medal-legend li{display:flex;align-items:center;gap:8px}
 .vp-medal-legend li span{width:.8em;height:.8em;border-radius:3px}
