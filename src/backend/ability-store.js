@@ -19,8 +19,8 @@ export async function readProblemRows(connection){
 export async function readAbilityRows(connection){
  const [rows]=await connection.query(`SELECT r.user_id,r.passed,r.solve_date,pr.problem_id,pr.problem_name,pr.problem_url,pr.source_key,pr.native_difficulty,pr.difficulty_source,
   p.platform_name,pt.tag_id,t.tag_name,COALESCE(t.display_name,t.tag_name) AS display_name
-  FROM v_problem_progress r JOIN problem pr ON pr.problem_id=r.problem_id JOIN platform p ON p.platform_id=pr.platform_id
-  JOIN problem_tag pt ON pt.problem_id=pr.problem_id JOIN tag t ON t.tag_id=pt.tag_id
+  FROM v_problem_progress r STRAIGHT_JOIN problem pr ON pr.problem_id=r.problem_id STRAIGHT_JOIN platform p ON p.platform_id=pr.platform_id
+  STRAIGHT_JOIN problem_tag pt ON pt.problem_id=pr.problem_id STRAIGHT_JOIN tag t ON t.tag_id=pt.tag_id
   WHERE r.user_id=(SELECT user_id FROM user ORDER BY user_id LIMIT 1)`);
  return rows;
 }

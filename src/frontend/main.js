@@ -90,7 +90,7 @@ createApp({
    if(view==='records')return;
    loading.value=true;
    try{
-    const endpoint=view==='team'?'/api/qoj-medals':view==='overview'?'/api/dashboard?view=overview':'/api/dashboard';
+    const endpoint=view==='team'?'/api/qoj-medals':view==='overview'?'/api/dashboard?view=overview':'/api/dashboard?view=analysis';
     const response=await apiFetch(endpoint);const body=await response.json();
     if(!response.ok)throw new Error(body.message);
     if(request!==requestNumber||page.value!==view)return;
