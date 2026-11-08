@@ -73,7 +73,7 @@ export function useDashboardCharts(data,editingCards,isDark){
    const source=native?(data.value.nowcoderDifficulty||[]).map(row=>({...row,platform_name:'牛客',cf_rating:row.score})):(data.value.unifiedDifficulty||[]).filter(row=>row.platform_name!=='QOJ');
    const buckets=cfDifficultyBuckets(source,difficultyPlatform.value);
    if(native)for(const bucket of buckets)if(bucket.midpoint===null)bucket.name='暂无原始分';
-   render(difficultyEl.value,{animation:false,color:colors,tooltip:{...tooltip,trigger:'item'},legend:{bottom:0,textStyle:{color:text}},
+   render(difficultyEl.value,{animation:false,color:colors,tooltip:{...tooltip,trigger:'item',formatter:'{b}　{c}（{d}%）'},legend:{bottom:0,textStyle:{color:text}},
     series:[{type:'pie',radius:['43%','65%'],center:['50%','36%'],label:{show:false},
      itemStyle:{borderColor:text,borderWidth:1},data:buckets.map(bucket=>({...bucket,itemStyle:{color:native&&bucket.midpoint!==null?undefined:scoreColor(bucket.midpoint)}}))}]});
   }

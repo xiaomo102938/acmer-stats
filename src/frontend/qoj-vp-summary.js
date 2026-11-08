@@ -10,16 +10,24 @@ import {CanvasRenderer} from 'echarts/renderers';
 
 echarts.use([BarChart,GridComponent,TooltipComponent,CanvasRenderer]);
 
-function ringBackground(rows){
+function ringSlices(rows){
  const total=rows.reduce((sum,row)=>sum+row.count,0);
- if(!total)return null;
- let cumulative=0;
- const stops=rows.filter(row=>row.count>0).map(row=>{
-  const start=cumulative/total*100;
-  cumulative+=row.count;
-  return row.color+' '+start+'% '+(cumulative/total*100)+'%';
+ let start=0;
+ const point=(radius,turn)=>[
+  70+radius*Math.sin(turn*2*Math.PI),
+  70-radius*Math.cos(turn*2*Math.PI)
+ ].join(' ');
+ return rows.filter(row=>row.count>0).map(row=>{
+  const portion=row.count/total;
+  const end=start+portion;
+  const largeArc=portion>0.5?1:0;
+  const path=portion===1?null:[
+   'M',point(64,start),'A 64 64 0',largeArc,1,point(64,end),
+   'L',point(41,end),'A 41 41 0',largeArc,0,point(41,start),'Z'
+  ].join(' ');
+  start=end;
+  return {...row,path,percent:new Intl.NumberFormat('zh-CN',{style:'percent',maximumFractionDigits:1}).format(portion)};
  });
- return 'conic-gradient('+stops.join(',')+')';
 }
 
 export default {
@@ -70,7 +78,7 @@ export default {
     note:distribution.value.slice(4).map(row=>row.label+' '+row.count+' 场').join(' · ')},
    {title:'题目难度分布',rows:difficultyRows.value,unit:'道',
     note:'赛内及赛后 AC · 有完整题单的场次 '+coverage.value+' / '+visible.value.length}
-  ].map(group=>({...group,ring:ringBackground(group.rows)})));
+  ].map(group=>({...group,slices:ringSlices(group.rows)})));
   const caption=s=>[s.contest_name,s.starts_at,'过题 '+s.solved,'罚时 '+s.penalty,
    '模拟奖牌 '+vpMedal(s.medal).label,s.medal?.place?'原赛参考第 '+s.medal.place+' / '+s.medal.total+' 名（前 '+topPercent(s).toFixed(1)+'%）':null].filter(Boolean).join(' · ');
   const key=s=>[s.account_id,s.contest_key,s.starts_at].join('|');
@@ -139,7 +147,12 @@ export default {
     <section v-for="group in distributions" :key="group.title">
      <h3>{{group.title}}</h3>
      <div class="vp-medal-distribution">
-      <div v-if="group.ring" class="vp-medal-ring" :style="{background:group.ring}" aria-hidden="true"></div>
+      <svg v-if="group.slices.length" class="vp-medal-ring" viewBox="0 0 140 140" role="img" :aria-label="group.title">
+       <template v-for="slice in group.slices" :key="slice.tier">
+        <path v-if="slice.path" :d="slice.path" :fill="slice.color"><title>{{slice.label}} {{slice.count}} {{group.unit}}（{{slice.percent}}）</title></path>
+        <circle v-else cx="70" cy="70" r="52.5" fill="none" :stroke="slice.color" stroke-width="23"><title>{{slice.label}} {{slice.count}} {{group.unit}}（{{slice.percent}}）</title></circle>
+       </template>
+      </svg>
       <ul class="vp-medal-legend">
        <li v-for="row in group.rows" :key="row.tier"><span :style="{background:row.color}"></span>{{row.label}} {{row.count}} {{group.unit}}</li>
       </ul>

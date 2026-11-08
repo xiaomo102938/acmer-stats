@@ -312,7 +312,8 @@ html:is([data-theme="dark"],[data-theme="black"],[data-theme="gray"]) [data-prob
 .vp-medal-name{color:color-mix(in srgb,var(--vp-result-color) 72%,currentColor)}
 .vp-distributions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:16px 24px}
 .vp-medal-distribution{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
-.vp-medal-ring{width:136px;aspect-ratio:1;border-radius:50%;mask:radial-gradient(circle closest-side,transparent 63%,#000 64%)}
+.vp-medal-ring{width:136px;aspect-ratio:1}
+.vp-medal-ring :is(path,circle):hover{filter:brightness(1.2)}
 .vp-medal-legend{list-style:none;padding:0;margin:0;display:grid;gap:5px}
 .vp-medal-legend li{display:flex;align-items:center;gap:8px}
 .vp-medal-legend li span{width:.8em;height:.8em;border-radius:3px}
