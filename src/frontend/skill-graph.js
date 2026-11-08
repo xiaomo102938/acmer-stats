@@ -164,9 +164,5 @@ export default{
    </svg>
   </div>
   <section v-if="chosen" class="skill-detail" aria-label="图谱节点详情"><div class="panel-head"><h3>{{chosen.row?.display_name||chosen.name}}</h3><span>实线子树 {{chosen.count}} 道通过题</span></div><p>CF 尺度参考值：<span :class="{'score-chip':scoreStyle(chosen.row?.ability_value)}" :style="scoreStyle(chosen.row?.ability_value)">{{chosen.row?.ability_value??'暂无'}}</span> · {{chosen.row?.sample_count||0}} / {{chosen.row?.sample_limit??20}} 题</p><button v-if="chosen.row?.sample_count>0" @click="$emit('inspect',chosen.row)">查看该题型入选题单</button><p class="footnote">相关知识：<template v-for="(n,i) in related" :key="n.id"><span v-if="i"> · </span><button class="skill-related-button" @click="choose(n.id)">{{n.name}}</button></template><span v-if="!related.length">暂无已整理关系</span></p></section>
-  <ModuleHelp>
-  <p class="footnote">拖动空白处平移，滑块可调整缩放。点击节点查看详情，点击空白处或按 Esc 清除选择。节点越大，去重通过题数越多；实线为基础与分支，虚线为跨方向关联。它们是人工整理的知识关系，不代表严格学习前置。</p>
-  <p class="footnote">当前关系图共 {{graph.known.size}} 个节点；当前筛选还有 {{missing}} 个标签未纳入关系图，可在表格中查看。节点题数包含自身与全部实线下级的去重通过题，虚线关联不计入。能力参考与入选题单仍按当前题型计算。灰色表示暂无评分，白色对应 0 分。节点内的题数根据底色自动使用黑字或白字。评分沿用题型能力参考，不是个人 CF rating。</p>
-  </ModuleHelp>
  </section>`
 };

@@ -131,12 +131,12 @@ export default {
     </ul>
    </div>
    <p class="footnote">{{distribution[4].label}} {{distribution[4].count}} 场 · {{distribution[5].label}} {{distribution[5].count}} 场</p>
-   <ModuleHelp><p class="footnote">模拟奖牌依据 VP 过题数和罚时，与 RankLand 原赛正式队伍的奖牌线比较。过题数超过牌线，或题数相同且总罚时更低，才达到该档。成绩打平时继续比较下一档。环形图仅统计可判定奖牌的场次。缺少整场题单或可核验奖牌线时标为待核实。</p></ModuleHelp>
    <h3>按题目档位统计</h3>
    <p class="footnote">有完整题单的场次 {{coverage}} / {{visible.length}}。同一道题在不同场次分别计数。</p>
    <div v-if="coverage" class="table-wrap"><table><thead><tr><th>档位</th><th>出题数</th><th>赛内通过</th><th>赛后补题</th></tr></thead>
     <tbody><tr v-for="row in tiers" :key="row.tier"><td>{{row.label}}</td><td>{{row.total}}</td><td>{{row.solved}}</td><td>{{row.upsolved}}</td></tr></tbody>
    </table></div>
+   <ModuleHelp><p class="footnote">模拟奖牌依据 VP 过题数和罚时，与 RankLand 原赛正式队伍的奖牌线比较。过题数超过牌线，或题数相同且总罚时更低，才达到该档。成绩打平时继续比较下一档。环形图仅统计可判定奖牌的场次。缺少整场题单或可核验奖牌线时标为待核实。</p></ModuleHelp>
   </template>
  </article>`
 };

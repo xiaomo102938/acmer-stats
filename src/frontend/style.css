@@ -113,6 +113,8 @@ main>header{margin-bottom:22px}main>header h1{font-size:calc(24px * var(--font-s
 @media(prefers-reduced-motion:no-preference){
  .skill-node circle,.skill-edge path{transition:stroke 150ms ease-out,stroke-width 150ms ease-out}
 }
+.metrics>article,.chart-grid>article{display:flex;flex-direction:column}
+.metrics>article>.module-help,.chart-grid>article>.module-help{margin-top:auto;padding-top:12px}
 .module-help{margin-top:12px}.module-help summary{display:flex;align-items:center;gap:6px;width:max-content;margin-left:auto;padding:5px 8px;border-radius:6px;color:var(--muted);cursor:pointer;font-size:calc(12px * var(--font-scale,1));list-style:none}.module-help summary::-webkit-details-marker{display:none}.module-help summary:hover,.module-help summary:focus-visible,.module-help[open]>summary{color:var(--accent)}.module-help-icon{display:inline-grid;place-items:center;width:16px;height:16px;border:1px solid currentColor;border-radius:50%;font-weight:600}.module-help-content{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}.module-help-content p{margin:6px 0}
 
 .display-controls{display:grid;gap:16px;max-width:580px;margin-top:12px}
